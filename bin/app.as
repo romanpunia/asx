@@ -1,5 +1,4 @@
 #include "std/console"
-#include "std/timestamp"
 #include "std/schedule"
 #include "std/random"
 #include "std/vectors"
@@ -16,12 +15,12 @@ class image_point
     image_point(uint32 width, uint32 height)
     {
         speed = random::getf();
-        point = vector2::randomAbs();
+        point = vector2::random_abs();
         point.x *= float(width);
         point.y = -point.y * float(height);
-        randomizeChar();
+        randomize_char();
     }
-    void randomizeChar()
+    void randomize_char()
     {
         character = uint8(random::betweeni(32, 72));
     }
@@ -29,7 +28,7 @@ class image_point
 
 class image_fill
 {
-    image_point[]@ points = array<image_point>();
+    image_point[] points;
     uint32 x, y, size;
     string image;
 
@@ -40,14 +39,14 @@ class image_fill
     void resize()
     {
         console@ output = console::get();
-        uint32 newX, newY;
-        output.getSize(newX, newY);
+        uint32 new_x, new_y;
+        output.get_size(new_x, new_y);
 
-        if (newX == x && newY == y)
+        if (new_x == x && new_y == y)
             return;
 
-        x = newX;
-        y = newY;
+        x = new_x;
+        y = new_y;
         size = x * y;
 
         image.resize(size);
@@ -62,9 +61,9 @@ class image_fill
     {
         console@ output = console::get();
         output.clear();
-        output.setCursor(0, 0);
+        output.set_cursor(0, 0);
         output.write(image);
-        output.flushWrite();
+        output.flush_write();
     }
     void loop()
     {
@@ -73,9 +72,9 @@ class image_fill
         {
             uint8 color = image[i];
             if (color < empty)
-                image[i]++;
+                ++image[i];
             else if (color > empty)
-                image[i]--;
+                --image[i];
         }
 
         for (usize i = 0; i < points.size(); i++)
@@ -84,7 +83,7 @@ class image_fill
             points[i].point.y += where.speed;
 
             int32 height = int32(where.point.y);
-            if (height >= y)
+            if (height >= int32(y))
             {
                 points[i] = image_point(x, y);
                 continue;
@@ -92,7 +91,7 @@ class image_fill
             else if (height < 0)
                 continue;
             else if (height != int32(points[i].point.y))
-                points[i].randomizeChar();
+                points[i].randomize_char();
 
             uint32 index = uint32(where.point.x) + uint32(height) * x;
             image[index] = where.character;
@@ -106,13 +105,13 @@ class image_fill
 int main()
 {
     schedule_policy policy;
-    policy.setThreads(4);
+    policy.set_threads(4);
 
     schedule@ queue = schedule::get();
     queue.start(policy);
 
     image_fill main;
-    queue.setInterval(50, task_event(main.loop));
+    queue.set_interval(50, task_event(main.loop));
     
     return 0;
 }
