@@ -13,12 +13,42 @@ static VMCompiler* Compiler = nullptr;
 static const char* ModuleName = "entry-point";
 static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
+int Abort(const char* Signal, bool Normal);
 
+int CatchAll()
+{
+#ifdef TH_UNIX
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
+#endif
+	signal(SIGABRT, [](int) { Abort("abort", false); });
+	signal(SIGFPE, [](int) { Abort("division by zero", false); });
+	signal(SIGILL, [](int) { Abort("illegal instruction", false); });
+	signal(SIGINT, [](int) { Abort("interrupt", true); });
+	signal(SIGSEGV, [](int) { Abort("segmentation fault", false); });
+	signal(SIGTERM, [](int) { Abort("termination", true); });
+	return 0;
+}
 int Abort(const char* Signal, bool Normal)
 {
 	if (Normal)
 	{
-		std::exit(0);
+		static size_t Exits = 0;
+		auto* Queue = Schedule::Get();
+		if (!Queue->IsActive())
+		{
+			if (Exits > 0)
+				ED_DEBUG("[edge] script context is not responding; killed");
+
+			std::exit(0);
+		}
+		else
+		{
+			++Exits;
+			CatchAll();
+			Queue->Stop();
+		}
+
 		return 0;
 	}
 
@@ -30,7 +60,7 @@ int Abort(const char* Signal, bool Normal)
 		StackTrace = OS::GetStackTrace(0, 32);
 
 	OS::SetLogActive(true);
-	ED_ERR("[calculus] runtime error detected (%s); %s", Signal, StackTrace.c_str());
+	ED_ERR("[edge] runtime error detected (%s); %s", Signal, StackTrace.c_str());
 
 	std::exit(-1);
 	return -1;
@@ -52,21 +82,21 @@ int Execute(const std::string& Path, const std::string& Data)
 	if (Compiler->Prepare(ModuleName, true) < 0)
 	{
 		OS::SetLogActive(true);
-		ED_ERR("[calculus] cannot prepare <%s> module scope", ModuleName);
+		ED_ERR("[edge] cannot prepare <%s> module scope", ModuleName);
 		return 1;
 	}
 
 	if (Compiler->LoadCode(Path, Data.c_str(), Data.size()) < 0)
 	{
 		OS::SetLogActive(true);
-		ED_ERR("[calculus] cannot load <%s> module script code", ModuleName);
+		ED_ERR("[edge] cannot load <%s> module script code", ModuleName);
 		return 2;
 	}
 
 	if (Compiler->Compile().Get() < 0)
 	{
 		OS::SetLogActive(true);
-		ED_ERR("[calculus] cannot compile <%s> module", ModuleName);
+		ED_ERR("[edge] cannot compile <%s> module", ModuleName);
 		return 3;
 	}
 
@@ -75,7 +105,7 @@ int Execute(const std::string& Path, const std::string& Data)
 	if (!Main1.IsValid() && !Main2.IsValid())
 	{
 		OS::SetLogActive(true);
-		ED_ERR("[calculus] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
+		ED_ERR("[edge] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
 		return 4;
 	}
 
@@ -88,22 +118,19 @@ int Execute(const std::string& Path, const std::string& Data)
 			Context->SetArgObject(0, Params);
 	}).Wait();
 
+	int ExitCode = (int)Context->GetReturnDWord();
 	VM->ReleaseObject(Params, Type);
-	return (int)Context->GetReturnDWord();
+
+	while (Queue->IsActive() || Context->GetState() == VMRuntime::ACTIVE || Context->IsPending())
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
+		Queue->Dispatch();
+
+	return ExitCode;
 }
 int Dispatch(char** ArgsData, int ArgsCount)
 {
-#ifdef TH_UNIX
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGCHLD, SIG_IGN);
-#endif
-	signal(SIGABRT, [](int) { Abort("abort", false); });
-	signal(SIGFPE, [](int) { Abort("division by zero", false); });
-	signal(SIGILL, [](int) { Abort("illegal instruction", false); });
-	signal(SIGINT, [](int) { Abort("interrupt", true); });
-	signal(SIGSEGV, [](int) { Abort("segmentation fault", false); });
-	signal(SIGTERM, [](int) { Abort("termination", true); });
-
 	auto* Output = Console::Get();
 	Output->Show();
 
@@ -149,10 +176,11 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	if (!Context.IsExists)
 	{
 		OS::SetLogActive(true);
-		ED_ERR("[calculus] provide a path to existing script file");
+		ED_ERR("[edge] provide a path to existing script file");
 		return 0;
 	}
 
+	CatchAll();
 	if (Index > 0)
 		Args.erase(Args.begin(), Args.begin() + Index + 1);
 

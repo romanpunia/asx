@@ -21,7 +21,7 @@ endif()
 #Project's compile options
 add_executable(edge_as ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp)
 set_target_properties(edge_as PROPERTIES
-		OUTPUT_NAME "edge"
+		OUTPUT_NAME "edged"
 		CXX_STANDARD 17
 		VERSION ${PROJECT_VERSION}
 		SOVERSION ${PROJECT_VERSION})
