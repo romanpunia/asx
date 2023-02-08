@@ -2,6 +2,7 @@
 #include "std/schedule"
 #include "std/random"
 #include "std/vectors"
+#include "std/thread"
 
 class image_point
 {

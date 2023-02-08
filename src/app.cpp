@@ -112,7 +112,7 @@ int Execute(const std::string& Path, const std::string& Data)
 	VMTypeInfo Type = VM->Global().GetTypeInfoByDecl("array<string>@");
 	VMContext* Context = Compiler->GetContext();
 	Bindings::Array* Params = Bindings::Array::Compose<std::string>(Type.GetTypeInfo(), Args);
-	Context->TryExecute(Main1.IsValid() ? Main1 : Main2, [&Main1, Params](VMContext* Context)
+	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](VMContext* Context)
 	{
 		if (Main1.IsValid())
 			Context->SetArgObject(0, Params);
