@@ -59,9 +59,7 @@ int Abort(const char* Signal, bool Normal)
 	else
 		StackTrace = OS::GetStackTrace(0, 32);
 
-	OS::SetLogActive(true);
 	ED_ERR("[edge] runtime error detected (%s); %s", Signal, StackTrace.c_str());
-
 	std::exit(-1);
 	return -1;
 }
@@ -73,29 +71,22 @@ int Execute(const std::string& Path, const std::string& Data)
 	VM = new VMManager();
 	VM->SetImports((uint32_t)VMImport::All);
 	VM->SetDocumentRoot(OS::Path::GetDirectory(Path.c_str()));
-	VM->SetCompilerErrorCallback([]()
-	{
-		OS::SetLogActive(true);
-	});
 
 	Compiler = VM->CreateCompiler();
 	if (Compiler->Prepare(ModuleName, true) < 0)
 	{
-		OS::SetLogActive(true);
 		ED_ERR("[edge] cannot prepare <%s> module scope", ModuleName);
 		return 1;
 	}
 
 	if (Compiler->LoadCode(Path, Data.c_str(), Data.size()) < 0)
 	{
-		OS::SetLogActive(true);
 		ED_ERR("[edge] cannot load <%s> module script code", ModuleName);
 		return 2;
 	}
 
 	if (Compiler->Compile().Get() < 0)
 	{
-		OS::SetLogActive(true);
 		ED_ERR("[edge] cannot compile <%s> module", ModuleName);
 		return 3;
 	}
@@ -104,7 +95,6 @@ int Execute(const std::string& Path, const std::string& Data)
 	VMFunction Main2 = Compiler->GetModule().GetFunctionByDecl(Entrypoint2);
 	if (!Main1.IsValid() && !Main2.IsValid())
 	{
-		OS::SetLogActive(true);
 		ED_ERR("[edge] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
 		return 4;
 	}
@@ -175,7 +165,6 @@ int Dispatch(char** ArgsData, int ArgsCount)
 
 	if (!Context.IsExists)
 	{
-		OS::SetLogActive(true);
 		ED_ERR("[edge] provide a path to existing script file");
 		return 0;
 	}
@@ -192,7 +181,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 }
 int main(int argc, char* argv[])
 {
-    Edge::Initialize((size_t)(Edge::Init::Core | Edge::Init::Network | Edge::Init::SSL | Edge::Init::SDL2 | Edge::Init::Compute | Edge::Init::Locale | Edge::Init::Audio | Edge::Init::GLEW));
+    Edge::Initialize((size_t)Edge::Preset::Game);
     int ExitCode = Dispatch(argv, argc);
     Edge::Uninitialize();
 

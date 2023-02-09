@@ -10,9 +10,6 @@ class image_point
     uint8 character;
     float speed;
 
-    image_point()
-    {
-    }
     image_point(uint32 width, uint32 height)
     {
         speed = random::getf();
@@ -29,7 +26,7 @@ class image_point
 
 class image_fill
 {
-    image_point[] points;
+    image_point@[] points;
     uint32 x, y, size;
     string image;
 
@@ -56,7 +53,7 @@ class image_fill
 
         points.resize(x);
         for (usize i = 0; i < points.size(); i++)
-            points[i] = image_point(x, y);
+            @points[i] = image_point(x, y);
     }
     void flush()
     {
@@ -66,7 +63,7 @@ class image_fill
         output.write(image);
         output.flush_write();
     }
-    void loop()
+    void loop_matrix()
     {
         uint8 empty = ' ';
         for (uint32 i = 0; i < size; i++)
@@ -80,23 +77,31 @@ class image_fill
 
         for (usize i = 0; i < points.size(); i++)
         {
-            image_point where = points[i];
-            points[i].point.y += where.speed;
+            image_point@ where = points[i];
+            where.point.y += where.speed;
 
             int32 height = int32(where.point.y);
             if (height >= int32(y))
             {
-                points[i] = image_point(x, y);
+                @points[i] = image_point(x, y);
                 continue;
             }
             else if (height < 0)
                 continue;
-            else if (height != int32(points[i].point.y))
-                points[i].randomize_char();
+            else if (height != int32(where.point.y))
+                where.randomize_char();
 
             uint32 index = uint32(where.point.x) + uint32(height) * x;
             image[index] = where.character;
         }
+
+        flush();
+        resize();
+    }
+    void loop_noise()
+    {
+        for (uint32 i = 0; i < size; i++)
+            image[i] = uint8(random::betweeni(32, 72));
 
         flush();
         resize();
@@ -112,7 +117,7 @@ int main()
     queue.start(policy);
 
     image_fill main;
-    queue.set_interval(50, task_event(main.loop));
+    queue.set_interval(66, task_event(main.loop_matrix));
     
     return 0;
 }
