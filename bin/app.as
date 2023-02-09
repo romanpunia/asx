@@ -27,6 +27,7 @@ class image_point
 class image_fill
 {
     image_point@[] points;
+    float[] seed;
     uint32 x, y, size;
     string image;
 
@@ -50,6 +51,10 @@ class image_fill
         image.resize(size);
         for (uint32 i = 0; i < size; i++)
             image[i] = uint8(random::betweeni(32, 72));
+
+        seed.resize(size);
+        for (uint32 i = 0; i < size; i++)
+            seed[i] = random::getf();
 
         points.resize(x);
         for (usize i = 0; i < points.size(); i++)
@@ -106,9 +111,48 @@ class image_fill
         flush();
         resize();
     }
+    void loop_perlin_1d()
+    {
+        int octaves = 9;
+        for (int i = 0; i < size; i++)
+        {
+            float noise = 0.0, scale = 1.0, accum = 0.0;
+            for (int j = 0; j < octaves; j++)
+            {
+                int pitch = size >> j;
+                int sample1 = (i / pitch) * pitch;
+                int sample2 = (sample1 + pitch) % size;
+                float blend = float(i - sample1) / float(pitch);
+                float sample = (1.0 - blend) * seed[sample1] + blend * seed[sample2];
+                noise += sample * scale;
+                accum += scale;
+                scale /= 2.0;
+            }
+
+            noise /= accum;
+            image[i] = uint8(map_value(noise, 0, 1, 32, 72));
+        }
+        
+        for (int i = 0; i < size; i++)
+        {
+            float value = seed[i];
+            if (value > 1.0)
+                value = random::getf();
+            else
+                value += 0.001;
+            seed[i] = value;
+        }
+
+        flush();
+        resize();
+    }
 }
 
-int main()
+float map_value(float value, float min1, float max1, float min2, float max2)
+{
+    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+int main(string[]@ args)
 {
     schedule_policy policy;
     policy.set_threads(4);
@@ -117,7 +161,12 @@ int main()
     queue.start(policy);
 
     image_fill main;
-    queue.set_interval(66, task_event(main.loop_matrix));
+    if (args.empty() || args[0] == "matrix")
+        queue.set_interval(66, task_event(main.loop_matrix));
+    else if (args[0] == "noise")
+        queue.set_interval(66, task_event(main.loop_noise));
+    else if (args[0] == "perlin_1d")
+        queue.set_interval(66, task_event(main.loop_perlin_1d));
     
     return 0;
 }
