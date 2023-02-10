@@ -1,5 +1,5 @@
 ## About
-Edge.as is an Angel Script environment concept similar to Node.js but in Edge framework. It is a console application. There is also an example program included (app.as) that draws some kind of matrix-like falling symbols.
+Edge.as is an Angel Script environment concept similar to Node.js but in Edge framework. It is a console application. There are also some example programs included (console.as, window.as).
 
 ## Usage
 Usage is simple: **edged [script-file] [arguments]**
