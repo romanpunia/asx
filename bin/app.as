@@ -2,7 +2,7 @@
 #include "std/schedule"
 #include "std/random"
 #include "std/vectors"
-#include "std/thread"
+#include "std/math"
 
 class image_point
 {
@@ -93,11 +93,10 @@ class image_fill
             }
             else if (height < 0)
                 continue;
-            else if (height != int32(where.point.y))
-                where.randomize_char();
-
+                
             uint32 index = uint32(where.point.x) + uint32(height) * x;
             image[index] = where.character;
+            where.randomize_char();
         }
 
         flush();
@@ -114,7 +113,7 @@ class image_fill
     void loop_perlin_1d()
     {
         int octaves = 9;
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < int(size); i++)
         {
             float noise = 0.0, scale = 1.0, accum = 0.0;
             for (int j = 0; j < octaves; j++)
@@ -130,10 +129,10 @@ class image_fill
             }
 
             noise /= accum;
-            image[i] = uint8(map_value(noise, 0, 1, 32, 72));
+            image[i] = uint8(mapf(noise, 0, 1, 32, 72));
         }
         
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < int(size); i++)
         {
             float value = seed[i];
             if (value > 1.0)
@@ -148,10 +147,6 @@ class image_fill
     }
 }
 
-float map_value(float value, float min1, float max1, float min2, float max2)
-{
-    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
-}
 int main(string[]@ args)
 {
     schedule_policy policy;
@@ -159,7 +154,7 @@ int main(string[]@ args)
 
     schedule@ queue = schedule::get();
     queue.start(policy);
-
+    
     image_fill main;
     if (args.empty() || args[0] == "matrix")
         queue.set_interval(66, task_event(main.loop_matrix));
@@ -167,6 +162,8 @@ int main(string[]@ args)
         queue.set_interval(66, task_event(main.loop_noise));
     else if (args[0] == "perlin_1d")
         queue.set_interval(66, task_event(main.loop_perlin_1d));
+    else
+        queue.stop();
     
     return 0;
 }
