@@ -77,12 +77,18 @@ int main(string[]@ args)
             application_active = false;
     });
 
+    
     graphics_device_desc device_desc;
     @device_desc.window = window;
+    device_desc.vsync_mode = vsync::off;
     device_desc.buffer_width = window_desc.width;
     device_desc.buffer_height = window_desc.height;
 
-    @device = graphics_device::create(device_desc);
+    console@ output = console::get();
+    output.write_line("test");
+
+    @device = graphics_device::create(device_desc);  
+    output.write_line("test1");
     window.show();
     window.maximize();
 

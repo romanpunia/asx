@@ -1,6 +1,7 @@
 #include <edge/edge.h>
 #include <edge/core/script.h>
 #include <edge/core/bindings.h>
+#include <edge/core/network.h>
 #include <signal.h>
 
 using namespace Edge::Core;
@@ -117,6 +118,7 @@ int Execute(const std::string& Path, const std::string& Data)
 	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
 		Queue->Dispatch();
 
+	VM->Collect();
 	return ExitCode;
 }
 int Dispatch(char** ArgsData, int ArgsCount)
