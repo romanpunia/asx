@@ -8,7 +8,6 @@ include(${ED_DIRECTORY}/lib/toolchain.cmake)
 #Project's metadata
 project(edge_as)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo")
 
 #Build directory if not defined
 if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -27,33 +26,8 @@ set_target_properties(edge_as PROPERTIES
 		SOVERSION ${PROJECT_VERSION})
 target_compile_definitions(edge_as PRIVATE -DED_EXPORT)
 
-#Resolve needed options for different compilers and refs linkage
-if (NOT MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "-g")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-    if (NOT (WIN32 AND MINGW))
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -fexceptions")
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -fexceptions")
-		if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-			if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
-				set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0")
-			else()
-				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-				set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-			endif()
-		endif()
-	else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32_WINNT=0x0600")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_WIN32_WINNT=0x0600")
-    endif()
-else()
-    set(CMAKE_EXE_LINKER_FLAGS "/SUBSYSTEM:CONSOLE /ENTRY:mainCRTStartup")
-    set(CMAKE_CXX_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /MP")
-    set(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP")
-    set(CMAKE_C_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /MP")
-    set(CMAKE_C_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP")
-endif()
+#Inherit compiler options
+include(${ED_DIRECTORY}/lib/compiler.cmake)
 
 #Add Edge as dependency
 add_subdirectory(${ED_DIRECTORY} edge)
