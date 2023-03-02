@@ -84,11 +84,7 @@ int main(string[]@ args)
     device_desc.buffer_width = window_desc.width;
     device_desc.buffer_height = window_desc.height;
 
-    console@ output = console::get();
-    output.write_line("test");
-
     @device = graphics_device::create(device_desc);  
-    output.write_line("test1");
     window.show();
     window.maximize();
 
