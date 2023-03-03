@@ -1,16 +1,16 @@
 #include <edge/edge.h>
-#include <edge/core/script.h>
+#include <edge/core/scripting.h>
 #include <edge/core/bindings.h>
 #include <edge/core/network.h>
 #include <signal.h>
 
 using namespace Edge::Core;
 using namespace Edge::Compute;
-using namespace Edge::Script;
+using namespace Edge::Scripting;
 
 static std::vector<std::string> Args;
-static VMManager* VM = nullptr;
-static VMCompiler* Compiler = nullptr;
+static VirtualMachine* VM = nullptr;
+static Edge::Scripting::Compiler* Unit = nullptr;
 static const char* ModuleName = "entry-point";
 static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
@@ -54,7 +54,7 @@ int Abort(const char* Signal, bool Normal)
 	}
 
 	std::string StackTrace;
-	VMContext* Context = VMContext::Get();
+	ImmediateContext* Context = ImmediateContext::Get();
 	if (Context != nullptr)
 		StackTrace = Context->Get()->GetStackTrace(0, 64);
 	else
@@ -69,41 +69,41 @@ int Execute(const std::string& Path, const std::string& Data)
 	auto* Queue = Schedule::Get();
 	Queue->SetImmediate(true);
 
-	VM = new VMManager();
-	VM->SetImports((uint32_t)VMImport::All);
+	VM = new VirtualMachine();
+	VM->SetImports((uint32_t)Imports::All);
 	VM->SetDocumentRoot(OS::Path::GetDirectory(Path.c_str()));
 
-	Compiler = VM->CreateCompiler();
-	if (Compiler->Prepare(ModuleName, true) < 0)
+	Unit = VM->CreateCompiler();
+	if (Unit->Prepare(ModuleName, true) < 0)
 	{
 		ED_ERR("[edge] cannot prepare <%s> module scope", ModuleName);
 		return 1;
 	}
 
-	if (Compiler->LoadCode(Path, Data.c_str(), Data.size()) < 0)
+	if (Unit->LoadCode(Path, Data.c_str(), Data.size()) < 0)
 	{
 		ED_ERR("[edge] cannot load <%s> module script code", ModuleName);
 		return 2;
 	}
 
-	if (Compiler->Compile().Get() < 0)
+	if (Unit->Compile().Get() < 0)
 	{
 		ED_ERR("[edge] cannot compile <%s> module", ModuleName);
 		return 3;
 	}
 
-	VMFunction Main1 = Compiler->GetModule().GetFunctionByDecl(Entrypoint1);
-	VMFunction Main2 = Compiler->GetModule().GetFunctionByDecl(Entrypoint2);
+	Function Main1 = Unit->GetModule().GetFunctionByDecl(Entrypoint1);
+	Function Main2 = Unit->GetModule().GetFunctionByDecl(Entrypoint2);
 	if (!Main1.IsValid() && !Main2.IsValid())
 	{
 		ED_ERR("[edge] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
 		return 4;
 	}
 
-	VMTypeInfo Type = VM->Global().GetTypeInfoByDecl("array<string>@");
-	VMContext* Context = Compiler->GetContext();
+	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
+	ImmediateContext* Context = Unit->GetContext();
 	Bindings::Array* Params = Bindings::Array::Compose<std::string>(Type.GetTypeInfo(), Args);
-	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](VMContext* Context)
+	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
 	{
 		if (Main1.IsValid())
 			Context->SetArgObject(0, Params);
@@ -112,7 +112,7 @@ int Execute(const std::string& Path, const std::string& Data)
 	int ExitCode = (int)Context->GetReturnDWord();
 	VM->ReleaseObject(Params, Type);
 
-	while (Queue->IsActive() || Context->GetState() == VMRuntime::ACTIVE || Context->IsPending())
+	while (Queue->IsActive() || Context->GetState() == Activation::ACTIVE || Context->IsPending())
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
@@ -176,7 +176,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 		Args.erase(Args.begin(), Args.begin() + Index + 1);
 
 	int ExitCode = Execute(Context.Path, OS::File::ReadAsString(Context.Path.c_str()));
-	ED_RELEASE(Compiler);
+	ED_RELEASE(Unit);
 	ED_RELEASE(VM);
 
 	return ExitCode;
