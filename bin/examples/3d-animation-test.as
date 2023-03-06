@@ -28,7 +28,7 @@ class runtime
     }
     void initialize()
     {
-        model@ cube = cast<model@>(self.content.load(self.content.get_processor(component_id("model")), "cube.obj"));
+        skin_model@ cube = cast<skin_model@>(self.content.load(self.content.get_processor(component_id("skin_model")), "tube.dae"));
         if (cube is null)
         {
             self.stop();
@@ -42,12 +42,14 @@ class runtime
         camera.add_component(fly_component(camera));
 
         render_system@ system = self.scene.get_renderer();
-        system.add_renderer(model_renderer(system));
+        system.add_renderer(skin_renderer(system));
 
+        texture_2d@ diffuse = cast<texture_2d@>(self.content.load(self.content.get_processor(component_id("texture_2d")), "https://freedesignfile.com/upload/2012/09/Sport-elements-text-mix-vector.jpg"));
         for (usize i = 0; i < grid_materials; i++)
         {
             material@ next = self.scene.add_material();
             next.surface.diffuse = vector3::random_abs();
+            next.set_diffuse_map(diffuse);
         }
 
         for (float x = -grid_size.x; x < grid_size.x; x++)
@@ -59,9 +61,13 @@ class runtime
                     scene_entity@ next = self.scene.add_entity();
                     next.get_transform().set_position(vector3(x, y, z) * grid_radius);
                     
-                    model_component@ drawable = cast<model_component@>(next.add_component(model_component(next)));
+                    skin_component@ drawable = cast<skin_component@>(next.add_component(skin_component(next)));
                     drawable.set_drawable(cube);
                     drawable.set_material(self.scene.get_material(random::betweeni(0, grid_materials)));
+
+                    skin_animator_component@ animation = cast<skin_animator_component@>(next.add_component(skin_animator_component(next)));
+                    animation.state.looped = true;
+                    animation.load_animation("tube.dae");
                 }
             }
         }
@@ -71,13 +77,19 @@ class runtime
         if (self.window.is_key_down_hit(key_code::CURSORLEFT))
         {
             camera_component@ camera = cast<camera_component@>(self.scene.get_camera());
-            array<base_component@>@ components = self.scene.query_by_ray(component_id("model_component"), camera.get_cursor_ray());
+            array<base_component@>@ components = self.scene.query_by_ray(component_id("skin_component"), camera.get_cursor_ray());
             if (!components.empty())
             {
-                components[0].get_entity().get_transform().set_rotation(vector3::random());
+                skin_component@ drawable = cast<skin_component@>(components[0]);
+                scene_entity@ entity = drawable.get_entity();
+                skin_animator_component@ animation = cast<skin_animator_component@>(entity.get_component(component_id("skin_animator_component")));
+                if (!animation.state.is_playing())
+                    animation.play();
+                else
+                    animation.stop();
             }
         }
-
+        
         self.scene.dispatch(time);
     }
     void publish(clock_timer@ time)
@@ -108,6 +120,7 @@ int main(string[]@ args)
 {
     application_desc init;
     init.graphics.vsync_mode = vsync::off;
+    init.graphics.backend = render_backend::d3d11;
     init.window.maximized = true;
     init.environment = "content";
 
@@ -115,7 +128,7 @@ int main(string[]@ args)
     output.show();
     
     output.write_line("type in grid size (default 5):");
-    string ssize = output.read(16); float size = 5.0f;
+    string ssize = output.read(16); float size = 2.0f;
     if (!ssize.empty())
     {
         float value = to_float(ssize);
