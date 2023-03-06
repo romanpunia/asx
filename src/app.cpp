@@ -6,6 +6,7 @@
 
 using namespace Edge::Core;
 using namespace Edge::Compute;
+using namespace Edge::Engine;
 using namespace Edge::Scripting;
 
 static std::vector<std::string> Args;
@@ -14,7 +15,7 @@ static Edge::Scripting::Compiler* Unit = nullptr;
 static const char* ModuleName = "entry-point";
 static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
-int Abort(const char* Signal, bool Normal);
+int Abort(const char* Signal, bool Normal, bool Trace);
 
 int CatchAll()
 {
@@ -22,45 +23,61 @@ int CatchAll()
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGCHLD, SIG_IGN);
 #endif
-	signal(SIGABRT, [](int) { Abort("abort", false); });
-	signal(SIGFPE, [](int) { Abort("division by zero", false); });
-	signal(SIGILL, [](int) { Abort("illegal instruction", false); });
-	signal(SIGINT, [](int) { Abort("interrupt", true); });
-	signal(SIGSEGV, [](int) { Abort("segmentation fault", false); });
-	signal(SIGTERM, [](int) { Abort("termination", true); });
+	signal(SIGABRT, [](int) { Abort("abort", false, true); });
+	signal(SIGFPE, [](int) { Abort("division by zero", false, true); });
+	signal(SIGILL, [](int) { Abort("illegal instruction", false, true); });
+	signal(SIGINT, [](int) { Abort("interrupt", true, true); });
+	signal(SIGSEGV, [](int) { Abort("segmentation fault", false, true); });
+	signal(SIGTERM, [](int) { Abort("termination", true, true); });
 	return 0;
 }
-int Abort(const char* Signal, bool Normal)
+int Abort(const char* Signal, bool Normal, bool Trace)
 {
 	if (Normal)
 	{
 		static size_t Exits = 0;
-		auto* Queue = Schedule::Get();
-		if (!Queue->IsActive())
+		auto* App = Application::Get();
+		if (!App || App->GetState() != ApplicationState::Active)
 		{
-			if (Exits > 0)
-				ED_DEBUG("[edge] script context is not responding; killed");
+			auto* Queue = Schedule::Get();
+			if (!Queue->IsActive())
+			{
+				if (Exits > 0)
+					ED_DEBUG("[edge] script context is not responding; killed");
 
-			std::exit(0);
+				std::exit(0);
+			}
+			else
+			{
+				++Exits;
+				CatchAll();
+				Queue->Stop();
+			}
 		}
 		else
 		{
 			++Exits;
 			CatchAll();
-			Queue->Stop();
+			App->Stop();
 		}
 
 		return 0;
 	}
 
-	std::string StackTrace;
-	ImmediateContext* Context = ImmediateContext::Get();
-	if (Context != nullptr)
-		StackTrace = Context->Get()->GetStackTrace(0, 64);
-	else
-		StackTrace = OS::GetStackTrace(0, 32);
+	if (Trace)
+	{
+		std::string StackTrace;
+		ImmediateContext* Context = ImmediateContext::Get();
+		if (Context != nullptr)
+			StackTrace = Context->Get()->GetStackTrace(0, 64);
+		else
+			StackTrace = OS::GetStackTrace(0, 32);
 
-	ED_ERR("[edge] runtime error detected (%s); %s", Signal, StackTrace.c_str());
+		ED_ERR("[edge] runtime error detected: %s; %s", Signal, StackTrace.c_str());
+	}
+	else
+		ED_ERR("[edge] runtime error detected: %s", Signal);
+
 	std::exit(-1);
 	return -1;
 }
@@ -100,8 +117,14 @@ int Execute(const std::string& Path, const std::string& Data)
 		return 4;
 	}
 
-	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 	ImmediateContext* Context = Unit->GetContext();
+	Context->SetExceptionCallback([](ImmediateContext* Context)
+	{
+		if (!Context->WillExceptionBeCaught())
+			Abort(Context->GetExceptionString(), false, false);
+	});
+
+	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 	Bindings::Array* Params = Bindings::Array::Compose<std::string>(Type.GetTypeInfo(), Args);
 	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
 	{
