@@ -27,6 +27,7 @@ class runtime
         }
 
         scene_graph_desc desc = scene_graph_desc::get(self);
+        desc.simulator.gravity.y = -3.63f;
         desc.lines_size = 2048;
 
         @self.scene = scene_graph(desc);
@@ -69,6 +70,8 @@ class runtime
             line.shadow.softness = 1.0f;
             line.shadow.iterations = 64;
             line.shadow.bias = 0.00005f;
+            line.sky.rlh_height = 1000.0f;
+            line.sky.mie_height = 1000.0f;
             line.sky.intensity = 12.0f;
             line.emission = 4.0f;
         }
@@ -115,7 +118,7 @@ class runtime
                         drawable.set_material(top_material);
 
                         rigid_body_component@ body = cast<rigid_body_component@>(top.add_component(rigid_body_component(top)));
-                        body.load(physics.create_cube(), 100.0f);
+                        body.load(physics.create_cube(), 10.0f);
                                     
                         physics_rigidbody@ main = body.get_body();
                         main.set_spinning_friction(0.9);

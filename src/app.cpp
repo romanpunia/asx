@@ -207,7 +207,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 int main(int argc, char* argv[])
 {
     Edge::Initialize((size_t)Edge::Preset::Game);
-    int ExitCode = Dispatch(argv, argc);
+	int ExitCode = Dispatch(argv, argc);
     Edge::Uninitialize();
 
     return ExitCode;
