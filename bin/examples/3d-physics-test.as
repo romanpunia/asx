@@ -1,7 +1,7 @@
-#include "std/engine"
-#include "std/components"
-#include "std/renderers"
-#include "std/math"
+#include <std/engine.as>
+#include <std/components.as>
+#include <std/renderers.as>
+#include <std/math.as>
 
 class runtime
 {
@@ -132,7 +132,7 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
-        if (self.window.is_key_down_hit(key_code::CURSORLEFT))
+        if (self.window.is_key_down_hit(key_code::cursor_left))
         {
             auto@ entities = self.scene.query_by_name("top[0]");
             if (!entities.empty())
@@ -153,7 +153,7 @@ class runtime
                 }
             }
         }
-        else if (self.window.is_key_down_hit(key_code::CURSORMIDDLE))
+        else if (self.window.is_key_down_hit(key_code::cursor_middle))
         {
             auto@ entities = self.scene.query_by_name("light");
             if (!entities.empty())

@@ -1,4 +1,4 @@
-#include "std/console"
+#include <std/console.as>
 #pragma cimport("kernel32.dll", "GetCurrentProcessId", "uint32 win32_get_pid()")
 #pragma cimport("kernel32.dll", "Sleep", "void win32_sleep(uint32)")
 #pragma cimport("kernel32.dll", "Beep", "uint32 win32_beep(uint32, uint32)")
@@ -12,13 +12,14 @@ void beep_sleep(uint32 frequency, uint32 duration, uint32 wait)
         win32_beep(frequency, duration);
 #endif
 #ifdef SOF_Sleep
-    if (wait > 0)
-        win32_sleep(wait);
+    if (wait > 70)
+        win32_sleep(wait - 70);
 #endif
     output.write_line("beep: (" + to_string(frequency) + "hz, " + to_string(duration) + "ms, " + to_string(wait) + "ms)");
 }
 int main(string[]@ args)
 {
+    output.read(10);
 #ifdef SOF_GetCurrentProcessId
     output.write_line("process: " + to_string(win32_get_pid()));
 #endif

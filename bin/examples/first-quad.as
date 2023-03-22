@@ -1,63 +1,45 @@
-#include "std/timestamp"
-#include "std/activity"
-#include "std/graphics"
-#include "std/math"
-#include "std/console"
+#include <std/timestamp.as>
+#include <std/activity.as>
+#include <std/graphics.as>
+#include <std/math.as>
+#include <std/console.as>
 
 activity@ window = null;
 graphics_device@ device = null;
 bool application_active = true;
 
+void render_vertex(const vector2&in pos, const vector2&in tx, const vector3&in color)
+{
+    device.im_emit();
+    device.im_position(pos.x, pos.y, 0);
+    device.im_texcoord(tx.x, tx.y);
+    device.im_color(color.x, color.y, color.z, 1);
+}
 void render_pass(uint64 start_time)
 {
     render_target_2d@ target = device.get_render_target();
     float w = target.get_width(), h = target.get_height();
-    float m = (device.is_left_handed() ? 1.0f : -1.0f);
-    float t = float(timestamp().milliseconds() - start_time) * 0.001f;
+    float t = float(timestamp().milliseconds() - start_time);
     float x = sin(t), y = cos(t), z = sin(t / 2.0f);
 
     device.set_target();
     device.clear(0.0f, 0.0f, 0.0f);
     device.clear_depth();
+    device.im_begin();
     {
-        device.im_begin();
         device.im_transform(
-            matrix4x4::create_translation(vector3(x, y, 3.0)) *
-            matrix4x4::create_scale(0.5) *
-            matrix4x4::create_rotation_z(z) *
-            matrix4x4::create_perspective(60.0, w / h, 0.1, 100.0));
+            matrix4x4::create_rotation_z(angle_saturate(deg2rad() * t * 0.05f)) *
+            matrix4x4::create_translated_scale(vector3(w / 2.0f, h / 2.0f), vector3(h / 8.0f, h / 8.0f)) *
+            matrix4x4::create_orthographic_off_center(0, w, h, 0.0f, -100.0f, 100.0f));
 
-        device.im_emit();
-        device.im_position(-0.5, -0.5f * m, 0);
-        device.im_texcoord(0.0, 0.0);
-        device.im_color(0, 1, 1, 1);
-
-        device.im_emit();
-        device.im_position(-0.5, 0.5f * m, 0);
-        device.im_texcoord(0.0, 1.0);
-        device.im_color(1, 0, 1, 1);
-
-        device.im_emit();
-        device.im_position(0.5, 0.5f * m, 0);
-        device.im_texcoord(1.0, 1.0);
-        device.im_color(1, 1, 0, 1);
-
-        device.im_emit();
-        device.im_position(0.5, -0.5f * m, 0);
-        device.im_texcoord(1.0, 0.0);
-        device.im_color(1, 1, 0, 1);
-
-        device.im_emit();
-        device.im_position(-0.5, -0.5f * m, 0);
-        device.im_texcoord(0.0, 0.0);
-        device.im_color(0, 1, 1, 1);
-
-        device.im_emit();
-        device.im_position(0.5, 0.5f * m, 0);
-        device.im_texcoord(1.0, 1.0);
-        device.im_color(1, 1, 0, 1);
-        device.im_end();
+        render_vertex(vector2(-0.5f, 0.5f),  vector2(0.0f, 0.0f),  vector3(0.0f, 1.0f, 1.0f));
+        render_vertex(vector2(-0.5f, -0.5f), vector2(0.0f, -1.0f), vector3(1.0f, 0.0f, 1.0f));
+        render_vertex(vector2(0.5f, -0.5f),  vector2(1.0f, -1.0f), vector3(1.0f, 1.0f, 0.0f));
+        render_vertex(vector2(0.5f, 0.5f),   vector2(1.0f, 0.0f),  vector3(1.0f, 0.0f, 1.0f));
+        render_vertex(vector2(-0.5f, 0.5f),  vector2(0.0f, 0.0f),  vector3(0.0f, 1.0f, 1.0f));
+        render_vertex(vector2(0.5f, -0.5f),  vector2(1.0f, -1.0f), vector3(1.0f, 1.0f, 0.0f));
     }
+    device.im_end();
     device.submit();
 }
 int main(string[]@ args)
@@ -65,8 +47,8 @@ int main(string[]@ args)
     activity_desc window_desc;
     window_desc.width = 800;
     window_desc.height = 600;
-    window_desc.allow_graphics = true;
-    window_desc.allow_stalls = false;
+    window_desc.gpu_as_renderer = true;
+    window_desc.render_even_if_inactive = true;
 
     @window = activity(window_desc);
     window.set_window_state_change(function(window_state state, int x, int y)

@@ -1,9 +1,9 @@
-#include "std/engine"
-#include "std/components"
-#include "std/renderers"
-#include "std/random"
-#include "std/thread"
-#include "std/console"
+#include <std/engine.as>
+#include <std/components.as>
+#include <std/renderers.as>
+#include <std/random.as>
+#include <std/thread.as>
+#include <std/console.as>
 
 class runtime
 {
@@ -68,14 +68,12 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
-        if (self.window.is_key_down_hit(key_code::CURSORLEFT))
+        if (self.window.is_key_down_hit(key_code::cursor_left))
         {
             camera_component@ camera = cast<camera_component@>(self.scene.get_camera());
-            array<base_component@>@ components = self.scene.query_by_ray(component_id("model_component"), camera.get_cursor_ray());
+            base_component@[]@ components = self.scene.query_by_ray(component_id("model_component"), camera.get_cursor_ray());
             if (!components.empty())
-            {
                 components[0].get_entity().get_transform().set_rotation(vector3::random());
-            }
         }
 
         self.scene.dispatch(time);
@@ -114,23 +112,15 @@ int main(string[]@ args)
     console@ output = console::get();
     output.show();
     
-    output.write_line("type in grid size (default 5):");
-    string ssize = output.read(16); float size = 5.0f;
-    if (!ssize.empty())
-    {
-        float value = to_float(ssize);
-        if (value > 0.0f)
-            size = value;
-    }
+    output.write("type in grid size (default 5): ");
+    float size = to_float(output.read(16));
+    if (size <= 0.0f)
+        size = 5.0f;
 
-    output.write_line("type in grid radius (default 15):");
-    string sradius = output.read(16); float radius = 15.0f;
-    if (!sradius.empty())
-    {
-        float value = to_float(sradius);
-        if (value > 0.0f)
-            radius = value;
-    }
+    output.write("type in grid radius (default 15): ");
+    float radius = to_float(output.read(16));
+    if (radius <= 0.0f)
+        radius = 15.0f;
 
     float entities = size * size * size * 8;
     if (entities > 64000.0f)

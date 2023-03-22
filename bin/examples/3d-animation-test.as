@@ -1,10 +1,10 @@
-#include "std/engine"
-#include "std/components"
-#include "std/renderers"
-#include "std/random"
-#include "std/thread"
-#include "std/console"
-#include "std/math"
+#include <std/engine.as>
+#include <std/components.as>
+#include <std/renderers.as>
+#include <std/random.as>
+#include <std/thread.as>
+#include <std/console.as>
+#include <std/math.as>
 
 class runtime
 {
@@ -64,9 +64,9 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
-        bool go_to_left = self.window.is_key_down_hit(key_code::Q);
-        bool go_to_right = self.window.is_key_down_hit(key_code::E);
-        if (self.window.is_key_down_hit(key_code::SPACE))
+        bool go_to_left = self.window.is_key_down_hit(key_code::q);
+        bool go_to_right = self.window.is_key_down_hit(key_code::e);
+        if (self.window.is_key_down_hit(key_code::space))
         {
             skin_animator_component@ animation = cast<skin_animator_component@>(self.scene.get_component(component_id("skin_animator_component"), 0));
             if (animation !is null)

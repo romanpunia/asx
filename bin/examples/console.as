@@ -1,8 +1,8 @@
-#include "std/console"
-#include "std/schedule"
-#include "std/random"
-#include "std/vectors"
-#include "std/math"
+#include <std/console.as>
+#include <std/schedule.as>
+#include <std/random.as>
+#include <std/vectors.as>
+#include <std/math.as>
 
 class image_point
 {
