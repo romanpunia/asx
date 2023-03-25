@@ -2,28 +2,40 @@
 #pragma cimport("kernel32.dll", "GetCurrentProcessId", "uint32 win32_get_pid()")
 #pragma cimport("kernel32.dll", "Sleep", "void win32_sleep(uint32)")
 #pragma cimport("kernel32.dll", "Beep", "uint32 win32_beep(uint32, uint32)")
+#ifdef SOF_Beep
+#define Beep(hz, ms) win32_beep(hz, ms)
+#define OutputIfBeepCompileTime(x) output.write_line(x)
+#else
+#define Beep(_, _) {}
+#define OutputIfBeepCompileTime(_) {}
+#endif
+#ifdef SOF_Sleep
+#define Sleep(ms) win32_sleep(ms)
+#else
+#define Sleep(_) {}
+#endif
+#ifdef SOF_GetCurrentProcessId
+#define GetCurrentProcessId() win32_get_pid()
+#else
+#define GetCurrentProcessId() 0
+#endif
 
 console@ output = console::get();
 
 void beep_sleep(uint32 frequency, uint32 duration, uint32 wait)
 {
-#ifdef SOF_Beep
     if (duration > 0)
-        win32_beep(frequency, duration);
-#endif
-#ifdef SOF_Sleep
+        Beep(frequency, duration);
+
     if (wait > 70)
-        win32_sleep(wait - 70);
-#endif
+        Sleep(wait - 70);
+    
     output.write_line("beep: (" + to_string(frequency) + "hz, " + to_string(duration) + "ms, " + to_string(wait) + "ms)");
 }
 int main(string[]@ args)
 {
-    output.read(10);
-#ifdef SOF_GetCurrentProcessId
-    output.write_line("process: " + to_string(win32_get_pid()));
-#endif
-    output.write_line("playing: mario");
+    output.write_line("process: " + to_string(GetCurrentProcessId()));
+    OutputIfBeepCompileTime("playing: mario");
     beep_sleep(330, 150, 100);
     beep_sleep(330, 150, 300);
     beep_sleep(330, 150, 300);
