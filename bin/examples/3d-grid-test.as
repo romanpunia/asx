@@ -35,7 +35,11 @@ class runtime
             return;
         }
 
+        usize total_entities = usize(grid_size.x * grid_size.y * grid_size.z) * 8;
         @self.scene = scene_graph(scene_graph_desc::get(self));
+        self.scene.reserve_materials(grid_materials);
+        self.scene.reserve_entities(total_entities);
+        self.scene.reserve_components(component_id("model_component"), total_entities);
 
         scene_entity@ camera = self.scene.get_camera_entity();
         camera.add_component(free_look_component(camera));

@@ -170,7 +170,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	}
 	else if (Params.Has("version", "v"))
 	{
-		std::string Message = Edge::Library::Details();
+		std::string Message = Edge::Library::GetDetails();
 		std::cout << Message << std::endl;
 		return 0;
 	}

@@ -1,0 +1,19 @@
+{
+    "name": "edge-as",
+    "description": "AngelScript sandbox with Edge framework",
+    "version": "1.0.0",
+    "dependencies": [
+        "zlib",
+        "assimp",
+        "freetype",
+        "sdl2",
+        "spirv-cross",
+        "glslang",
+        "openal-soft",
+        "glew",
+        "openssl",
+        "mongo-c-driver",
+        "libpq"
+    ]
+}
+  
