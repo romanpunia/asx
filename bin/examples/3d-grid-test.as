@@ -10,6 +10,7 @@ class runtime
     vector3 grid_size = 5.0f;
     float grid_radius = 15.0f;
     usize grid_materials = 32; 
+    float timing = 0.0;
     application@ self;
 
     runtime(application_desc&in init, const vector3&in size, float radius)
@@ -43,8 +44,13 @@ class runtime
 
         scene_entity@ camera = self.scene.get_camera_entity();
         camera.add_component(free_look_component(camera));
-        camera.add_component(fly_component(camera));
-
+        auto@ fly = fly_component(camera);
+        fly.moving.faster = 4000.0f;
+        camera.add_component(fly);
+        
+        auto@ viewer = cast<camera_component@>(camera.get_component(component_id("camera_component")));
+        viewer.far_plane = 800;
+        
         render_system@ system = self.scene.get_renderer();
         system.add_renderer(model_renderer(system));
 
@@ -72,9 +78,32 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
+        const float elapsed = time.get_elapsed_mills();
+        if (elapsed - timing > 500)
+        {
+            const usize batching = self.scene.statistics.batching;
+            const usize sorting = self.scene.statistics.sorting;
+            const usize draw_calls = self.scene.statistics.draw_calls;
+            const usize instances = self.scene.statistics.instances;
+            const usize entities = self.scene.get_entities_count() - 1;
+            const string title =
+                "draw_calls = " + to_string(draw_calls) + ", " +
+                "instances = " + to_string(instances) + " (" + to_string(100 * instances / double(entities)) + "%), " +
+                "fps = " + to_string(uint64(time.get_frames())) + ", " +
+                "sorting = " + to_string(sorting) + ", " +
+                "batching = " + to_string(batching);
+            self.window.set_title(title);
+            timing = elapsed;
+        }
+
+        camera_component@ camera = cast<camera_component@>(self.scene.get_camera());
+        if (self.window.is_key_down_hit(key_code::q))
+            camera.far_plane -= 100;
+        else if (self.window.is_key_down_hit(key_code::e))
+            camera.far_plane += 100;
+
         if (self.window.is_key_down_hit(key_code::cursor_left))
         {
-            camera_component@ camera = cast<camera_component@>(self.scene.get_camera());
             base_component@[]@ components = self.scene.query_by_ray(component_id("model_component"), camera.get_cursor_ray());
             if (!components.empty())
                 components[0].get_entity().get_transform().set_rotation(vector3::random());

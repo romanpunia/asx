@@ -98,8 +98,8 @@ class runtime
         }
         floor.set_name("floor");
 
-        vector3 grid_size = 2.0f;
-        float grid_radius = 2.0f;
+        vector3 grid_size = 8.0f;
+        float grid_radius = 3.0f;
         usize grid_index = 0;
         
         for (float x = -grid_size.x; x < grid_size.x; x++)
@@ -162,6 +162,12 @@ class runtime
                 transform@ where = camera.get_transform();
                 entities[0].get_transform().set_position(where.get_position());
             }
+        }
+
+        if (self.window.is_key_down_hit(key_code::t))
+        {
+            physics_simulator@ physics = self.scene.get_simulator();
+            physics.create_linear_impulse(vector3::random() * 30.0, true);
         }
 
         self.scene.dispatch(time);
