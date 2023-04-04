@@ -4,6 +4,7 @@
 #include <std/random.as>
 #include <std/thread.as>
 #include <std/console.as>
+#include <std/math.as>
 
 class runtime
 {
@@ -49,15 +50,34 @@ class runtime
         camera.add_component(free_look_component(camera));
         
         auto@ viewer = cast<camera_component@>(camera.get_component(component_id("camera_component")));
-        viewer.far_plane = 800;
+        viewer.far_plane = 600;
         
         render_system@ system = self.scene.get_renderer();
         system.add_renderer(model_renderer(system));
+        system.add_renderer(lighting_renderer(system));
+
+        scene_entity@ light = self.scene.add_entity();
+        {
+            transform@ where = light.get_transform();
+            where.set_position(vector3(-10.0f, 10.0f, -10.0f));
+
+            line_light_component@ line = cast<line_light_component@>(light.add_component(line_light_component(light)));
+            line.shadow.distance0 = 20;
+            line.shadow.cascades = 1;
+            line.shadow.enabled = true;
+            line.shadow.softness = 10.0f;
+            line.shadow.iterations = 64;
+            line.shadow.bias = 0.00001f;
+            line.sky.intensity = 16.0f;
+            line.emission = 4.0f;
+        }
+        light.set_name("light");
 
         for (usize i = 0; i < grid_materials; i++)
         {
             material@ next = self.scene.add_material();
             next.surface.diffuse = vector3::random_abs();
+            next.surface.roughness.x = 0.3;
         }
 
         for (float x = -grid_size.x; x < grid_size.x; x++)
@@ -78,24 +98,6 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
-        const float elapsed = time.get_elapsed_mills();
-        if (elapsed - timing > 500)
-        {
-            const usize batching = self.scene.statistics.batching;
-            const usize sorting = self.scene.statistics.sorting;
-            const usize draw_calls = self.scene.statistics.draw_calls;
-            const usize instances = self.scene.statistics.instances;
-            const usize entities = self.scene.get_entities_count() - 1;
-            const string title =
-                "draw_calls = " + to_string(draw_calls) + ", " +
-                "instances = " + to_string(instances) + " (" + to_string(100 * instances / double(entities)) + "%), " +
-                "fps = " + to_string(uint64(time.get_frames())) + ", " +
-                "sorting = " + to_string(sorting) + ", " +
-                "batching = " + to_string(batching);
-            self.window.set_title(title);
-            timing = elapsed;
-        }
-
         camera_component@ camera = cast<camera_component@>(self.scene.get_camera());
         if (self.window.is_key_down_hit(key_code::q))
             camera.far_plane -= 100;
@@ -107,6 +109,34 @@ class runtime
             base_component@[]@ components = self.scene.query_by_ray(component_id("model_component"), camera.get_cursor_ray());
             if (!components.empty())
                 components[0].get_entity().get_transform().set_rotation(vector3::random());
+        }
+        
+        auto@ light = cast<line_light_component@>(self.scene.get_component(component_id("line_light_component"), 0));
+        if (self.window.is_key_down_hit(key_code::g))
+            light.shadow.enabled = !light.shadow.enabled;
+
+        float delta = time.get_elapsed() * 0.1;
+        float x = sin(delta), y = cos(delta);
+        light.get_entity().get_transform().set_position(vector3(-10.0f * x, 10.0f, -10.0f * y));
+
+        const float elapsed = time.get_elapsed_mills();
+        if (elapsed - timing > 500)
+        {
+            const usize batching = self.scene.statistics.batching;
+            const usize sorting = self.scene.statistics.sorting;
+            const usize draw_calls = self.scene.statistics.draw_calls;
+            const usize instances = self.scene.statistics.instances;
+            const usize entities = self.scene.get_entities_count() - 2;
+            const string shadows = light.shadow.enabled ? "on" : "off";
+            const string title =
+                "draw_calls = " + to_string(draw_calls) + ", " +
+                "instances = " + to_string(instances) + " (" + to_string(100 * instances / double(entities)) + "%), " +
+                "fps = " + to_string(uint64(time.get_frames())) + ", " +
+                "sorting = " + to_string(sorting) + ", " +
+                "batching = " + to_string(batching) + ", " +
+                "shadows = " + shadows;
+            self.window.set_title(title);
+            timing = elapsed;
         }
 
         self.scene.dispatch(time);
@@ -150,10 +180,10 @@ int main(string[]@ args)
     if (size <= 0.0f)
         size = 5.0f;
 
-    output.write("type in grid radius (default 15): ");
+    output.write("type in grid radius (default 3): ");
     float radius = to_float(output.read(16));
     if (radius <= 0.0f)
-        radius = 15.0f;
+        radius = 3.0f;
 
     float entities = size * size * size * 8;
     if (entities > 64000.0f)
