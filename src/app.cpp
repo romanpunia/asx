@@ -9,7 +9,6 @@ using namespace Edge::Compute;
 using namespace Edge::Engine;
 using namespace Edge::Scripting;
 
-static std::vector<std::string> Args;
 static VirtualMachine* VM = nullptr;
 static Edge::Scripting::Compiler* Unit = nullptr;
 static const char* ModuleName = "entry-point";
@@ -66,7 +65,7 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 
 	if (Trace)
 	{
-		std::string StackTrace;
+		String StackTrace;
 		ImmediateContext* Context = ImmediateContext::Get();
 		if (Context != nullptr)
 			StackTrace = Context->Get()->GetStackTrace(0, 64);
@@ -81,7 +80,7 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 	std::exit(-1);
 	return -1;
 }
-int Execute(const std::string& Path, const std::string& Data)
+int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 {
 	auto* Queue = Schedule::Get();
 	Queue->SetImmediate(true);
@@ -125,7 +124,7 @@ int Execute(const std::string& Path, const std::string& Data)
 	});
 
 	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
-	Bindings::Array* Params = Bindings::Array::Compose<std::string>(Type.GetTypeInfo(), Args);
+	Bindings::Array* Params = Bindings::Array::Compose<String>(Type.GetTypeInfo(), Args);
 	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
 	{
 		if (Main1.IsValid())
@@ -149,6 +148,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	auto* Output = Console::Get();
 	Output->Show();
 
+	Vector<String> Args;
 	Args.reserve((size_t)ArgsCount);
 	for (int i = 0; i < ArgsCount; i++)
 		Args.push_back(ArgsData[i]);
@@ -170,12 +170,12 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	}
 	else if (Params.Has("version", "v"))
 	{
-		std::string Message = Edge::Library::GetDetails();
+		String Message = Edge::Library::GetDetails();
 		std::cout << Message << std::endl;
 		return 0;
 	}
 	
-	std::string Directory = OS::Directory::Get();
+	String Directory = OS::Directory::Get();
 	FileEntry Context; size_t Index = 0;
 
 	for (size_t i = 1; i < Args.size(); i++)
@@ -198,7 +198,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	if (Index > 0)
 		Args.erase(Args.begin(), Args.begin() + Index + 1);
 
-	int ExitCode = Execute(Context.Path, OS::File::ReadAsString(Context.Path.c_str()));
+	int ExitCode = Execute(Context.Path, OS::File::ReadAsString(Context.Path.c_str()), Args);
 	ED_RELEASE(Unit);
 	ED_RELEASE(VM);
 
@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
 {
     Edge::Initialize((size_t)Edge::Preset::Game);
 	int ExitCode = Dispatch(argv, argc);
-    Edge::Uninitialize();
+	Edge::Uninitialize();
 
-    return ExitCode;
+	return ExitCode;
 }
