@@ -98,7 +98,7 @@ class runtime
         }
         floor.set_name("floor");
 
-        vector3 grid_size = 8.0f;
+        vector3 grid_size = 2.0f;
         float grid_radius = 3.0f;
         usize grid_index = 0;
         

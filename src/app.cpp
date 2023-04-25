@@ -180,7 +180,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 
 	for (size_t i = 1; i < Args.size(); i++)
 	{
-		auto& Path = OS::Path::Resolve(Args[i], Directory);
+		auto Path = OS::Path::Resolve(Args[i], Directory);
 		if (OS::File::State(Path, &Context))
 		{
 			Index = i;
