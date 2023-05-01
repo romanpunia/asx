@@ -1,16 +1,16 @@
-#include <edge/edge.h>
-#include <edge/core/scripting.h>
-#include <edge/core/bindings.h>
-#include <edge/core/network.h>
+#include <mavi/mavi.h>
+#include <mavi/core/scripting.h>
+#include <mavi/core/bindings.h>
+#include <mavi/core/network.h>
 #include <signal.h>
 
-using namespace Edge::Core;
-using namespace Edge::Compute;
-using namespace Edge::Engine;
-using namespace Edge::Scripting;
+using namespace Mavi::Core;
+using namespace Mavi::Compute;
+using namespace Mavi::Engine;
+using namespace Mavi::Scripting;
 
 static VirtualMachine* VM = nullptr;
-static Edge::Scripting::Compiler* Unit = nullptr;
+static Mavi::Scripting::Compiler* Unit = nullptr;
 static const char* ModuleName = "entry-point";
 static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
@@ -18,7 +18,7 @@ int Abort(const char* Signal, bool Normal, bool Trace);
 
 int CatchAll()
 {
-#ifdef TH_UNIX
+#ifdef VI_UNIX
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGCHLD, SIG_IGN);
 #endif
@@ -42,7 +42,7 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 			if (!Queue->IsActive())
 			{
 				if (Exits > 0)
-					ED_DEBUG("[edge] script context is not responding; killed");
+					VI_DEBUG("[mavi] script context is not responding; killed");
 
 				std::exit(0);
 			}
@@ -72,10 +72,10 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 		else
 			StackTrace = OS::GetStackTrace(0, 32);
 
-		ED_ERR("[edge] runtime error detected: %s; %s", Signal, StackTrace.c_str());
+		VI_ERR("[mavi] runtime error detected: %s; %s", Signal, StackTrace.c_str());
 	}
 	else
-		ED_ERR("[edge] runtime error detected: %s", Signal);
+		VI_ERR("[mavi] runtime error detected: %s", Signal);
 
 	std::exit(-1);
 	return -1;
@@ -92,19 +92,19 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 	Unit = VM->CreateCompiler();
 	if (Unit->Prepare(ModuleName, true) < 0)
 	{
-		ED_ERR("[edge] cannot prepare <%s> module scope", ModuleName);
+		VI_ERR("[mavi] cannot prepare <%s> module scope", ModuleName);
 		return 1;
 	}
 
 	if (Unit->LoadCode(Path, Data.c_str(), Data.size()) < 0)
 	{
-		ED_ERR("[edge] cannot load <%s> module script code", ModuleName);
+		VI_ERR("[mavi] cannot load <%s> module script code", ModuleName);
 		return 2;
 	}
 
 	if (Unit->Compile().Get() < 0)
 	{
-		ED_ERR("[edge] cannot compile <%s> module", ModuleName);
+		VI_ERR("[mavi] cannot compile <%s> module", ModuleName);
 		return 3;
 	}
 
@@ -112,7 +112,7 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 	Function Main2 = Unit->GetModule().GetFunctionByDecl(Entrypoint2);
 	if (!Main1.IsValid() && !Main2.IsValid())
 	{
-		ED_ERR("[edge] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
+		VI_ERR("[mavi] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
 		return 4;
 	}
 
@@ -159,10 +159,10 @@ int Dispatch(char** ArgsData, int ArgsCount)
 
 	if (Params.Has("help"))
 	{
-		std::cout << "Usage: edge [options] [script.as] [arguments]\n\n";
+		std::cout << "Usage: mavi [options] [script.as] [arguments]\n\n";
 		std::cout << "Options:";
 		std::cout << "\n\t--help: show this message";
-		std::cout << "\n\t-v, --version: show edge version details";
+		std::cout << "\n\t-v, --version: show mavi version details";
 		std::cout << "\n\t--no-colors: disable stdout colors";
 		std::cout << "\n\t--verbose: enable logging messages";
 		std::cout << std::endl;
@@ -170,7 +170,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	}
 	else if (Params.Has("version", "v"))
 	{
-		String Message = Edge::Library::GetDetails();
+		String Message = Mavi::Library::GetDetails();
 		std::cout << Message << std::endl;
 		return 0;
 	}
@@ -190,7 +190,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 
 	if (!Context.IsExists)
 	{
-		ED_ERR("[edge] provide a path to existing script file");
+		VI_ERR("[mavi] provide a path to existing script file");
 		return 0;
 	}
 
@@ -199,16 +199,16 @@ int Dispatch(char** ArgsData, int ArgsCount)
 		Args.erase(Args.begin(), Args.begin() + Index + 1);
 
 	int ExitCode = Execute(Context.Path, OS::File::ReadAsString(Context.Path.c_str()), Args);
-	ED_RELEASE(Unit);
-	ED_RELEASE(VM);
+	VI_RELEASE(Unit);
+	VI_RELEASE(VM);
 
 	return ExitCode;
 }
 int main(int argc, char* argv[])
 {
-    Edge::Initialize((size_t)Edge::Preset::Game);
+    Mavi::Initialize((size_t)Mavi::Preset::Game);
 	int ExitCode = Dispatch(argv, argc);
-	Edge::Uninitialize();
+	Mavi::Uninitialize();
 
 	return ExitCode;
 }

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.6)
 
 #Setup toolchain file if needed
-set(ED_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../edge CACHE STRING "Edge directory")
-set(ED_USE_FAST_MEMORY ON CACHE BOOL "Fast memory is mostly preferred")
-set(ED_USE_SIMD ON CACHE BOOL "SIMD is preferred")
-include(${ED_DIRECTORY}/lib/toolchain.cmake)
+set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../mavi CACHE STRING "Mavi directory")
+set(VI_USE_FAST_MEMORY ON CACHE BOOL "Fast memory is mostly preferred")
+set(VI_USE_SIMD ON CACHE BOOL "SIMD is preferred")
+include(${VI_DIRECTORY}/lib/toolchain.cmake)
 
 #Project's metadata
-project(edge_as)
+project(mavias)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 #Build directory if not defined
@@ -19,24 +19,24 @@ if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 endif()
 
 #Project's compile options
-add_executable(edge_as ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp)
-set_target_properties(edge_as PROPERTIES
-		OUTPUT_NAME "edged"
-		CXX_STANDARD ${ED_CXX}
+add_executable(mavias ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp)
+set_target_properties(mavias PROPERTIES
+		OUTPUT_NAME "mavias"
+		CXX_STANDARD ${VI_CXX}
         CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF
 		VERSION ${PROJECT_VERSION}
 		SOVERSION ${PROJECT_VERSION})
-target_compile_definitions(edge_as PRIVATE -DED_EXPORT)
+target_compile_definitions(mavias PRIVATE -DVI_EXPORT)
 
 #Inherit compiler options
-include(${ED_DIRECTORY}/lib/compiler.cmake)
+include(${VI_DIRECTORY}/lib/compiler.cmake)
 if (MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
 endif()
 
-#Add Edge as dependency
-add_subdirectory(${ED_DIRECTORY} edge)
-link_directories(${ED_DIRECTORY})
-target_include_directories(edge_as PRIVATE ${ED_DIRECTORY})
-target_link_libraries(edge_as PRIVATE edge)
+#Add Mavi as dependency
+add_subdirectory(${VI_DIRECTORY} mavi)
+link_directories(${VI_DIRECTORY})
+target_include_directories(mavias PRIVATE ${VI_DIRECTORY})
+target_link_libraries(mavias PRIVATE mavi)
