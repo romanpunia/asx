@@ -1,5 +1,5 @@
 #include <std/schedule.as>
-#include <std/promise.as>
+#include <std/promise/async.as>
 #include <std/timestamp.as>
 #include <std/console.as>
 
@@ -38,7 +38,7 @@ int main()
     auto start = timestamp().milliseconds();
     output.write_line("[timeout] 1 -> 1000ms");
     co_await set_timeout(1000);
-
+    
     output.write_line("[timeout] 2 -> 500ms");
     co_await set_timeout(500);
 

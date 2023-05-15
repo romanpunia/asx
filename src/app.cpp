@@ -125,7 +125,7 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 
 	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 	Bindings::Array* Params = Bindings::Array::Compose<String>(Type.GetTypeInfo(), Args);
-	Context->TryExecute(false, Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
+	Context->Execute(Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
 	{
 		if (Main1.IsValid())
 			Context->SetArgObject(0, Params);
