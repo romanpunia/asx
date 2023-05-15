@@ -1,26 +1,29 @@
 #include <std/schedule.as>
-#include <std/promise/async.as>
+#include <std/promise.as>
 #include <std/timestamp.as>
 #include <std/console.as>
 
-class timeout_event
+class timeout_task
 {
-    promise<bool>@ data = promise<bool>();
+    promise<void>@ data = promise<void>();
+    uint64 time;
 
     void settle()
     {
         console@ output = console::get();
-        output.write_line("timer event triggered");
-        data.wrap(true);
+        output.write_line("[event] triggered -> " + to_string(time) + "ms");
+        data.wrap();
     }
 }
 
-promise<bool>@ set_timeout(uint64 timeout_ms)
+promise<void>@ set_timeout(uint64 timeout_ms)
 {
-    timeout_event@ event = timeout_event();
+    timeout_task@ task = timeout_task();
+    task.time = timeout_ms;
+
     schedule@ queue = schedule::get();
-    queue.set_timeout(timeout_ms, task_event(event.settle), difficulty::light, true);
-    return event.data;
+    queue.set_timeout(timeout_ms, task_event(task.settle), difficulty::light, true);
+    return task.data;
 }
 
 int main()

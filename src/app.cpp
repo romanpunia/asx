@@ -7,6 +7,7 @@
 using namespace Mavi::Core;
 using namespace Mavi::Compute;
 using namespace Mavi::Engine;
+using namespace Mavi::Network;
 using namespace Mavi::Scripting;
 
 static VirtualMachine* VM = nullptr;
@@ -166,12 +167,14 @@ int Dispatch(char** ArgsData, int ArgsCount)
 		std::cout << "\n\t--no-colors: disable stdout colors";
 		std::cout << "\n\t--verbose: enable logging messages";
 		std::cout << std::endl;
+		Output->Detach();
 		return 0;
 	}
 	else if (Params.Has("version", "v"))
 	{
 		String Message = Mavi::Library::GetDetails();
 		std::cout << Message << std::endl;
+		Output->Detach();
 		return 0;
 	}
 	
@@ -181,7 +184,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	for (size_t i = 1; i < Args.size(); i++)
 	{
 		auto Path = OS::Path::Resolve(Args[i], Directory);
-		if (OS::File::State(Path, &Context))
+		if (OS::File::State(Path, &Context) || OS::File::State(Path + ".as", &Context))
 		{
 			Index = i;
 			break;
@@ -191,6 +194,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	if (!Context.IsExists)
 	{
 		VI_ERR("[mavi] provide a path to existing script file");
+		Output->Detach();
 		return 0;
 	}
 
@@ -198,10 +202,12 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	if (Index > 0)
 		Args.erase(Args.begin(), Args.begin() + Index + 1);
 
+	Multiplexer::Create();
 	int ExitCode = Execute(Context.Path, OS::File::ReadAsString(Context.Path.c_str()), Args);
 	VI_RELEASE(Unit);
 	VI_RELEASE(VM);
 
+	Output->Detach();
 	return ExitCode;
 }
 int main(int argc, char* argv[])
