@@ -27,12 +27,8 @@ set_target_properties(mavias PROPERTIES
 		CXX_EXTENSIONS OFF
 		VERSION ${PROJECT_VERSION}
 		SOVERSION ${PROJECT_VERSION})
-target_compile_definitions(mavias PRIVATE -DVI_EXPORT)
-
-#Inherit compiler options
-include(${VI_DIRECTORY}/lib/compiler.cmake)
 if (MSVC)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
+    set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup /SUBSYSTEM:CONSOLE")
 endif()
 
 #Add Mavi as dependency

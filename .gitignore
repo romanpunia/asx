@@ -10,3 +10,4 @@ bin/*.pdb
 bin/*.exe
 bin/*.ilk
 bin/*.exp
+var/test_addon/bin/
