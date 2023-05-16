@@ -66,11 +66,14 @@ There is support for addons. Addons must be compiled with Mavi as a shared objec
 ```cpp
 #include <mavi/core/scripting.h>
 
-VI_EXPOSE int ViInitialize(Mavi::Scripting::VirtualMachine* VM) // Required initialization for requested virtual machine
+extern "C" { VI_EXPOSE int ViInitialize(Mavi::Scripting::VirtualMachine*); }
+int ViInitialize(Mavi::Scripting::VirtualMachine* VM) // Required initialization for requested virtual machine
 {
     return 0; // Zero is successful initialization
 }
-VI_EXPOSE void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitialization for requested virtual machine
+
+extern "C" { VI_EXPOSE int ViUninitialize(Mavi::Scripting::VirtualMachine*); }
+void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitialization for requested virtual machine
 {
 }
 ```

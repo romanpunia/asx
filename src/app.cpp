@@ -3,6 +3,7 @@
 #include <mavi/core/bindings.h>
 #include <mavi/core/network.h>
 #include <signal.h>
+#define JUMP 1000
 
 using namespace Mavi::Core;
 using namespace Mavi::Compute;
@@ -15,6 +16,7 @@ static Mavi::Scripting::Compiler* Unit = nullptr;
 static const char* ModuleName = "entry-point";
 static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
+static const char* Entrypoint3 = "void main()";
 int Abort(const char* Signal, bool Normal, bool Trace);
 
 int CatchAll()
@@ -61,7 +63,7 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 			App->Stop();
 		}
 
-		return 0;
+		return JUMP;
 	}
 
 	if (Trace)
@@ -78,8 +80,8 @@ int Abort(const char* Signal, bool Normal, bool Trace)
 	else
 		VI_ERR("[mavi] runtime error detected: %s", Signal);
 
-	std::exit(-1);
-	return -1;
+	std::exit(JUMP + 5);
+	return JUMP + 5;
 }
 int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 {
@@ -94,27 +96,28 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 	if (Unit->Prepare(ModuleName, true) < 0)
 	{
 		VI_ERR("[mavi] cannot prepare <%s> module scope", ModuleName);
-		return 1;
+		return JUMP + 1;
 	}
 
 	if (Unit->LoadCode(Path, Data.c_str(), Data.size()) < 0)
 	{
 		VI_ERR("[mavi] cannot load <%s> module script code", ModuleName);
-		return 2;
+		return JUMP + 2;
 	}
 
 	if (Unit->Compile().Get() < 0)
 	{
 		VI_ERR("[mavi] cannot compile <%s> module", ModuleName);
-		return 3;
+		return JUMP + 3;
 	}
 
 	Function Main1 = Unit->GetModule().GetFunctionByDecl(Entrypoint1);
 	Function Main2 = Unit->GetModule().GetFunctionByDecl(Entrypoint2);
-	if (!Main1.IsValid() && !Main2.IsValid())
+	Function Main3 = Unit->GetModule().GetFunctionByDecl(Entrypoint2);
+	if (!Main1.IsValid() && !Main2.IsValid() && !Main3.IsValid())
 	{
-		VI_ERR("[mavi] module %s must contain either: <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2);
-		return 4;
+		VI_ERR("[mavi] module %s must contain either: <%s>, <%s> or <%s>", ModuleName, Entrypoint1, Entrypoint2, Entrypoint3);
+		return JUMP + 4;
 	}
 
 	ImmediateContext* Context = Unit->GetContext();
@@ -126,13 +129,13 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 
 	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 	Bindings::Array* Params = Bindings::Array::Compose<String>(Type.GetTypeInfo(), Args);
-	Context->Execute(Main1.IsValid() ? Main1 : Main2, [&Main1, Params](ImmediateContext* Context)
+	Context->Execute(Main1.IsValid() ? Main1 : (Main2.IsValid() ? Main2 : Main3), [&Main1, Params](ImmediateContext* Context)
 	{
 		if (Main1.IsValid())
 			Context->SetArgObject(0, Params);
 	}).Wait();
 
-	int ExitCode = (int)Context->GetReturnDWord();
+	int ExitCode = !Main1.IsValid() && !Main2.IsValid() && Main3.IsValid() ? 0 : (int)Context->GetReturnDWord();
 	VM->ReleaseObject(Params, Type);
 
 	while (Queue->IsActive() || Context->GetState() == Activation::ACTIVE || Context->IsPending())
@@ -168,14 +171,14 @@ int Dispatch(char** ArgsData, int ArgsCount)
 		std::cout << "\n\t--verbose: enable logging messages";
 		std::cout << std::endl;
 		Output->Detach();
-		return 0;
+		return JUMP;
 	}
 	else if (Params.Has("version", "v"))
 	{
 		String Message = Mavi::Library::GetDetails();
 		std::cout << Message << std::endl;
 		Output->Detach();
-		return 0;
+		return JUMP;
 	}
 	
 	String Directory = OS::Directory::Get();
@@ -195,7 +198,7 @@ int Dispatch(char** ArgsData, int ArgsCount)
 	{
 		VI_ERR("[mavi] provide a path to existing script file");
 		Output->Detach();
-		return 0;
+		return JUMP;
 	}
 
 	CatchAll();
