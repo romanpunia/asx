@@ -2,7 +2,7 @@
 Mavi.as is an Angel Script environment concept similar to Node.js but in Mavi framework. It is a console application. There are also some example programs included (console.as, window.as).
 
 ## Usage
-Usage is simple: **mavias [script-file] [arguments]**
+Usage is simple: **mavias [flags] [script-file] [script-arguments]**
 
 ## Scripting
 Scripts support preprocessor that can be used just like C++ preprocessor for dependency management.
@@ -78,6 +78,9 @@ void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitializ
 }
 ```
 You can find an example addon project in _/var/test_addon_ directory, it includes CMake list file and C++ source file.
+
+## Debugging
+You may just run mavi with _--debug_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.
 
 ## Dependencies
 * [Mavi](https://github.com/romanpunia/mavi)

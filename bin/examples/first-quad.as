@@ -58,7 +58,6 @@ int main(string[]@ args)
         else if (state == window_state::close)
             application_active = false;
     });
-
     
     graphics_device_desc device_desc;
     @device_desc.window = window;
