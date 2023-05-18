@@ -2,7 +2,10 @@
 Mavi.as is an Angel Script environment concept similar to Node.js but in Mavi framework. It is a console application. There are also some example programs included (console.as, window.as).
 
 ## Usage
-Usage is simple: **mavias [flags] [script-file] [script-arguments]**
+Show all commands: **vi -h** or **vi --help**
+Execute a script file: **vi -f [path] [args]**
+Debug a script file: **vi -d -f [path] [args]**
+Run in interactive mode: **vi** or **vi -i**
 
 ## Scripting
 Scripts support preprocessor that can be used just like C++ preprocessor for dependency management.
@@ -81,6 +84,11 @@ You can find an example addon project in _/var/test_addon_ directory, it include
 
 ## Debugging
 You may just run mavi with _--debug_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.
+
+## Performance
+Although AngelScript is pretty fast out of the box (default tuned about 2x faster python3), if code being executed is CPU intensive and lies within VM then it might be useful to run it using JIT compiler. This compiler is pretty old, somewhat unstable and does not support ARM platform, it can actually work only on Windows and Linux. Nevertheless, it's still pretty powerful and can increase performance by 4 orders of magnitude. Add _--jit_ option to enable it. You may also check comparisons in **bin/examples/cpu** directory.
+
+Currently, one of the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.
 
 ## Dependencies
 * [Mavi](https://github.com/romanpunia/mavi)

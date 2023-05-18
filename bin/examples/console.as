@@ -156,11 +156,11 @@ int main(string[]@ args)
     queue.start(policy);
     
     image_fill main;
-    if (args.empty() || args[0] == "matrix")
+    if (args.size() < 2 || args[1] == "matrix")
         queue.set_interval(66, task_event(main.loop_matrix));
-    else if (args[0] == "noise")
+    else if (args[1] == "noise")
         queue.set_interval(66, task_event(main.loop_noise));
-    else if (args[0] == "perlin_1d")
+    else if (args[1] == "perlin_1d")
         queue.set_interval(66, task_event(main.loop_perlin_1d));
     else
         queue.stop();

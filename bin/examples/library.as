@@ -32,7 +32,7 @@ void beep_sleep(uint32 frequency, uint32 duration, uint32 wait)
     
     output.write_line("beep: (" + to_string(frequency) + "hz, " + to_string(duration) + "ms, " + to_string(wait) + "ms)");
 }
-int main(string[]@ args)
+int main()
 {
     output.write_line("process: " + to_string(GetCurrentProcessId()));
     OutputIfBeepCompileTime("playing: mario");

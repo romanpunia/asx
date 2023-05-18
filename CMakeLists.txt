@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.6)
 
 #Setup toolchain file if needed
 set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../mavi CACHE STRING "Mavi directory")
-set(VI_USE_FAST_MEMORY ON CACHE BOOL "Fast memory is mostly preferred")
+set(VI_USE_JIT ON CACHE BOOL "JIT can be used")
 set(VI_USE_SIMD ON CACHE BOOL "SIMD is preferred")
 include(${VI_DIRECTORY}/lib/toolchain.cmake)
 
@@ -21,7 +21,7 @@ endif()
 #Project's compile options
 add_executable(mavias ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp)
 set_target_properties(mavias PROPERTIES
-		OUTPUT_NAME "mavias"
+		OUTPUT_NAME "vi"
 		CXX_STANDARD ${VI_CXX}
         CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF

@@ -135,7 +135,7 @@ class runtime
     }
 }
 
-int main(string[]@ args)
+int main()
 {
     application_desc init;
     init.window.maximized = true;

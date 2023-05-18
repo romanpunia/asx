@@ -42,7 +42,7 @@ void render_pass(uint64 start_time)
     device.im_end();
     device.submit();
 }
-int main(string[]@ args)
+int main()
 {
     activity_desc window_desc;
     window_desc.width = 800;
