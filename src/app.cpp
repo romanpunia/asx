@@ -24,7 +24,7 @@ static const char* Entrypoint1 = "int main(array<string>@)";
 static const char* Entrypoint2 = "int main()";
 static const char* Entrypoint3 = "void main()";
 static bool AttachDebugger = false;
-int Abort(const char* Signal, bool Normal, bool Trace);
+int Abort(const char* Signal, bool Normal, bool Trace, bool Interrupt);
 
 int CatchAll()
 {
@@ -32,20 +32,19 @@ int CatchAll()
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGCHLD, SIG_IGN);
 #endif
-	signal(SIGABRT, [](int) { Abort("abort", false, true); });
-	signal(SIGFPE, [](int) { Abort("division by zero", false, true); });
-	signal(SIGILL, [](int) { Abort("illegal instruction", false, true); });
-	signal(SIGINT, [](int) { Abort("interrupt", true, true); });
-	signal(SIGSEGV, [](int) { Abort("segmentation fault", false, true); });
-	signal(SIGTERM, [](int) { Abort("termination", true, true); });
+	signal(SIGABRT, [](int) { Abort("abort", false, true, false); });
+	signal(SIGFPE, [](int) { Abort("division by zero", false, true, false); });
+	signal(SIGILL, [](int) { Abort("illegal instruction", false, true, false); });
+	signal(SIGINT, [](int) { Abort("interrupt", true, true, true); });
+	signal(SIGSEGV, [](int) { Abort("segmentation fault", false, true, false); });
+	signal(SIGTERM, [](int) { Abort("termination", true, true, false); });
 	return 0;
 }
-int Abort(const char* Signal, bool Normal, bool Trace)
+int Abort(const char* Signal, bool Normal, bool Trace, bool Interrupt)
 {
-	if (AttachDebugger)
+	if (AttachDebugger && Interrupt && VM->GetDebugger()->Interrupt())
 	{
-		VI_WARN("[mavi] debugger mode, script context killed");
-		std::exit(JUMP_CODE + EXIT_SUCCESS);
+		CatchAll();
 		return 0;
 	}
 
@@ -109,10 +108,7 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 	VM->SetDocumentRoot(OS::Path::GetDirectory(Path.c_str()));
 
 	if (AttachDebugger)
-	{
-		VI_WARN("[mavi] note script is running under context debugger");
 		VM->SetDebugger(new DebuggerContext());
-	}
 
 	Unit = VM->CreateCompiler();
 	if (Unit->Prepare(ModuleName, true) < 0)
@@ -146,7 +142,7 @@ int Execute(const String& Path, const String& Data, const Vector<String>& Args)
 	Context->SetExceptionCallback([](ImmediateContext* Context)
 	{
 		if (!Context->WillExceptionBeCaught())
-			Abort(Context->GetExceptionString(), false, false);
+			Abort(Context->GetExceptionString(), false, false, false);
 	});
 
 	TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
