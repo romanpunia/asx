@@ -642,7 +642,7 @@ private:
 	void PrintIntroduction()
 	{
 		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Mavi::Library::GetCompiler() << " on " << Mavi::Library::GetPlatform() << "]" << std::endl;
-		std::cout << "Run \"" << (Config.Interactive ? ".help" : "mavias --help") << "\" for more information";
+		std::cout << "Run \"" << (Config.Interactive ? ".help" : "vi --help") << "\" for more information";
 		if (Config.Interactive)
 			std::cout << " (loaded " << VM->GetSubmodules().size() << " modules)";
 		std::cout << std::endl;
