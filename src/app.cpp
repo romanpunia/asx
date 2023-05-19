@@ -400,7 +400,10 @@ public:
 		Context->SetExceptionCallback([this](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
-				Abort(Context->GetExceptionString());
+			{
+				VI_ERR("program has failed to catch an exception; killed");
+				std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
+			}
 		});
 
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
@@ -438,7 +441,7 @@ public:
 				goto GracefulShutdown;
 
 			if (Exits > 0)
-				VI_DEBUG("script context is not responding; killed");
+				VI_DEBUG("program is not responding; killed");
 
 			return std::exit(0);
 		}
@@ -463,7 +466,7 @@ public:
 		else
 			StackTrace = OS::GetStackTrace(0, 32);
 
-		VI_ERR("runtime error detected: %s; %s", Signal, StackTrace.c_str());
+		VI_ERR("runtime error detected: %s\n%s", Signal, StackTrace.c_str());
 		std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
 }
 
