@@ -328,8 +328,9 @@ public:
 					ImmediateContext* Context = Unit->GetContext();
 					if (Unit->ExecuteScoped(Data, "any@").Get() == (int)Activation::FINISHED)
 					{
+						String Indent = "  ";
 						auto* Value = Context->GetReturnObject<Bindings::Any>();
-						std::cout << "  " << Debugger->ToString(Value, VM->GetTypeInfoByName("any").GetTypeId(), 3, true) << std::endl;
+						std::cout << Indent << Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()) << std::endl;
 					}
 					else
 						Context->Abort();
@@ -391,6 +392,9 @@ public:
 			VI_ERR("module %s must contain either: <%s>, <%s> or <%s>", Contextual.Module, Entrypoint.ReturnsWithArgs, Entrypoint.Returns, Entrypoint.Simple);
 			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
 		}
+
+		if (Config.Debug)
+			PrintIntroduction();
 
 		ImmediateContext* Context = Unit->GetContext();
 		Context->SetExceptionCallback([this](ImmediateContext* Context)
@@ -642,7 +646,7 @@ private:
 	void PrintIntroduction()
 	{
 		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Mavi::Library::GetCompiler() << " on " << Mavi::Library::GetPlatform() << "]" << std::endl;
-		std::cout << "Run \"" << (Config.Interactive ? ".help" : "vi --help") << "\" for more information";
+		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "vi --help")) << "\" for more information";
 		if (Config.Interactive)
 			std::cout << " (loaded " << VM->GetSubmodules().size() << " modules)";
 		std::cout << std::endl;
