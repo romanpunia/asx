@@ -46,11 +46,12 @@ class image_fill
 
         x = new_x;
         y = new_y;
-        size = x * y;
+        size = x * y - 1;
 
         image.resize(size);
         for (uint32 i = 0; i < size; i++)
             image[i] = uint8(random::betweeni(32, 72));
+        image[size - 1] = ' ';
 
         seed.resize(size);
         for (uint32 i = 0; i < size; i++)
@@ -63,7 +64,6 @@ class image_fill
     void flush()
     {
         console@ output = console::get();
-        output.clear();
         output.set_cursor(0, 0);
         output.write(image);
         output.flush_write();
@@ -95,7 +95,8 @@ class image_fill
                 continue;
                 
             uint32 index = uint32(where.point.x) + uint32(height) * x;
-            image[index] = where.character;
+            if (index < image.size())
+                image[index] = where.character;
             where.randomize_char();
         }
 
@@ -156,11 +157,12 @@ int main(string[]@ args)
     queue.start(policy);
     
     image_fill main;
-    if (args.size() < 2 || args[1] == "matrix")
+    string type = (args.size() > 1 ? args[1] : "matrix");
+    if (type == "matrix")
         queue.set_interval(66, task_event(main.loop_matrix));
-    else if (args[1] == "noise")
+    else if (type == "noise")
         queue.set_interval(66, task_event(main.loop_noise));
-    else if (args[1] == "perlin_1d")
+    else if (type == "perlin_1d")
         queue.set_interval(66, task_event(main.loop_perlin_1d));
     else
         queue.stop();

@@ -3,6 +3,10 @@
 #include <std/renderers.as>
 #include <std/math.as>
 
+/*
+    Warning: this example wants active internet connection,
+    otherwise no diffuse texture will be set
+*/
 class runtime
 {
     application@ self;

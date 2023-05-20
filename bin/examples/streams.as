@@ -9,7 +9,7 @@ int main(string[]@ args)
 
     if (args.size() < 2)
     {
-        output.write_line("provide a valid URL that should be HTTP GET requested");
+        output.write_line("provide a valid path or URL that should be fetched");
         return 1;
     }
 
@@ -26,14 +26,14 @@ int main(string[]@ args)
     
     if (data is null)
     {
-        output.write_line("response is not a JSON or XML");
+        output.write_line("data is not a JSON or XML");
         return 2;
     }
 
     schema@ target = data.get(args[2]);
     if (target is null)
     {
-        output.write_line("response does not contain \"" + args[2] + "\" path");
+        output.write_line("data does not contain \"" + args[2] + "\" path");
         return 3;
     }
 

@@ -4,13 +4,13 @@
 
 /*
     I recommend running following commands:
-        1. vi -d -f examples/processes
+        1. vi -d -a -f examples/processes
         2. i c
     to see what code has been generated
 */
 int main()
 {
-    uptr@ handle = CreateToolhelp32Snapshot(0x00000002 | 0x00000008, 0); // TH32CS_SNAPPROCESS | TH32CS_SNAPMODULE
+    uptr@ handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPMODULE, 0); 
     if (handle is null)
     {
         console@ output = console::get();
@@ -22,7 +22,7 @@ int main()
     output.write_line("currently running processes:");
     
     char_buffer@ buffer = char_buffer(1024);
-    buffer.store(0, int32(buffer.size())); // store int32: PROCESSENTRY32::dwSize
+    buffer.store(offsetof_PROCESSENTRY32_dwSize, int32(buffer.size())); // store int32: PROCESSENTRY32::dwSize
 
     uptr@ process = buffer.get_ptr();
     Process32First(@handle, @process);
@@ -31,11 +31,11 @@ int main()
     do
     {
         uint32 process_id = 0;
-        if (!buffer.load(8, process_id)) // load int32: PROCESSENTRY32::th32ProcessID
+        if (!buffer.load(offsetof_PROCESSENTRY32_th32ProcessID, process_id)) // load int32: PROCESSENTRY32::th32ProcessID
             break;
 
         string process_name;
-        if (!buffer.interpret(44, process_name, 260)) // load char array from pointer: PROCESSENTRY32::szExeFile
+        if (!buffer.interpret(offsetof_PROCESSENTRY32_szExeFile, process_name, MAX_PATH)) // load char array from pointer: PROCESSENTRY32::szExeFile
             break;
 
         if (process_id == current_process_id)

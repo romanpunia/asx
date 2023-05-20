@@ -3,6 +3,12 @@
 #pragma cimport("kernel32.dll", "Process32Next", "int32 __Process32Next(uptr@, uptr@)")
 #pragma cimport("kernel32.dll", "GetCurrentProcessId", "uint32 __GetCurrentProcessId()")
 #pragma cimport("kernel32.dll", "CloseHandle", "int32 __CloseHandle(uptr@)")
+#define MAX_PATH 260
+#define TH32CS_SNAPPROCESS 0x00000002
+#define TH32CS_SNAPMODULE 0x00000008
+#define offsetof_PROCESSENTRY32_dwSize 0
+#define offsetof_PROCESSENTRY32_th32ProcessID 8
+#define offsetof_PROCESSENTRY32_szExeFile 44
 #ifdef SOF_CreateToolhelp32Snapshot
 #define CreateToolhelp32Snapshot(flags, pid) __CreateToolhelp32Snapshot(flags, pid)
 #else

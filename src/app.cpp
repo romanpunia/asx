@@ -65,22 +65,26 @@ public:
 		Vector<String> Submodules;
 		Vector<String> Addons;
 		Vector<String> Libraries;
+		Vector<std::pair<String, int32_t>> Settings;
 		bool Modules = true;
 		bool CLibraries = true;
 		bool CSymbols = true;
 		bool Files = true;
 		bool JSON = true;
+		bool Remotes = true;
 		bool Debug = false;
 		bool Translator = false;
 		bool Interactive = false;
 		bool EssentialsOnly = false;
 		bool LoadByteCode = false;
 		bool SaveByteCode = false;
+		bool SaveSourceCode = false;
 	} Config;
 
 private:
 	OrderedMap<String, String, std::greater<String>> Descriptions;
 	UnorderedMap<String, ProgramCommand> Commands;
+	UnorderedMap<String, uint32_t> Settings;
 	VirtualMachine* VM;
 	Compiler* Unit;
 
@@ -88,6 +92,7 @@ public:
 	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), VM(nullptr), Unit(nullptr)
 	{
 		AddDefaultCommands();
+		AddDefaultSettings();
 		ListenForSignals();
 		Config.EssentialsOnly = Contextual.Params.Has("app", "a");
 	}
@@ -104,7 +109,10 @@ public:
 
 		auto* Queue = Schedule::Get();
 		Queue->SetImmediate(true);
-		
+
+		VM = new VirtualMachine();
+		Multiplexer::Create();
+
 		for (auto& Next : Contextual.Params.Base)
 		{
 			if (Next.first == "__path__")
@@ -170,9 +178,11 @@ public:
 			ImportOptions |= (uint32_t)Imports::Files;
 		if (Config.JSON)
 			ImportOptions |= (uint32_t)Imports::JSON;
+		if (Config.Remotes)
+			ImportOptions |= (uint32_t)Imports::Remotes;
 
-		VM = new VirtualMachine();
 		VM->SetModuleDirectory(OS::Path::GetDirectory(Contextual.Path.c_str()));
+		VM->SetPreserveSourceCode(Config.SaveSourceCode);
 		VM->SetImports(ImportOptions);
 
 		if (Config.Translator)
@@ -181,7 +191,6 @@ public:
 		if (Config.Debug)
 			VM->SetDebugger(new DebuggerContext());
 
-		Multiplexer::Create();
 		for (auto& Name : Config.Submodules)
 		{
 			if (!VM->ImportSubmodule(Name))
@@ -326,7 +335,7 @@ public:
 				if (Contextual.Inline)
 				{
 					ImmediateContext* Context = Unit->GetContext();
-					if (Unit->ExecuteScoped(Data, "any@").Get() == (int)Activation::FINISHED)
+					if (Unit->ExecuteScoped(Data, "any@").Get() == (int)Activation::Finished)
 					{
 						String Indent = "  ";
 						auto* Value = Context->GetReturnObject<Bindings::Any>();
@@ -396,6 +405,23 @@ public:
 		if (Config.Debug)
 			PrintIntroduction();
 
+		if (Config.EssentialsOnly)
+		{
+			if (VM->HasSubmodule("std/graphics"))
+				VI_WARN("program includes disabled graphical features: consider removing -a option");
+
+			if (VM->HasSubmodule("std/audio"))
+				VI_WARN("program includes disabled audio features: consider removing -a option");
+		}
+		else if (Config.Debug)
+		{
+			if (!VM->HasSubmodule("std/graphics"))
+				VI_WARN("program does not include loaded graphical features: consider using -a option");
+
+			if (!VM->HasSubmodule("std/audio"))
+				VI_WARN("program does not include loaded audio features: consider using -a option");
+		}
+
 		ImmediateContext* Context = Unit->GetContext();
 		Context->SetExceptionCallback([this](ImmediateContext* Context)
 		{
@@ -418,7 +444,7 @@ public:
 		int ExitCode = !MainReturnsWithArgs.IsValid() && !MainReturns.IsValid() && MainSimple.IsValid() ? 0 : (int)Context->GetReturnDWord();
 		VM->ReleaseObject(ArgsArray, Type);
 
-		while (Queue->IsActive() || Context->GetState() == Activation::ACTIVE || Context->IsPending())
+		while (Queue->IsActive() || Context->GetState() == Activation::Active || Context->IsPending())
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 		while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
@@ -434,11 +460,17 @@ public:
 		{
 			auto* App = Application::Get();
 			if (App != nullptr && App->GetState() == ApplicationState::Active)
+			{
+				App->Stop();
 				goto GracefulShutdown;
+			}
 
 			auto* Queue = Schedule::Get();
 			if (Queue->IsActive())
+			{
+				Queue->Stop();
 				goto GracefulShutdown;
+			}
 
 			if (Exits > 0)
 				VI_DEBUG("program is not responding; killed");
@@ -448,7 +480,6 @@ public:
 	GracefulShutdown:
 		++Exits;
 		ListenForSignals();
-		Application::Get()->Stop();
 	}
 	void Interrupt()
 	{
@@ -509,7 +540,7 @@ private:
 
 			if (!Contextual.File.IsExists)
 			{
-				VI_ERR("provide a path to existing script file");
+				VI_ERR("path <%s> does not exist", Path.c_str());
 				return JUMP_CODE + EXIT_INPUT_FAILURE;
 			}
 
@@ -569,14 +600,14 @@ private:
 			size_t Offset1 = Value.find(':');
 			if (Offset1 == std::string::npos)
 			{
-				VI_ERR("invalid C library symbol declaration");
+				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
 			size_t Offset2 = Value.find('=', Offset1);
 			if (Offset2 == std::string::npos)
 			{
-				VI_ERR("invalid C library symbol declaration");
+				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
@@ -585,13 +616,18 @@ private:
 			auto Declaration = Stringify(Value.substr(Offset2 + 1)).Trim().R();
 			if (CLibraryName.empty() || CSymbolName.empty() || Declaration.empty())
 			{
-				VI_ERR("invalid C library symbol declaration");
+				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
 			auto& Data = Config.Symbols[CLibraryName];
 			Data.first = CSymbolName;
 			Data.second = Declaration;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("-ps, --preserve-sources", "save source code in memory to append to runtime exception stack-traces", [this](const String&)
+		{
+			Config.SaveSourceCode = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-c, --compile", "save gz compressed compiled bytecode to a file near script file", [this](const String&)
@@ -608,6 +644,49 @@ private:
 		{
 			Config.EssentialsOnly = true;
 			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("-u, --use", "set virtual machine property (expects: prop_name:prop_value)", [this](const String& Value)
+		{
+			auto Args = Stringify(&Value).Split(':');
+			if (Args.size() != 2)
+			{
+				VI_ERR("invalid property declaration <%s>", Value.c_str());
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
+			auto It = Settings.find(Stringify(&Args[0]).Trim().R());
+			if (It == Settings.end())
+			{
+				VI_ERR("invalid property name <%s>", Args[0].c_str());
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
+			Stringify Data(&Args[1]);
+			Data.Trim().ToLower();
+
+			if (Data.Empty())
+			{
+			InputFailure:
+				VI_ERR("property value <%s>: %s", Args[0].c_str(), Args[1].empty() ? "?" : Args[1].c_str());
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+			else if (!Data.HasInteger())
+			{
+				if (Args[1] == "on" || Args[1] == "true")
+					VM->SetProperty((Features)It->second, 1);
+				else if (Args[1] == "off" || Args[1] == "false")
+					VM->SetProperty((Features)It->second, 1);
+				else
+					goto InputFailure;
+			}
+
+			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
+		{
+			PrintProperties();
+			return JUMP_CODE + EXIT_OK;
 		});
 		AddCommand("--no-csymbols", "disable system module imports", [this](const String&)
 		{
@@ -634,6 +713,47 @@ private:
 			Config.Files = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
+		AddCommand("--no-remotes", "disable remote imports", [this](const String&)
+		{
+			Config.Remotes = false;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+	}
+	void AddDefaultSettings()
+	{
+		Settings["default_stack_size"] = (uint32_t)Features::INIT_STACK_SIZE;
+		Settings["default_callstack_size"] = (uint32_t)Features::INIT_CALL_STACK_SIZE;
+		Settings["callstack_size"] = (uint32_t)Features::MAX_CALL_STACK_SIZE;
+		Settings["stack_size"] = (uint32_t)Features::MAX_STACK_SIZE;
+		Settings["string_encoding"] = (uint32_t)Features::STRING_ENCODING;
+		Settings["script_encoding_utf8"] = (uint32_t)Features::SCRIPT_SCANNER;
+		Settings["no_globals"] = (uint32_t)Features::DISALLOW_GLOBAL_VARS;
+		Settings["warnings"] = (uint32_t)Features::COMPILER_WARNINGS;
+		Settings["unicode"] = (uint32_t)Features::ALLOW_UNICODE_IDENTIFIERS;
+		Settings["nested_calls"] = (uint32_t)Features::MAX_NESTED_CALLS;
+		Settings["unsafe_references"] = (uint32_t)Features::ALLOW_UNSAFE_REFERENCES;
+		Settings["optimized_bytecode"] = (uint32_t)Features::OPTIMIZE_BYTECODE;
+		Settings["copy_scripts"] = (uint32_t)Features::COPY_SCRIPT_SECTIONS;
+		Settings["character_literals"] = (uint32_t)Features::USE_CHARACTER_LITERALS;
+		Settings["multiline_strings"] = (uint32_t)Features::ALLOW_MULTILINE_STRINGS;
+		Settings["implicit_handles"] = (uint32_t)Features::ALLOW_IMPLICIT_HANDLE_TYPES;
+		Settings["suspends"] = (uint32_t)Features::BUILD_WITHOUT_LINE_CUES;
+		Settings["init_globals"] = (uint32_t)Features::INIT_GLOBAL_VARS_AFTER_BUILD;
+		Settings["require_enum_scope"] = (uint32_t)Features::REQUIRE_ENUM_SCOPE;
+		Settings["jit_instructions"] = (uint32_t)Features::INCLUDE_JIT_INSTRUCTIONS;
+		Settings["accessor_mode"] = (uint32_t)Features::PROPERTY_ACCESSOR_MODE;
+		Settings["array_template_message"] = (uint32_t)Features::EXPAND_DEF_ARRAY_TO_TMPL;
+		Settings["automatic_gc"] = (uint32_t)Features::AUTO_GARBAGE_COLLECT;
+		Settings["automatic_constructors"] = (uint32_t)Features::ALWAYS_IMPL_DEFAULT_CONSTRUCT;
+		Settings["value_assignment_to_references"] = (uint32_t)Features::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE;
+		Settings["named_args_mode"] = (uint32_t)Features::ALTER_SYNTAX_NAMED_ARGS;
+		Settings["integer_division_mode"] = (uint32_t)Features::DISABLE_INTEGER_DIVISION;
+		Settings["no_empty_list_elements"] = (uint32_t)Features::DISALLOW_EMPTY_LIST_ELEMENTS;
+		Settings["private_is_protected"] = (uint32_t)Features::PRIVATE_PROP_AS_PROTECTED;
+		Settings["heredoc_trim_mode"] = (uint32_t)Features::HEREDOC_TRIM_MODE;
+		Settings["generic_auto_handles_mode"] = (uint32_t)Features::GENERIC_CALL_MODE;
+		Settings["ignore_shared_interface_duplicates"] = (uint32_t)Features::IGNORE_DUPLICATE_SHARED_INTF;
+		Settings["ignore_debug_output"] = (uint32_t)Features::NO_DEBUG_OUTPUT;
 	}
 	void AddCommand(const String& Name, const String& Description, const CommandCallback& Callback)
 	{
@@ -673,6 +793,26 @@ private:
 			for (size_t i = 0; i < Spaces; i++)
 				std::cout << " ";
 			std::cout << " - " << Next.second << "\n";
+		}
+	}
+	void PrintProperties()
+	{
+		for (auto& Item : Settings)
+		{
+			Stringify Name(&Item.first);
+			size_t Value = VM->GetProperty((Features)Item.second);
+			std::cout << "  " << Item.first << ": ";
+			if (Name.EndsWith("mode"))
+				std::cout << "mode " << Value;
+			else if (Name.EndsWith("size"))
+				std::cout << (Value > 0 ? ToString(Value) : "unlimited");
+			else if (Value == 0)
+				std::cout << "OFF";
+			else if (Value == 1)
+				std::cout << "ON";
+			else
+				std::cout << Value;
+			std::cout << "\n";
 		}
 	}
 	void ListenForSignals()
