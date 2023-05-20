@@ -7,6 +7,5 @@ int main()
     auto@ output = console::get();
     print_hello_world();
     output.write_line(get_test_memory());
-    output.read(8);
     return 0;
 }

@@ -52,7 +52,6 @@ int main()
     output.write_line("test time: " + to_string(end - start) + "ms");
     output.write_line("test end");
     queue.stop();
-    output.read(8);
 
     return 0;
 }

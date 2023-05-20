@@ -89,8 +89,5 @@ int main()
     shared_data.join();
     channel_data.join();
     coroutine.join();
-
-    // finish example
-    output.read(8);
     return 0;
 }

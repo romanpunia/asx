@@ -2,6 +2,22 @@ cmake_minimum_required(VERSION 3.6)
 
 #Setup toolchain file if needed
 set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../deps/mavi CACHE STRING "Mavi directory")
+set(VI_USE_ASSIMP OFF CACHE BOOL "header-only")
+set(VI_USE_FREETYPE OFF CACHE BOOL "header-only")
+set(VI_USE_GLEW OFF CACHE BOOL "header-only")
+set(VI_USE_MONGOC OFF CACHE BOOL "header-only")
+set(VI_USE_POSTGRESQL OFF CACHE BOOL "header-only")
+set(VI_USE_OPENAL OFF CACHE BOOL "header-only")
+set(VI_USE_OPENGL OFF CACHE BOOL "header-only")
+set(VI_USE_OPENSSL OFF CACHE BOOL "header-only")
+set(VI_USE_SDL2 OFF CACHE BOOL "header-only")
+set(VI_USE_ZLIB OFF CACHE BOOL "header-only")
+set(VI_USE_SPIRV OFF CACHE BOOL "header-only")
+set(VI_USE_SHADERS OFF CACHE BOOL "header-only")
+set(VI_USE_FCTX OFF CACHE BOOL "header-only")
+set(VI_USE_BULLET3 OFF CACHE BOOL "header-only")
+set(VI_USE_RMLUI OFF CACHE BOOL "header-only")
+set(VI_USE_BULLET3 OFF CACHE BOOL "header-only")
 
 #Project's metadata
 project(test_addon)
