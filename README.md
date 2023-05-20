@@ -1,3 +1,10 @@
+<br/>
+<div align="center">
+    <br />
+    <img src="https://github.com/romanpunia/mavi/blob/master/var/logo.png?raw=true" alt="Mavi Logo" width="300" />
+    <h3>Angel Script Runtime Environment</h3>
+</div>
+
 ## About
 Mavi.as is a fully featured Angel Script environment similar to Node.js.
 
