@@ -1,5 +1,5 @@
 ## About
-Mavi.as is an Angel Script environment concept similar to Node.js but in Mavi framework. It is a console application. There are also some example programs included (console.as, window.as).
+Mavi.as is a fully featured Angel Script environment similar to Node.js.
 
 ## Usage
 Show all commands: **vi -h** or **vi --help**
