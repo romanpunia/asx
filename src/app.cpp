@@ -75,7 +75,7 @@ public:
 		bool Debug = false;
 		bool Translator = false;
 		bool Interactive = false;
-		bool EssentialsOnly = false;
+		bool EssentialsOnly = true;
 		bool LoadByteCode = false;
 		bool SaveByteCode = false;
 		bool SaveSourceCode = false;
@@ -94,7 +94,7 @@ public:
 		AddDefaultCommands();
 		AddDefaultSettings();
 		ListenForSignals();
-		Config.EssentialsOnly = Contextual.Params.Has("app", "a");
+		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
 	}
 	~Mavias()
 	{
@@ -408,18 +408,18 @@ public:
 		if (Config.EssentialsOnly)
 		{
 			if (VM->HasSubmodule("std/graphics"))
-				VI_WARN("program includes disabled graphical features: consider removing -a option");
+				VI_WARN("program includes disabled graphics features: consider using -g option");
 
 			if (VM->HasSubmodule("std/audio"))
-				VI_WARN("program includes disabled audio features: consider removing -a option");
+				VI_WARN("program includes disabled audio features: consider using -g option");
 		}
-		else if (Config.Debug)
+		else
 		{
 			if (!VM->HasSubmodule("std/graphics"))
-				VI_WARN("program does not include loaded graphical features: consider using -a option");
+				VI_WARN("program does not include loaded graphics features: consider removing -g option");
 
 			if (!VM->HasSubmodule("std/audio"))
-				VI_WARN("program does not include loaded audio features: consider using -a option");
+				VI_WARN("program does not include loaded audio features: consider removing -g option");
 		}
 
 		ImmediateContext* Context = Unit->GetContext();
@@ -640,9 +640,9 @@ private:
 			Config.LoadByteCode = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-a, --app", "initialize only essentials for non-gui scripts", [this](const String&)
+		AddCommand("-g, --graphics", "initialize graphics and audio for scripts (takes more time to startup)", [this](const String&)
 		{
-			Config.EssentialsOnly = true;
+			Config.EssentialsOnly = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-u, --use", "set virtual machine property (expects: prop_name:prop_value)", [this](const String& Value)
