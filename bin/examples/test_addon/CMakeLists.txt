@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
 
 #Setup toolchain file if needed
-set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../mavi CACHE STRING "Mavi directory")
-set(VI_USE_FAST_MEMORY ON CACHE BOOL "Fast memory is mostly preferred") #Must match mavi.as configuration
+set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../../deps/mavi CACHE STRING "Mavi directory")
 
 #Project's metadata
 project(test_addon)

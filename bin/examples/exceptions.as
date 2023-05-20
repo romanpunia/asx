@@ -38,7 +38,7 @@ void start(bool wants_crash)
     thread@ basic = thread(thread_event(@routine.main));
     basic.invoke();
     
-    this_thread::sleep(100000);
+    this_thread::sleep(1000);
     console::get().write_line("O_O"); // We are still OK
     basic.join(); // crash might happen here if joinable thread will rethrow the exception
 }

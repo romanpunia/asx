@@ -96,6 +96,9 @@ Although AngelScript is pretty fast out of the box (default tuned about 2-6x fas
 
 Currently, one of the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.
 
+## Memory usage
+Generally, AngelScript uses much less memory than v8 JavaScript runtime. That is because there are practically no wrappers between C++ types and AngelScript types. However, JIT compiler may increase memory usage as well as source code preserving in memory.
+
 ## Dependencies
 * [Mavi](https://github.com/romanpunia/mavi)
 

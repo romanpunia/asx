@@ -1,6 +1,6 @@
 {
-    "name": "edge-as",
-    "description": "AngelScript sandbox with Edge framework",
+    "name": "mavi-as",
+    "description": "AngelScript Runtime",
     "version": "1.0.0",
     "dependencies": [
         "zlib",
