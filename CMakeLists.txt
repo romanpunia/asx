@@ -19,7 +19,9 @@ if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 endif()
 
 #Project's compile options
-add_executable(mavias ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp)
+add_executable(mavias
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.cpp)
 set_target_properties(mavias PROPERTIES
 		OUTPUT_NAME "vi"
 		CXX_STANDARD ${VI_CXX}
