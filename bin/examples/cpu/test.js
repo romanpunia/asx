@@ -5,11 +5,11 @@
       ~1670ms
 */
 
-function test(value)
+function test(value, index)
 {
-    let hash = 0, max = 2 << 29;
+    let hash = index, max = 2n << 29n;
     while (value > 0)
-        hash = ((hash << 5) - hash + value--) % max;
+        hash = ((hash << 5n) - hash + value--) % max;
     return hash;
 }
 function main()
@@ -30,8 +30,8 @@ function main()
         return 2;
     }
 
-    let value = test(index).toString();
-    console.log(value);
+    let value = test(BigInt(index), 0n).toString();
+    console.log('result: ' + value);
     console.log('time: ' + (new Date().getTime() - timing) + "ms");
     return 0;
 }

@@ -6,7 +6,7 @@
 </div>
 
 ## About
-Mavi.as is a fully featured Angel Script environment similar to Node.js.
+Mavi.as is a fully featured memory efficient Angel Script environment similar to Node.js.
 
 ## Usage
 Show all commands: **vi -h** or **vi --help**
@@ -99,9 +99,11 @@ You can find an example addon project in [this repository](https://github.com/ro
 You may just run mavi with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.
 
 ## Performance
-Although AngelScript is pretty fast out of the box (default tuned about 2-6x faster python3), if code being executed is CPU intensive and lies within VM then it might be useful to run it using JIT compiler. This compiler is pretty old, somewhat unstable and does not support ARM platform, it can actually work only on Windows and Linux. Nevertheless, it's still pretty powerful and can increase performance by 4 orders of magnitude. Add _--jit_ option to enable it. You may also check comparisons in **bin/examples/cpu/test.\***.
+Although AngelScript is pretty fast out of the box (default tuned about 2-6x faster python3), if code being executed is CPU intensive and lies within VM then it might be useful to run it using JIT compiler. This compiler is pretty old, somewhat unstable and does not support ARM platform, it can actually work only on Windows and Linux. Nevertheless, it's still pretty powerful and can increase performance by 4 orders of magnitude. Add _--jit_ option to enable it.
 
-Currently, one of the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.
+Currently, the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.
+
+You may also check performance and memory comparisons in **bin/examples/cpu/test.\***. There are 6 scripts: 2 for each runtime (Mavi.as, Node.js, Python3). First is singlethreaded mode, second is multithreaded/multiprocessed mode. You may run these scripts with a single argument that will be a number higher than zero (usually pretty big number). This example will calculate some 64-bit integer hash based on input. One of the consequences of multiprocessing is high memory usage that will be impactful on multicore CPUs. Also this example can be highly JIT optimized.
 
 ## Memory usage
 Generally, AngelScript uses much less memory than v8 JavaScript runtime. That is because there are practically no wrappers between C++ types and AngelScript types. However, JIT compiler may increase memory usage as well as source code preserving in memory.

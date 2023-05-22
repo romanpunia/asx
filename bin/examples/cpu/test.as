@@ -14,7 +14,7 @@
 */
 #include <std/console.as>
 
-int64 test(int64 value)
+int64 test(int64 value, int64 index)
 {
     int64 hash = 0, max = 2 << 29;
     while (value > 0)
@@ -40,8 +40,8 @@ int main(string[]@ args)
         return 2;
     }
 
-    string value = to_string(test(index));
-    term.write_line(value);
+    string value = to_string(test(index, 0));
+    term.write_line("result: " + value);
     term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
     return 0;
 }

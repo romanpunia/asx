@@ -1,15 +1,6 @@
-'''
-    > python --version
-      v2.7.18
-    > python examples/cpu/test.py 120000000
-      ~19205ms
-    > py --version
-      v3.11.3
-    > py examples/cpu/test.py 120000000
-      ~14850ms
-'''
 import time
 import sys
+import multiprocessing
 
 def test(value, index):
     hash, max = index, 2 << 29
@@ -34,9 +25,17 @@ def main():
         print('time: ' + str(round(time.time() * 1000) - timing) + "ms")
         return 2
 
-    value = str(test(index, 0))
-    print('result: ' + value)
+    indices, processes = [], multiprocessing.cpu_count()
+    for i in range(0, processes):
+        indices.append((index, i * 4))
+    
+    group, i = multiprocessing.Pool(processes), 1
+    for value in group.starmap(test, indices):
+        print("worker result #" + str(i) + ": " + str(value))
+        i += 1
+        
     print('time: ' + str(round(time.time() * 1000) - timing) + "ms")
     return 0
 
-sys.exit(main())
+if __name__ == '__main__':
+    sys.exit(main())
