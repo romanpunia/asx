@@ -93,7 +93,7 @@ void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitializ
 {
 }
 ```
-You can find an example addon project in _/var/test_addon_ directory, it includes CMake list file and C++ source file. You can test it executing **bin/examples/addons.as**.
+You can find an example addon project in [this repository](https://github.com/romanpunia/addon.as), it includes CMake list file and C++ source file. You can test it executing **bin/examples/addons.as**.
 
 ## Debugging
 You may just run mavi with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.
