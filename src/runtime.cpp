@@ -269,6 +269,14 @@ public:
 		if (!Main.IsValid())
 			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
 
+		if (!Contextual.Output.empty())
+		{
+			auto Time = GetTime();
+			int ExitCode = BuilderAssemble();
+			std::cout << "[!] build task has " << (ExitCode == JUMP_CODE + EXIT_OK ? "finished " : "failed ") << " in " << (GetTime() - Time).count() << "ms";
+			return ExitCode;
+		}
+
 		if (Config.Debug)
 			PrintIntroduction();
 
@@ -431,9 +439,34 @@ private:
 			Config.Translator = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-i, --interactive", "enable interactive mode", [this](const String& )
+		AddCommand("-i, --interactive", "enable interactive mode", [this](const String )
 		{
 			Config.Interactive = true;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("-o, --output", "directory where to build an executable from source code", [this](const String& Path)
+		{
+			FileEntry File;
+			Contextual.Output = OS::Path::Resolve(Path, OS::Directory::Get());
+			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
+				Contextual.Output.erase(Contextual.Output.end() - 1);
+
+			Contextual.Output += "/" + Contextual.Name;
+			if (!OS::File::State(Contextual.Output, &File))
+			{
+				OS::Directory::Patch(Contextual.Output);
+				return JUMP_CODE + EXIT_CONTINUE;
+			}
+
+			if (File.IsDirectory)
+				return JUMP_CODE + EXIT_CONTINUE;
+
+			VI_ERR("output path <%s> must be a directory", Path.c_str());
+			return JUMP_CODE + EXIT_INPUT_FAILURE;
+		});
+		AddCommand("-n, --name", "set a CMake name for output target", [this](const String& Name)
+		{
+			Contextual.Name = Name;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-s, --system", "import system module(s) by name [expects: plus(+) separated list]", [this](const String& Value)
@@ -691,6 +724,227 @@ private:
 		signal(SIGCHLD, SIG_IGN);
 #endif
 	}
+	int BuilderAssemble()
+	{
+		std::cout << "[1] downloading executable repository ..." << std::endl;
+		std::cout << "  clone directory: " << Contextual.Output << std::endl;
+		if (BuilderExecute("git clone --recursive https://github.com/romanpunia/template.as " + Contextual.Output) != 0)
+		{
+			std::cout << "  cannot download executable repository:" << std::endl;
+			std::cout << "    make sure you have git installed" << std::endl;
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		std::cout << "[2] generating the source code ..." << std::endl;
+		if (BuilderGenerate(Contextual.Output, "  ") != 0)
+		{
+			std::cout << "  cannot generate the template:" << std::endl;
+			std::cout << "    make sure application has file read/write permissions" << std::endl;
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		std::cout << "[3] embedding the byte code ..." << std::endl;
+		if (BuilderAppendByteCode(Contextual.Output + "/src/program.hex") != 0)
+		{
+			std::cout << "  cannot embed the byte code:" << std::endl;
+			std::cout << "    make sure application has file read/write permissions" << std::endl;
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		std::cout << "[4] building an executable ..." << std::endl;
+		std::cout << "  building directory: " << Contextual.Output << "/template.as" << std::endl;
+		if (BuilderExecute(Form("cmake --build %s/template.as -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), (Config.Debug ? "Debug" : "RelWithDebInfo")).R()) != 0)
+		{
+			std::cout << "  cannot build an executable repository:" << std::endl;
+			std::cout << "    make sure you have cmake installed" << std::endl;
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		return JUMP_CODE + EXIT_OK;
+	}
+	int BuilderExecute(const String& Command)
+	{
+		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
+		if (!Stream)
+		{
+			std::cout << "  cannot spawn a child process" << std::endl;
+			return -1;
+		}
+
+		bool NewLineEOF = false;
+		size_t Size = Stream->ReadAll([&NewLineEOF](char* Buffer, size_t Size)
+		{
+			std::cout << "  " << String(Buffer, Size);
+			if (Size > 0)
+				NewLineEOF = (Buffer[Size - 1] == '\r' || Buffer[Size - 1] == '\n');
+		});
+		if (Size > 0 && !NewLineEOF)
+			std::cout << std::endl;
+
+		if (!Stream->Close())
+			std::cout << "  cannot close a child process" << std::endl;
+
+		int ExitCode = Stream->GetExitCode();
+		VI_RELEASE(Stream);
+		return ExitCode;
+	}
+	int BuilderGenerate(const String& Path, const String& Offset)
+	{
+		Vector<FileEntry> Entries;
+		if (!OS::Directory::Scan(Path, &Entries))
+		{
+			std::cout << Offset << "cannot scan directory: " << Path << std::endl;
+			return -1;
+		}
+
+		size_t TotalSize = 0;
+		for (auto It = Entries.begin(); It != Entries.end();)
+		{
+			if (!It->Path.empty() && It->Path.find("/.") == std::string::npos && It->Path.find("/deps/") == std::string::npos)
+			{
+				TotalSize += It->Size;
+				++It;
+			}
+			else
+				It = Entries.erase(It);
+		}
+
+		size_t CurrentSize = 0;
+		for (auto& Item : Entries)
+		{
+			String TargetPath = Item.Path + ".codegen";
+			CurrentSize += Item.Size;
+			if (Item.IsDirectory)
+			{
+				int Status = BuilderGenerate(Item.Path, Offset + "  ");
+				if (Status != 0)
+					return Status;
+			}
+
+			Stream* BaseFile = OS::File::Open(Item.Path, FileMode::Binary_Read_Only);
+			if (!BaseFile)
+			{
+				std::cout << Offset << "cannot open source file: " << Item.Path << std::endl;
+				return -1;
+			}
+
+			Stream* TargetFile = OS::File::Open(TargetPath, FileMode::Binary_Write_Only);
+			if (!TargetFile)
+			{
+				std::cout << Offset << "cannot create target source file: " << TargetPath << std::endl;
+				VI_RELEASE(BaseFile);
+				return -1;
+			}
+
+			uint32_t Progress = (uint32_t)((double)CurrentSize / (double)TotalSize);
+			std::cout << "  [" << Progress << "%] generating source file: " << Item.Path << std::endl;
+			BaseFile->ReadAll([this, TargetFile](char* Buffer, size_t Size)
+			{
+				if (!Size)
+					return;
+
+				String Data(Buffer, Size);
+				BuilderGenerateTemplate(Data);
+				TargetFile->Write(Data.c_str(), Data.size());
+			});
+			VI_RELEASE(BaseFile);
+			VI_RELEASE(TargetFile);
+
+			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
+			{
+				std::cout << Offset << "cannot move target files:" << std::endl;
+				std::cout << Offset << "  move file from: " << TargetPath << std::endl;
+				std::cout << Offset << "  move file to: " << Item.Path << std::endl;
+				return -1;
+			}
+		}
+
+		return 0;
+	}
+	int BuilderGenerateTemplate(String& Data)
+	{
+		static String ConfigSettingsArray;
+		if (ConfigSettingsArray.empty())
+		{
+			for (auto& Item : Settings)
+			{
+				size_t Value = VM->GetProperty((Features)Item.second);
+				ConfigSettingsArray += Form("{ %i, %" PRIu64 " }, ", Item.second, (uint64_t)Value).R();
+			}
+		}
+
+		static String ConfigSymbolsArray;
+		if (ConfigSymbolsArray.empty())
+		{
+			for (auto& Item : Config.Symbols)
+				ConfigSymbolsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Item.second.first.c_str(), Item.second.second.c_str()).R();
+		}
+
+		static String ConfigSubmodulesArray;
+		if (ConfigSubmodulesArray.empty())
+		{
+			for (auto& Item : Config.Submodules)
+				ConfigSubmodulesArray += Form("\"%s\", ", Item.c_str()).R();
+		}
+
+		static String ConfigAddonsArray;
+		if (ConfigAddonsArray.empty())
+		{
+			for (auto& Item : Config.Addons)
+				ConfigAddonsArray += Form("\"%s\", ", Item.c_str()).R();
+		}
+
+		Stringify Target(&Data);
+		Target.Replace("{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
+		Target.Replace("{{BUILDER_CONFIG_SYMBOLS}}", ConfigSymbolsArray);
+		Target.Replace("{{BUILDER_CONFIG_SUBMODULES}}", ConfigSubmodulesArray);
+		Target.Replace("{{BUILDER_CONFIG_ADDONS}}", ConfigAddonsArray);
+		Target.Replace("{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_CSYMBOLS}}", Config.CSymbols ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_FILES}}", Config.Files ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_JSON}}", Config.JSON ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
+		Target.Replace("{{BUILDER_USE_JIT}}", Mavi::Library::HasJIT() ? "ON" : "OFF");
+		Target.Replace("{{BUILDER_USE_SIMD}}", Mavi::Library::HasSIMD() ? "ON" : "OFF");
+		Target.Replace("{{BUILDER_USE_FAST_MEMORY}}", Mavi::Library::HasFastMemory() ? "ON" : "OFF");
+		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name);
+		return 0;
+	}
+	int BuilderAppendByteCode(const String& Path)
+	{
+		ByteCodeInfo Info;
+		Info.Debug = Config.Debug;
+		if (Unit->SaveByteCode(&Info) < 0)
+		{
+			std::cout << "  cannot fetch the byte code" << std::endl;
+			return -1;
+		}
+
+		OS::Directory::Patch(OS::Path::GetDirectory(Path.c_str()));
+		Stream* TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only);
+		if (!TargetFile)
+		{
+			std::cout << "  cannot create the byte code file: " << Path << std::endl;
+			return -1;
+		}
+
+		String Data = Codec::HexEncode((const char*)Info.Data.data(), Info.Data.size());
+		if (TargetFile->Write(Data.data(), Data.size()) != Data.size())
+		{
+			std::cout << "  cannot write the byte code file: " << Path << std::endl;
+			VI_RELEASE(TargetFile);
+			return -1;
+		}
+
+		VI_RELEASE(TargetFile);
+		return 0;
+	}
+	std::chrono::milliseconds GetTime()
+	{
+		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+	}
 };
 
 int main(int argc, char* argv[])
@@ -700,6 +954,6 @@ int main(int argc, char* argv[])
 	int ExitCode = Instance->Dispatch();
 	delete Instance;
 	Mavi::Uninitialize();
-
+	
 	return ExitCode;
 }

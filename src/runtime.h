@@ -16,6 +16,7 @@
 #define EXIT_INPUT_FAILURE 0x7
 #define EXIT_INVALID_COMMAND 0x8
 #define EXIT_INVALID_DECLARATION 0x9
+#define EXIT_COMMAND_FAILURE 0x10
 
 using namespace Mavi::Core;
 using namespace Mavi::Compute;
@@ -36,12 +37,14 @@ struct ProgramContext
 	OS::Process::ArgsContext Params;
 	Vector<String> Args;
 	FileEntry File;
+	String Name;
 	String Path;
 	String Program;
+	String Output;
 	const char* Module;
 	bool Inline;
 
-	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), Module("__anonymous__"), Inline(true)
+	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), Name("build_target"), Module("__anonymous__"), Inline(true)
 	{
 		Args.reserve((size_t)ArgsCount);
 		for (int i = 0; i < ArgsCount; i++)
