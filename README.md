@@ -106,8 +106,19 @@ Currently, one of the main issue is initialization time. About 40ms (app-mode) o
 ## Memory usage
 Generally, AngelScript uses much less memory than v8 JavaScript runtime. That is because there are practically no wrappers between C++ types and AngelScript types. However, JIT compiler may increase memory usage as well as source code preserving in memory.
 
-## Packaging
-Mavi.as supports a feature that allows one to build the executable from AngelScript program. This executable will be cross-platform, it will embed program bytecode into the executable and build it standalone from runtime environment. This feature is considered experimental and might produce slow build times.
+## Binary generation and packaging
+Mavi.as supports a feature that allows one to build the executable from AngelScript program.
+1. To use this feature you must have Git and CMake installed.
+2. Template repository will be downloaded, CMake configuration and source code will be generated.
+3. CMake configuration and build will be executed.
+
+This will produce a binary and shared libraries. Amount of shared libraries produced will depend on \<#include\> statements inside your script. For example, you won't be needing OpenAL shared library if you don't use **std/audio**. Project will have _.template_ files which are unmodified versions of original files near them.
+
+AngelScript VM will be configured according to your Mavi.as setup. For example, if you use JIT then built binary will use it. Your AngelScript source code will be compiled to platform-independant bytecode. This bytecode will then be hex-encoded and embedded into your binary as executable text.
+
+Generated output will not embed any resources requested by runtime such as images, files, audio and other resources. You will have to add (and optionally pack) them manually as in usual C++ project. **Important note for Windows platform**: by default Mavi.as is built as console application, so the console it self spawns automatically whenever intended by app or not, however output binary is built using subsystem windows, meaning no console without explicit request, this may cause unintended behaviour if you don't use **console::show()** method.  
+
+__This feature is considered experimental as it suffers of very slow build times. You may also open generated project or regenerate it manually and open it in your IDE. Runtime code is very minimal as well as output binary size.__
 
 ## Dependencies
 * [Mavi (submodule)](https://github.com/romanpunia/mavi)
