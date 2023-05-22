@@ -387,11 +387,18 @@ private:
 		AddCommand("-f, --file", "set target file [expects: path, arguments?]", [this](const String& Path)
 		{
 			String Directory = OS::Directory::Get();
-			size_t Index = 0;
+			size_t Index = 0; bool FileFlag = false;
 
-			for (size_t i = 1; i < Contextual.Args.size(); i++)
+			for (size_t i = 0; i < Contextual.Args.size(); i++)
 			{
-				auto File = OS::Path::Resolve(Contextual.Args[i], Directory);
+				auto& Value = Contextual.Args[i];
+				if (!FileFlag)
+				{
+					FileFlag = (Value == "-f" || Value == "--file");
+					continue;
+				}
+
+				auto File = OS::Path::Resolve(Value, Directory);
 				if (OS::File::State(File, &Contextual.File))
 				{
 					Contextual.Path = File;
@@ -399,7 +406,7 @@ private:
 					break;
 				}
 
-				File = OS::Path::Resolve(Contextual.Args[i] + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory);
+				File = OS::Path::Resolve(Value + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory);
 				if (OS::File::State(File, &Contextual.File))
 				{
 					Contextual.Path = File;
@@ -447,11 +454,11 @@ private:
 		AddCommand("-o, --output", "directory where to build an executable from source code", [this](const String& Path)
 		{
 			FileEntry File;
-			Contextual.Output = OS::Path::Resolve(Path, OS::Directory::Get());
+			Contextual.Output = (Path == "." ? OS::Directory::Get() : OS::Path::Resolve(Path, OS::Directory::Get()));
 			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
 				Contextual.Output.erase(Contextual.Output.end() - 1);
 
-			Contextual.Output += "/" + Contextual.Name;
+			Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
 			if (!OS::File::State(Contextual.Output, &File))
 			{
 				OS::Directory::Patch(Contextual.Output);
@@ -583,7 +590,7 @@ private:
 			PrintProperties();
 			return JUMP_CODE + EXIT_OK;
 		});
-		AddCommand("--no-csymbols", "disable system module imports", [this](const String&)
+		AddCommand("--no-modules", "disable system module imports", [this](const String&)
 		{
 			Config.Modules = false;
 			return JUMP_CODE + EXIT_CONTINUE;
@@ -605,7 +612,7 @@ private:
 		});
 		AddCommand("--no-json", "disable json imports", [this](const String&)
 		{
-			Config.Files = false;
+			Config.JSON = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--no-remotes", "disable remote imports", [this](const String&)
@@ -655,7 +662,9 @@ private:
 		Descriptions[Name] = Description;
 		for (auto& Command : Stringify(&Name).Split(','))
 		{
-			auto Naming = Stringify(Command).Trim().Replace("-", "").R();
+			auto Naming = Stringify(Command).Trim().R();
+			while (!Naming.empty() && Naming.front() == '-')
+				Naming.erase(Naming.begin());
 			auto& Data = Commands[Naming];
 			Data.Callback = Callback;
 			Data.Description = Description;
@@ -728,7 +737,7 @@ private:
 	{
 		std::cout << "[1] downloading executable repository ..." << std::endl;
 		std::cout << "  clone directory: " << Contextual.Output << std::endl;
-		if (BuilderExecute("git clone --recursive https://github.com/romanpunia/template.as " + Contextual.Output) != 0)
+		if (IsBuilderDirectoryEmpty() && BuilderExecute("git clone --recursive https://github.com/romanpunia/template.as " + Contextual.Output) != 0)
 		{
 			std::cout << "  cannot download executable repository:" << std::endl;
 			std::cout << "    make sure you have git installed" << std::endl;
@@ -744,16 +753,40 @@ private:
 		}
 
 		std::cout << "[3] embedding the byte code ..." << std::endl;
-		if (BuilderAppendByteCode(Contextual.Output + "/src/program.hex") != 0)
+		if (BuilderAppendByteCode(Contextual.Output + "src/program.hex") != 0)
 		{
 			std::cout << "  cannot embed the byte code:" << std::endl;
 			std::cout << "    make sure application has file read/write permissions" << std::endl;
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		std::cout << "[4] building an executable ..." << std::endl;
-		std::cout << "  building directory: " << Contextual.Output << "/template.as" << std::endl;
-		if (BuilderExecute(Form("cmake --build %s/template.as -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), (Config.Debug ? "Debug" : "RelWithDebInfo")).R()) != 0)
+		String BuildType = (Config.Debug ? "Debug" : "RelWithDebInfo");
+		std::cout << "[4] configuring the repository ..." << std::endl;
+		std::cout << "  configure directory: " << Contextual.Output << std::endl;
+#ifdef VI_MICROSOFT
+		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
+#else
+		String ConfigureCommand = Form("cmake -DCMAKE_BUILD_TYPE=%s -S %s -B %smake", BuildType.c_str(), Contextual.Output.c_str(), Contextual.Output.c_str()).R();
+#endif
+		if (BuilderExecute(ConfigureCommand) != 0)
+		{
+			std::cout << "  cannot configure an executable repository:" << std::endl;
+#ifdef VI_MICROSOFT
+			std::cout << "    make sure you vcpkg installed and %VCPKG_ROOT% is set" << std::endl;
+#else
+			std::cout << "    make sure you have all dependencies installed" << std::endl;
+#endif
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		std::cout << "[5] building an executable (" << BuildType << ") ..." << std::endl;
+		std::cout << "  building directory: " << Contextual.Output << "make" << std::endl;
+#ifdef VI_MICROSOFT
+		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), BuildType.c_str()).R();
+#else
+		String BuildCommand = Form("cmake --build %smake", Contextual.Output.c_str()).R();
+#endif
+		if (BuilderExecute(BuildCommand) != 0)
 		{
 			std::cout << "  cannot build an executable repository:" << std::endl;
 			std::cout << "    make sure you have cmake installed" << std::endl;
@@ -764,9 +797,13 @@ private:
 	}
 	int BuilderExecute(const String& Command)
 	{
+		Console* Output = Console::Get();
+		Output->ColorBegin(StdColor::Gray);
+
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
 		if (!Stream)
 		{
+			Output->ColorEnd();
 			std::cout << "  cannot spawn a child process" << std::endl;
 			return -1;
 		}
@@ -774,13 +811,17 @@ private:
 		bool NewLineEOF = false;
 		size_t Size = Stream->ReadAll([&NewLineEOF](char* Buffer, size_t Size)
 		{
-			std::cout << "  " << String(Buffer, Size);
-			if (Size > 0)
-				NewLineEOF = (Buffer[Size - 1] == '\r' || Buffer[Size - 1] == '\n');
+			if (!Size)
+				return;
+
+			std::cout << String(Buffer, Size);
+			NewLineEOF = Buffer[Size - 1] == '\r' || Buffer[Size - 1] == '\n';
 		});
-		if (Size > 0 && !NewLineEOF)
+
+		if (NewLineEOF)
 			std::cout << std::endl;
 
+		Output->ColorEnd();
 		if (!Stream->Close())
 			std::cout << "  cannot close a child process" << std::endl;
 
@@ -800,8 +841,31 @@ private:
 		size_t TotalSize = 0;
 		for (auto It = Entries.begin(); It != Entries.end();)
 		{
-			if (!It->Path.empty() && It->Path.find("/.") == std::string::npos && It->Path.find("/deps/") == std::string::npos)
+			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
 			{
+				if (!Path.empty() && Path.back() != '\\' && Path.back() != '/')
+					It->Path = Path + VI_SPLITTER + It->Path;
+				else
+					It->Path = Path + It->Path;
+
+				size_t Index = It->Path.rfind(".template");
+				if (Index != std::string::npos)
+				{
+					String TargetPath = It->Path.substr(0, Index);
+					if (OS::File::IsExists(TargetPath.c_str()))
+					{
+						OS::File::Remove(TargetPath.c_str());
+						OS::File::Move(It->Path.c_str(), TargetPath.c_str());
+						It = Entries.erase(It);
+						continue;
+					}
+					else
+					{
+						OS::File::Move(It->Path.c_str(), TargetPath.c_str());
+						It->Path = TargetPath;
+					}
+				}
+
 				TotalSize += It->Size;
 				++It;
 			}
@@ -819,6 +883,7 @@ private:
 				int Status = BuilderGenerate(Item.Path, Offset + "  ");
 				if (Status != 0)
 					return Status;
+				continue;
 			}
 
 			Stream* BaseFile = OS::File::Open(Item.Path, FileMode::Binary_Read_Only);
@@ -836,7 +901,7 @@ private:
 				return -1;
 			}
 
-			uint32_t Progress = (uint32_t)((double)CurrentSize / (double)TotalSize);
+			uint32_t Progress = (uint32_t)(100.0 * (double)CurrentSize / (double)TotalSize);
 			std::cout << "  [" << Progress << "%] generating source file: " << Item.Path << std::endl;
 			BaseFile->ReadAll([this, TargetFile](char* Buffer, size_t Size)
 			{
@@ -850,6 +915,8 @@ private:
 			VI_RELEASE(BaseFile);
 			VI_RELEASE(TargetFile);
 
+			String TempPath = Item.Path + ".template";
+			OS::File::Move(Item.Path.c_str(), TempPath.c_str());
 			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
 			{
 				std::cout << Offset << "cannot move target files:" << std::endl;
@@ -869,29 +936,36 @@ private:
 			for (auto& Item : Settings)
 			{
 				size_t Value = VM->GetProperty((Features)Item.second);
-				ConfigSettingsArray += Form("{ %i, %" PRIu64 " }, ", Item.second, (uint64_t)Value).R();
+				ConfigSettingsArray += Form("{ (uint32_t)%i, (size_t)%" PRIu64 " }, ", Item.second, (uint64_t)Value).R();
 			}
-		}
-
-		static String ConfigSymbolsArray;
-		if (ConfigSymbolsArray.empty())
-		{
-			for (auto& Item : Config.Symbols)
-				ConfigSymbolsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Item.second.first.c_str(), Item.second.second.c_str()).R();
 		}
 
 		static String ConfigSubmodulesArray;
 		if (ConfigSubmodulesArray.empty())
 		{
-			for (auto& Item : Config.Submodules)
-				ConfigSubmodulesArray += Form("\"%s\", ", Item.c_str()).R();
+			for (auto& Item : VM->GetModules())
+			{
+				if (Item.second.Registered)
+					ConfigSubmodulesArray += Form("\"%s\", ", Item.first.c_str()).R();
+			}
 		}
 
+		static String ConfigLibrariesArray;
+		static String ConfigSymbolsArray;
 		static String ConfigAddonsArray;
-		if (ConfigAddonsArray.empty())
+		if (ConfigLibrariesArray.empty() && ConfigSymbolsArray.empty() && ConfigAddonsArray.empty())
 		{
-			for (auto& Item : Config.Addons)
-				ConfigAddonsArray += Form("\"%s\", ", Item.c_str()).R();
+			for (auto& Item : VM->GetKernels())
+			{
+				if (!Item.second.IsAddon)
+				{
+					ConfigLibrariesArray += Form("\"%s\", ", Item.first.c_str()).R();
+					for (auto& Symbol : Item.second.Functions)
+						ConfigSymbolsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Symbol.first.c_str()).R();
+				}
+				else
+					ConfigAddonsArray += Form("\"%s\", ", Item.first.c_str()).R();
+			}
 		}
 
 		Stringify Target(&Data);
@@ -899,6 +973,8 @@ private:
 		Target.Replace("{{BUILDER_CONFIG_SYMBOLS}}", ConfigSymbolsArray);
 		Target.Replace("{{BUILDER_CONFIG_SUBMODULES}}", ConfigSubmodulesArray);
 		Target.Replace("{{BUILDER_CONFIG_ADDONS}}", ConfigAddonsArray);
+		Target.Replace("{{BUILDER_CONFIG_LIBRARIES}}", ConfigLibrariesArray);
+		Target.Replace("{{BUILDER_CONFIG_MODULES}}", Config.Modules ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_CSYMBOLS}}", Config.CSymbols ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_FILES}}", Config.Files ? "true" : "false");
@@ -940,6 +1016,11 @@ private:
 
 		VI_RELEASE(TargetFile);
 		return 0;
+	}
+	bool IsBuilderDirectoryEmpty()
+	{
+		Vector<FileEntry> Entries;
+		return !OS::Directory::Scan(Contextual.Output, &Entries) || Entries.empty();
 	}
 	std::chrono::milliseconds GetTime()
 	{
