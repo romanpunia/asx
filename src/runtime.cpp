@@ -274,6 +274,7 @@ public:
 			auto Time = GetTime();
 			int ExitCode = BuilderAssemble();
 			std::cout << "[!] build task has " << (ExitCode == JUMP_CODE + EXIT_OK ? "finished " : "failed ") << " in " << (GetTime() - Time).count() << "ms";
+			std::cout << "  binaries directory: " << Contextual.Output << "bin" << std::endl;
 			return ExitCode;
 		}
 
