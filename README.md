@@ -88,7 +88,7 @@ int ViInitialize(Mavi::Scripting::VirtualMachine* VM) // Required initialization
     return 0; // Zero is successful initialization
 }
 
-extern "C" { VI_EXPOSE int ViUninitialize(Mavi::Scripting::VirtualMachine*); }
+extern "C" { VI_EXPOSE void ViUninitialize(Mavi::Scripting::VirtualMachine*); }
 void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitialization for requested virtual machine
 {
 }
