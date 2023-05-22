@@ -751,8 +751,11 @@ private:
 			std::cout << "    make sure application has file read/write permissions" << std::endl;
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
-
+#ifndef NDEBUG
 		String BuildType = (Config.Debug ? "Debug" : "RelWithDebInfo");
+#else
+		String BuildType = (Config.Debug ? "Debug" : "Release");
+#endif
 		std::cout << "[4] configuring the repository ..." << std::endl;
 		std::cout << "  configure directory: " << Contextual.Output << std::endl;
 #ifdef VI_MICROSOFT
@@ -833,7 +836,7 @@ private:
 		size_t TotalSize = 0;
 		for (auto It = Entries.begin(); It != Entries.end();)
 		{
-			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "make" && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
+			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "make" && It->Path != "bin" && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
 			{
 				if (!Path.empty() && Path.back() != '\\' && Path.back() != '/')
 					It->Path = Path + VI_SPLITTER + It->Path;
@@ -960,6 +963,34 @@ private:
 			}
 		}
 
+		static String ViFeatures;
+		if (ViFeatures.empty())
+		{
+			Vector<std::pair<String, bool>> Features =
+			{
+				{ "BINDINGS", Mavi::Library::HasBindings() },
+				{ "FAST_MEMORY", Mavi::Library::HasFastMemory() },
+				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() },
+				{ "FREETYPE", Mavi::Library::HasFreeType() && IsBuilderUsingGUI() },
+				{ "GLEW", Mavi::Library::HasGLEW() && IsBuilderUsingGraphics() },
+				{ "OPENAL", Mavi::Library::HasOpenAL() && IsBuilderUsingAudio() },
+				{ "OPENGL", Mavi::Library::HasOpenGL() && IsBuilderUsingGraphics() },
+				{ "SDL2", Mavi::Library::HasSDL2() && IsBuilderUsingGraphics() },
+				{ "POSTGRESQL", Mavi::Library::HasPostgreSQL() && IsBuilderUsingPostgreSQL() },
+				{ "MONGOC", Mavi::Library::HasMongoDB() && IsBuilderUsingMongoDB() },
+				{ "SPIRV", Mavi::Library::HasSPIRV() && IsBuilderUsingGraphics() },
+				{ "BULLET3", Mavi::Library::HasBullet3() && IsBuilderUsingPhysics() },
+				{ "RMLUI", Mavi::Library::HasRmlUI() && IsBuilderUsingGUI() },
+				{ "SHADERS", Mavi::Library::HasShaders() && IsBuilderUsingGraphics() }
+			};
+
+			for (auto& Item : Features)
+				ViFeatures += Form("set(VI_USE_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF").R();
+
+			if (!ViFeatures.empty())
+				ViFeatures.erase(ViFeatures.end() - 1);
+		}
+
 		Stringify Target(&Data);
 		Target.Replace("{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
 		Target.Replace("{{BUILDER_CONFIG_SYMBOLS}}", ConfigSymbolsArray);
@@ -974,9 +1005,7 @@ private:
 		Target.Replace("{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
-		Target.Replace("{{BUILDER_USE_JIT}}", Mavi::Library::HasJIT() ? "ON" : "OFF");
-		Target.Replace("{{BUILDER_USE_SIMD}}", Mavi::Library::HasSIMD() ? "ON" : "OFF");
-		Target.Replace("{{BUILDER_USE_FAST_MEMORY}}", Mavi::Library::HasFastMemory() ? "ON" : "OFF");
+		Target.Replace("{{BUILDER_FEATURES}}", ViFeatures);
 		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name);
 		return 0;
 	}
@@ -1013,6 +1042,34 @@ private:
 	{
 		Vector<FileEntry> Entries;
 		return !OS::Directory::Scan(Contextual.Output, &Entries) || Entries.empty();
+	}
+	bool IsBuilderUsingAudio()
+	{
+		return VM->HasSubmodule("std/audio");
+	}
+	bool IsBuilderUsingGraphics()
+	{
+		return VM->HasSubmodule("std/graphics");
+	}
+	bool IsBuilderUsingEngine()
+	{
+		return VM->HasSubmodule("std/engine");
+	}
+	bool IsBuilderUsingPostgreSQL()
+	{
+		return VM->HasSubmodule("std/postgresql");
+	}
+	bool IsBuilderUsingMongoDB()
+	{
+		return VM->HasSubmodule("std/mongodb");
+	}
+	bool IsBuilderUsingPhysics()
+	{
+		return VM->HasSubmodule("std/physics");
+	}
+	bool IsBuilderUsingGUI()
+	{
+		return VM->HasSubmodule("std/gui/control") || VM->HasSubmodule("std/gui/model") || VM->HasSubmodule("std/gui/context");
 	}
 	std::chrono::milliseconds GetTime()
 	{

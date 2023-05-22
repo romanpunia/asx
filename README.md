@@ -107,7 +107,7 @@ Currently, one of the main issue is initialization time. About 40ms (app-mode) o
 Generally, AngelScript uses much less memory than v8 JavaScript runtime. That is because there are practically no wrappers between C++ types and AngelScript types. However, JIT compiler may increase memory usage as well as source code preserving in memory.
 
 ## Packaging
-Mavi.as supports a feature that allows one to build the executable from AngelScript program. This executable will be cross-platform, it will embed program bytecode into the executable and build it standalone from runtime environment. This feature is considered experimental and pretty buggy at the moment.
+Mavi.as supports a feature that allows one to build the executable from AngelScript program. This executable will be cross-platform, it will embed program bytecode into the executable and build it standalone from runtime environment. This feature is considered experimental and might produce slow build times.
 
 ## Dependencies
 * [Mavi (submodule)](https://github.com/romanpunia/mavi)
