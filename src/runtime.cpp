@@ -273,7 +273,7 @@ public:
 		{
 			auto Time = GetTime();
 			int ExitCode = BuilderAssemble();
-			std::cout << "[!] build task has " << (ExitCode == JUMP_CODE + EXIT_OK ? "finished " : "failed ") << " in " << (GetTime() - Time).count() << "ms";
+			std::cout << "[!] build task has " << (ExitCode == JUMP_CODE + EXIT_OK ? "finished" : "failed") << " in " << (GetTime() - Time).count() << "ms" << std::endl;
 			std::cout << "  binaries directory: " << Contextual.Output << "bin" << std::endl;
 			return ExitCode;
 		}
@@ -283,20 +283,11 @@ public:
 
 		if (Config.EssentialsOnly)
 		{
-			if (VM->HasSubmodule("std/graphics"))
-				VI_WARN("program includes disabled graphics features: consider using -g option");
-
-			if (VM->HasSubmodule("std/audio"))
-				VI_WARN("program includes disabled audio features: consider using -g option");
+			if (VM->HasSubmodule("std/graphics") || VM->HasSubmodule("std/audio"))
+				VI_WARN("program includes disabled graphics/audio features: consider using -g option");
 		}
-		else
-		{
-			if (!VM->HasSubmodule("std/graphics"))
-				VI_WARN("program does not include loaded graphics features: consider removing -g option");
-
-			if (!VM->HasSubmodule("std/audio"))
-				VI_WARN("program does not include loaded audio features: consider removing -g option");
-		}
+		else if (!VM->HasSubmodule("std/graphics") && !!VM->HasSubmodule("std/audio"))
+			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
 		ImmediateContext* Context = Unit->GetContext();
 		Context->SetExceptionCallback([](ImmediateContext* Context)
@@ -842,7 +833,7 @@ private:
 		size_t TotalSize = 0;
 		for (auto It = Entries.begin(); It != Entries.end();)
 		{
-			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
+			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "make" && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
 			{
 				if (!Path.empty() && Path.back() != '\\' && Path.back() != '/')
 					It->Path = Path + VI_SPLITTER + It->Path;

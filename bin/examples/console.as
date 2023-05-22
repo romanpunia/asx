@@ -33,6 +33,8 @@ class image_fill
 
     image_fill()
     {
+        console@ output = console::get();
+        output.show();
         resize();
     }
     void resize()
