@@ -41,6 +41,7 @@ struct ProgramContext
 	String Path;
 	String Program;
 	String Output;
+	String Addon;
 	const char* Module;
 	bool Inline;
 
@@ -61,16 +62,14 @@ struct ProgramEntrypoint
 
 struct ProgramConfig
 {
-	UnorderedMap<String, std::pair<String, String>> Symbols;
-	Vector<String> Submodules;
-	Vector<String> Addons;
-	Vector<String> Libraries;
+	UnorderedMap<String, std::pair<String, String>> Functions;
+	Vector<std::pair<String, bool>> Libraries;
 	Vector<std::pair<String, int32_t>> Settings;
-	bool Modules = true;
+	Vector<String> SystemAddons;
+	bool Addons = true;
 	bool CLibraries = true;
-	bool CSymbols = true;
+	bool CFunctions = true;
 	bool Files = true;
-	bool JSON = true;
 	bool Remotes = true;
 	bool Debug = false;
 	bool Translator = false;
@@ -95,16 +94,14 @@ void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context
 int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMachine* VM)
 {
 	uint32_t ImportOptions = 0;
-	if (Config.Modules)
-		ImportOptions |= (uint32_t)Imports::Submodules;
+	if (Config.Addons)
+		ImportOptions |= (uint32_t)Imports::Addons;
 	if (Config.CLibraries)
 		ImportOptions |= (uint32_t)Imports::CLibraries;
-	if (Config.CSymbols)
-		ImportOptions |= (uint32_t)Imports::CSymbols;
+	if (Config.CFunctions)
+		ImportOptions |= (uint32_t)Imports::CFunctions;
 	if (Config.Files)
 		ImportOptions |= (uint32_t)Imports::Files;
-	if (Config.JSON)
-		ImportOptions |= (uint32_t)Imports::JSON;
 	if (Config.Remotes)
 		ImportOptions |= (uint32_t)Imports::Remotes;
 
@@ -115,38 +112,29 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 	if (Config.Translator)
 		VM->SetByteCodeTranslator((uint32_t)TranslationOptions::Optimal);
 
-	for (auto& Name : Config.Submodules)
+	for (auto& Name : Config.SystemAddons)
 	{
-		if (!VM->ImportSubmodule(Name))
+		if (!VM->ImportSystemAddon(Name))
 		{
-			VI_ERR("system module <%s> cannot be loaded", Name.c_str());
-			return JUMP_CODE + EXIT_LOADING_FAILURE;
-		}
-	}
-
-	for (auto& Path : Config.Addons)
-	{
-		if (!VM->ImportLibrary(Path, true))
-		{
-			VI_ERR("external module <%s> cannot be loaded", Path.c_str());
+			VI_ERR("system addon <%s> cannot be loaded", Name.c_str());
 			return JUMP_CODE + EXIT_LOADING_FAILURE;
 		}
 	}
 
 	for (auto& Path : Config.Libraries)
 	{
-		if (!VM->ImportLibrary(Path, false))
+		if (!VM->ImportCLibrary(Path.first, Path.second))
 		{
-			VI_ERR("C library <%s> cannot be loaded", Path.c_str());
+			VI_ERR("external %s <%s> cannot be loaded", Path.second ? "addon" : "clibrary", Path.first.c_str());
 			return JUMP_CODE + EXIT_LOADING_FAILURE;
 		}
 	}
 
-	for (auto& Data : Config.Symbols)
+	for (auto& Data : Config.Functions)
 	{
-		if (!VM->ImportSymbol({ Data.first }, Data.second.first, Data.second.second))
+		if (!VM->ImportCFunction({ Data.first }, Data.second.first, Data.second.second))
 		{
-			VI_ERR("C library symbol <%s> from <%s> cannot be loaded", Data.second.first.c_str(), Data.first.c_str());
+			VI_ERR("clibrary function <%s> from <%s> cannot be loaded", Data.second.first.c_str(), Data.first.c_str());
 			return JUMP_CODE + EXIT_LOADING_FAILURE;
 		}
 	}

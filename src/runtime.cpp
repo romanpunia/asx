@@ -110,7 +110,7 @@ public:
 		{
 			String Data, Multidata;
 			Data.reserve(1024 * 1024);
-			VM->ImportSubmodule("std");
+			VM->ImportSystemAddon("std");
 			PrintIntroduction();
 
 			auto* Debugger = new DebuggerContext(DebugType::Detach);
@@ -272,9 +272,15 @@ public:
 		if (!Contextual.Output.empty())
 		{
 			auto Time = GetTime();
-			int ExitCode = BuilderAssemble();
-			std::cout << "[!] build task has " << (ExitCode == JUMP_CODE + EXIT_OK ? "finished" : "failed") << " in " << (GetTime() - Time).count() << "ms" << std::endl;
-			std::cout << "  binaries directory: " << Contextual.Output << "bin" << std::endl;
+			int ExitCode = BuilderCreateExecutable();
+			std::cout << "Binaries directory: " << Contextual.Output << "bin" << std::endl;
+			return ExitCode;
+		}
+		else if (!Contextual.Addon.empty())
+		{
+			auto Time = GetTime();
+			int ExitCode = BuilderCreateAddon();
+			std::cout << "Binaries directory: " << Contextual.Output << "bin" << std::endl;
 			return ExitCode;
 		}
 
@@ -283,10 +289,10 @@ public:
 
 		if (Config.EssentialsOnly)
 		{
-			if (VM->HasSubmodule("std/graphics") || VM->HasSubmodule("std/audio"))
+			if (VM->HasSystemAddon("std/graphics") || VM->HasSystemAddon("std/audio"))
 				VI_WARN("program includes disabled graphics/audio features: consider using -g option");
 		}
-		else if (!VM->HasSubmodule("std/graphics") && !!VM->HasSubmodule("std/audio"))
+		else if (!VM->HasSystemAddon("std/graphics") && !!VM->HasSystemAddon("std/audio"))
 			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
 		ImmediateContext* Context = Unit->GetContext();
@@ -468,54 +474,54 @@ private:
 			Contextual.Name = Name;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-s, --system", "import system module(s) by name [expects: plus(+) separated list]", [this](const String& Value)
+		AddCommand("-s, --system", "import system addon(s) by name [expects: plus(+) separated list]", [this](const String& Value)
 		{
 			for (auto& Item : Stringify(&Value).Split('+'))
-				Config.Submodules.push_back(Item);
+				Config.SystemAddons.push_back(Item);
 
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-m, --module", "import external module(s) by path [expects: plus(+) separated list]", [this](const String& Value)
+		AddCommand("-a, --addon", "import external addon(s) by path [expects: plus(+) separated list]", [this](const String& Value)
 		{
 			for (auto& Item : Stringify(&Value).Split('+'))
-				Config.Addons.push_back(Item);
+				Config.Libraries.emplace_back(std::make_pair(Item, true));
 
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-cl, --clib", "import C library(ies) by path [expects: plus(+) separated list]", [this](const String& Value)
+		AddCommand("-cl, --clib", "import clibrary(ies) by path [expects: plus(+) separated list]", [this](const String& Value)
 		{
 			for (auto& Item : Stringify(&Value).Split('+'))
-				Config.Libraries.push_back(Item);
+				Config.Libraries.emplace_back(std::make_pair(Item, false));
 
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-cs, --csymbol", "import C library symbol by declaration [expects: clib_name:cfunc_name=asfunc_decl]", [this](const String& Value)
+		AddCommand("-cf, --cfunction", "import clibrary function by declaration [expects: clib_name:cfunc_name=asfunc_decl]", [this](const String& Value)
 		{
 			size_t Offset1 = Value.find(':');
 			if (Offset1 == std::string::npos)
 			{
-				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
 			size_t Offset2 = Value.find('=', Offset1);
 			if (Offset2 == std::string::npos)
 			{
-				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
 			auto CLibraryName = Stringify(Value.substr(0, Offset1)).Trim().R();
-			auto CSymbolName = Stringify(Value.substr(Offset1 + 1, Offset2 - Offset1 - 1)).Trim().R();
+			auto CFunctionName = Stringify(Value.substr(Offset1 + 1, Offset2 - Offset1 - 1)).Trim().R();
 			auto Declaration = Stringify(Value.substr(Offset2 + 1)).Trim().R();
-			if (CLibraryName.empty() || CSymbolName.empty() || Declaration.empty())
+			if (CLibraryName.empty() || CFunctionName.empty() || Declaration.empty())
 			{
-				VI_ERR("invalid C library symbol declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
-			auto& Data = Config.Symbols[CLibraryName];
-			Data.first = CSymbolName;
+			auto& Data = Config.Functions[CLibraryName];
+			Data.first = CFunctionName;
 			Data.second = Declaration;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
@@ -582,29 +588,24 @@ private:
 			PrintProperties();
 			return JUMP_CODE + EXIT_OK;
 		});
-		AddCommand("--no-modules", "disable system module imports", [this](const String&)
+		AddCommand("--no-addons", "disable system addon imports", [this](const String&)
 		{
-			Config.Modules = false;
+			Config.Addons = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("--no-clibraries", "disable C library and external module imports", [this](const String&)
+		AddCommand("--no-clibraries", "disable clibrary and external addon imports", [this](const String&)
 		{
 			Config.CLibraries = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("--no-csymbols", "disable C library symbolic imports", [this](const String&)
+		AddCommand("--no-cfunctions", "disable clibrary cfunction imports", [this](const String&)
 		{
-			Config.CSymbols = false;
+			Config.CFunctions = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--no-files", "disable file imports", [this](const String&)
 		{
 			Config.Files = false;
-			return JUMP_CODE + EXIT_CONTINUE;
-		});
-		AddCommand("--no-json", "disable json imports", [this](const String&)
-		{
-			Config.JSON = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--no-remotes", "disable remote imports", [this](const String&)
@@ -667,7 +668,7 @@ private:
 		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Mavi::Library::GetCompiler() << " on " << Mavi::Library::GetPlatform() << "]" << std::endl;
 		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "vi --help")) << "\" for more information";
 		if (Config.Interactive)
-			std::cout << " (loaded " << VM->GetSubmodules().size() << " modules)";
+			std::cout << " (loaded " << VM->GetExposedAddons().size() << " addons)";
 		std::cout << std::endl;
 	}
 	void PrintHelp()
@@ -725,30 +726,24 @@ private:
 		signal(SIGCHLD, SIG_IGN);
 #endif
 	}
-	int BuilderAssemble()
+	int BuilderCreateExecutable()
 	{
-		std::cout << "[1] downloading executable repository ..." << std::endl;
-		std::cout << "  clone directory: " << Contextual.Output << std::endl;
 		if (IsBuilderDirectoryEmpty() && BuilderExecute("git clone --recursive https://github.com/romanpunia/template.as " + Contextual.Output) != 0)
 		{
-			std::cout << "  cannot download executable repository:" << std::endl;
-			std::cout << "    make sure you have git installed" << std::endl;
+			VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		std::cout << "[2] generating the source code ..." << std::endl;
 		if (BuilderGenerate(Contextual.Output, "  ") != 0)
 		{
-			std::cout << "  cannot generate the template:" << std::endl;
-			std::cout << "    make sure application has file read/write permissions" << std::endl;
+			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
 		std::cout << "[3] embedding the byte code ..." << std::endl;
 		if (BuilderAppendByteCode(Contextual.Output + "src/program.hex") != 0)
 		{
-			std::cout << "  cannot embed the byte code:" << std::endl;
-			std::cout << "    make sure application has file read/write permissions" << std::endl;
+			VI_ERR("cannot embed the byte code:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 #ifndef NDEBUG
@@ -756,8 +751,6 @@ private:
 #else
 		String BuildType = (Config.Debug ? "Debug" : "Release");
 #endif
-		std::cout << "[4] configuring the repository ..." << std::endl;
-		std::cout << "  configure directory: " << Contextual.Output << std::endl;
 #ifdef VI_MICROSOFT
 		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
 #else
@@ -765,17 +758,14 @@ private:
 #endif
 		if (BuilderExecute(ConfigureCommand) != 0)
 		{
-			std::cout << "  cannot configure an executable repository:" << std::endl;
 #ifdef VI_MICROSOFT
-			std::cout << "    make sure you vcpkg installed and %VCPKG_ROOT% is set" << std::endl;
+			VI_ERR("cannot configure an executable repository:\n\tmake sure you vcpkg installed and VCPKG_ROOT env is set");
 #else
-			std::cout << "    make sure you have all dependencies installed" << std::endl;
+			VI_ERR("cannot configure an executable repository:\n\tmake sure you have all dependencies installed");
 #endif
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		std::cout << "[5] building an executable (" << BuildType << ") ..." << std::endl;
-		std::cout << "  building directory: " << Contextual.Output << "make" << std::endl;
 #ifdef VI_MICROSOFT
 		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), BuildType.c_str()).R();
 #else
@@ -783,8 +773,29 @@ private:
 #endif
 		if (BuilderExecute(BuildCommand) != 0)
 		{
-			std::cout << "  cannot build an executable repository:" << std::endl;
-			std::cout << "    make sure you have cmake installed" << std::endl;
+			VI_ERR("cannot build an executable repository:\n\tmake sure you have cmake installed");
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		return JUMP_CODE + EXIT_OK;
+	}
+	int BuilderCreateAddon()
+	{
+		if (!IsBuilderDirectoryEmpty())
+		{
+			VI_ERR("cannot download addon repository:\n\ttarget directory is not empty: %s", Contextual.Addon.c_str());
+			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
+		}
+
+		if (BuilderExecute("git clone --recursive https://github.com/romanpunia/addon.as " + Contextual.Addon) != 0)
+		{
+			VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		if (BuilderGenerate(Contextual.Addon, "  ") != 0)
+		{
+			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
@@ -792,16 +803,9 @@ private:
 	}
 	int BuilderExecute(const String& Command)
 	{
-		Console* Output = Console::Get();
-		Output->ColorBegin(StdColor::Gray);
-
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
 		if (!Stream)
-		{
-			Output->ColorEnd();
-			std::cout << "  cannot spawn a child process" << std::endl;
 			return -1;
-		}
 
 		bool NewLineEOF = false;
 		size_t Size = Stream->ReadAll([&NewLineEOF](char* Buffer, size_t Size)
@@ -816,9 +820,8 @@ private:
 		if (NewLineEOF)
 			std::cout << std::endl;
 
-		Output->ColorEnd();
 		if (!Stream->Close())
-			std::cout << "  cannot close a child process" << std::endl;
+			VI_ERR("cannot close a child process");
 
 		int ExitCode = Stream->GetExitCode();
 		VI_RELEASE(Stream);
@@ -829,7 +832,7 @@ private:
 		Vector<FileEntry> Entries;
 		if (!OS::Directory::Scan(Path, &Entries))
 		{
-			std::cout << Offset << "cannot scan directory: " << Path << std::endl;
+			VI_ERR("cannot scan directory: %s", Path.c_str());
 			return -1;
 		}
 
@@ -884,27 +887,26 @@ private:
 			Stream* BaseFile = OS::File::Open(Item.Path, FileMode::Binary_Read_Only);
 			if (!BaseFile)
 			{
-				std::cout << Offset << "cannot open source file: " << Item.Path << std::endl;
+				VI_ERR("cannot open source file: %s", Item.Path.c_str());
 				return -1;
 			}
 
 			Stream* TargetFile = OS::File::Open(TargetPath, FileMode::Binary_Write_Only);
 			if (!TargetFile)
 			{
-				std::cout << Offset << "cannot create target source file: " << TargetPath << std::endl;
+				VI_ERR("cannot create target source file: %s", TargetPath.c_str());
 				VI_RELEASE(BaseFile);
 				return -1;
 			}
 
 			uint32_t Progress = (uint32_t)(100.0 * (double)CurrentSize / (double)TotalSize);
-			std::cout << "  [" << Progress << "%] generating source file: " << Item.Path << std::endl;
 			BaseFile->ReadAll([this, TargetFile](char* Buffer, size_t Size)
 			{
 				if (!Size)
 					return;
 
 				String Data(Buffer, Size);
-				BuilderGenerateTemplate(Data);
+				BuilderGenerateTemplate(Data, false);
 				TargetFile->Write(Data.c_str(), Data.size());
 			});
 			VI_RELEASE(BaseFile);
@@ -914,16 +916,14 @@ private:
 			OS::File::Move(Item.Path.c_str(), TempPath.c_str());
 			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
 			{
-				std::cout << Offset << "cannot move target files:" << std::endl;
-				std::cout << Offset << "  move file from: " << TargetPath << std::endl;
-				std::cout << Offset << "  move file to: " << Item.Path << std::endl;
+				VI_ERR("cannot move target files:\n\tmove file from: %s\n\tmove file to: %s", TargetPath.c_str(), Item.Path.c_str());
 				return -1;
 			}
 		}
 
 		return 0;
 	}
-	int BuilderGenerateTemplate(String& Data)
+	int BuilderGenerateTemplate(String& Data, bool IsAddon)
 	{
 		static String ConfigSettingsArray;
 		if (ConfigSettingsArray.empty())
@@ -935,31 +935,28 @@ private:
 			}
 		}
 
-		static String ConfigSubmodulesArray;
-		if (ConfigSubmodulesArray.empty())
+		static String ConfigSystemAddonsArray;
+		if (ConfigSystemAddonsArray.empty())
 		{
-			for (auto& Item : VM->GetModules())
+			for (auto& Item : VM->GetSystemAddons())
 			{
-				if (Item.second.Registered)
-					ConfigSubmodulesArray += Form("\"%s\", ", Item.first.c_str()).R();
+				if (Item.second.Exposed)
+					ConfigSystemAddonsArray += Form("\"%s\", ", Item.first.c_str()).R();
 			}
 		}
 
 		static String ConfigLibrariesArray;
-		static String ConfigSymbolsArray;
-		static String ConfigAddonsArray;
-		if (ConfigLibrariesArray.empty() && ConfigSymbolsArray.empty() && ConfigAddonsArray.empty())
+		static String ConfigFunctionsArray;
+		if (ConfigLibrariesArray.empty() && ConfigFunctionsArray.empty())
 		{
-			for (auto& Item : VM->GetKernels())
+			for (auto& Item : VM->GetCLibraries())
 			{
-				if (!Item.second.IsAddon)
-				{
-					ConfigLibrariesArray += Form("\"%s\", ", Item.first.c_str()).R();
-					for (auto& Symbol : Item.second.Functions)
-						ConfigSymbolsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Symbol.first.c_str()).R();
-				}
-				else
-					ConfigAddonsArray += Form("\"%s\", ", Item.first.c_str()).R();
+				ConfigLibrariesArray += Form("{ \"%s\", %s }, ", Item.first.c_str(), Item.second.IsAddon ? "true" : "false").R();
+				if (Item.second.IsAddon)
+					continue;
+
+				for (auto& Function : Item.second.Functions)
+					ConfigFunctionsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Function.first.c_str()).R();
 			}
 		}
 
@@ -970,18 +967,18 @@ private:
 			{
 				{ "BINDINGS", Mavi::Library::HasBindings() },
 				{ "FAST_MEMORY", Mavi::Library::HasFastMemory() },
-				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() },
-				{ "FREETYPE", Mavi::Library::HasFreeType() && IsBuilderUsingGUI() },
-				{ "GLEW", Mavi::Library::HasGLEW() && IsBuilderUsingGraphics() },
-				{ "OPENAL", Mavi::Library::HasOpenAL() && IsBuilderUsingAudio() },
-				{ "OPENGL", Mavi::Library::HasOpenGL() && IsBuilderUsingGraphics() },
-				{ "SDL2", Mavi::Library::HasSDL2() && IsBuilderUsingGraphics() },
-				{ "POSTGRESQL", Mavi::Library::HasPostgreSQL() && IsBuilderUsingPostgreSQL() },
-				{ "MONGOC", Mavi::Library::HasMongoDB() && IsBuilderUsingMongoDB() },
-				{ "SPIRV", Mavi::Library::HasSPIRV() && IsBuilderUsingGraphics() },
-				{ "BULLET3", Mavi::Library::HasBullet3() && IsBuilderUsingPhysics() },
-				{ "RMLUI", Mavi::Library::HasRmlUI() && IsBuilderUsingGUI() },
-				{ "SHADERS", Mavi::Library::HasShaders() && IsBuilderUsingGraphics() }
+				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
+				{ "FREETYPE", Mavi::Library::HasFreeType() && IsBuilderUsingGUI() && !IsAddon },
+				{ "GLEW", Mavi::Library::HasGLEW() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "OPENAL", Mavi::Library::HasOpenAL() && IsBuilderUsingAudio() && !IsAddon },
+				{ "OPENGL", Mavi::Library::HasOpenGL() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "SDL2", Mavi::Library::HasSDL2() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "POSTGRESQL", Mavi::Library::HasPostgreSQL() && IsBuilderUsingPostgreSQL() && !IsAddon },
+				{ "MONGOC", Mavi::Library::HasMongoDB() && IsBuilderUsingMongoDB() && !IsAddon },
+				{ "SPIRV", Mavi::Library::HasSPIRV() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "BULLET3", Mavi::Library::HasBullet3() && IsBuilderUsingPhysics() && !IsAddon },
+				{ "RMLUI", Mavi::Library::HasRmlUI() && IsBuilderUsingGUI() && !IsAddon },
+				{ "SHADERS", Mavi::Library::HasShaders() && IsBuilderUsingGraphics() && !IsAddon }
 			};
 
 			for (auto& Item : Features)
@@ -991,21 +988,24 @@ private:
 				ViFeatures.erase(ViFeatures.end() - 1);
 		}
 
+		static String ViVersion;
+		if (ViVersion.empty())
+			ViVersion = ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION);
+
 		Stringify Target(&Data);
 		Target.Replace("{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
-		Target.Replace("{{BUILDER_CONFIG_SYMBOLS}}", ConfigSymbolsArray);
-		Target.Replace("{{BUILDER_CONFIG_SUBMODULES}}", ConfigSubmodulesArray);
-		Target.Replace("{{BUILDER_CONFIG_ADDONS}}", ConfigAddonsArray);
 		Target.Replace("{{BUILDER_CONFIG_LIBRARIES}}", ConfigLibrariesArray);
-		Target.Replace("{{BUILDER_CONFIG_MODULES}}", Config.Modules ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_FUNCTIONS}}", ConfigFunctionsArray);
+		Target.Replace("{{BUILDER_CONFIG_ADDONS}}", ConfigSystemAddonsArray);
+		Target.Replace("{{BUILDER_CONFIG_SYSTEM_ADDONS}}", Config.Addons ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_CSYMBOLS}}", Config.CSymbols ? "true" : "false");
+		Target.Replace("{{BUILDER_CONFIG_CFUNCTIONS}}", Config.CFunctions ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_FILES}}", Config.Files ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_JSON}}", Config.JSON ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
 		Target.Replace("{{BUILDER_FEATURES}}", ViFeatures);
+		Target.Replace("{{BUILDER_VERSION}}", ViVersion);
 		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name);
 		return 0;
 	}
@@ -1015,7 +1015,7 @@ private:
 		Info.Debug = Config.Debug;
 		if (Unit->SaveByteCode(&Info) < 0)
 		{
-			std::cout << "  cannot fetch the byte code" << std::endl;
+			VI_ERR("cannot fetch the byte code");
 			return -1;
 		}
 
@@ -1023,14 +1023,14 @@ private:
 		Stream* TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only);
 		if (!TargetFile)
 		{
-			std::cout << "  cannot create the byte code file: " << Path << std::endl;
+			VI_ERR("cannot create the byte code file: %s", Path.c_str());
 			return -1;
 		}
 
 		String Data = Codec::HexEncode((const char*)Info.Data.data(), Info.Data.size());
 		if (TargetFile->Write(Data.data(), Data.size()) != Data.size())
 		{
-			std::cout << "  cannot write the byte code file: " << Path << std::endl;
+			VI_ERR("cannot write the byte code file: %s", Path.c_str());
 			VI_RELEASE(TargetFile);
 			return -1;
 		}
@@ -1045,31 +1045,31 @@ private:
 	}
 	bool IsBuilderUsingAudio()
 	{
-		return VM->HasSubmodule("std/audio");
+		return VM->HasSystemAddon("std/audio");
 	}
 	bool IsBuilderUsingGraphics()
 	{
-		return VM->HasSubmodule("std/graphics");
+		return VM->HasSystemAddon("std/graphics");
 	}
 	bool IsBuilderUsingEngine()
 	{
-		return VM->HasSubmodule("std/engine");
+		return VM->HasSystemAddon("std/engine");
 	}
 	bool IsBuilderUsingPostgreSQL()
 	{
-		return VM->HasSubmodule("std/postgresql");
+		return VM->HasSystemAddon("std/postgresql");
 	}
 	bool IsBuilderUsingMongoDB()
 	{
-		return VM->HasSubmodule("std/mongodb");
+		return VM->HasSystemAddon("std/mongodb");
 	}
 	bool IsBuilderUsingPhysics()
 	{
-		return VM->HasSubmodule("std/physics");
+		return VM->HasSystemAddon("std/physics");
 	}
 	bool IsBuilderUsingGUI()
 	{
-		return VM->HasSubmodule("std/gui/control") || VM->HasSubmodule("std/gui/model") || VM->HasSubmodule("std/gui/context");
+		return VM->HasSystemAddon("std/gui/control") || VM->HasSystemAddon("std/gui/model") || VM->HasSystemAddon("std/gui/context");
 	}
 	std::chrono::milliseconds GetTime()
 	{
@@ -1080,7 +1080,7 @@ private:
 int main(int argc, char* argv[])
 {
 	Mavias* Instance = new Mavias(argc, argv);
-    Mavi::Initialize(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game :(size_t)Mavi::Preset::App);
+    Mavi::Initialize(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
 	int ExitCode = Instance->Dispatch();
 	delete Instance;
 	Mavi::Uninitialize();
