@@ -45,7 +45,7 @@ struct ProgramContext
 	const char* Module;
 	bool Inline;
 
-	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), Name("build_target"), Module("__anonymous__"), Inline(true)
+	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), Module("__anonymous__"), Inline(true)
 	{
 		Args.reserve((size_t)ArgsCount);
 		for (int i = 0; i < ArgsCount; i++)

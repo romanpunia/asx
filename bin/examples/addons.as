@@ -1,10 +1,10 @@
 #include <std/console.as>
-#include "addon_name"
+#include "test_addon/bin/test_addon"
 
 /*
     To test this example you must:
-        1. Build this repository: https://github.com/romanpunia/addon.as
-        2. Place <addon_name.*> shared library near this file
+        1. Call: vi -n test_addon -ia examples
+        2. Build project at ./test_addon using CMake
 */
 int main()
 {

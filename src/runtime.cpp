@@ -58,7 +58,7 @@ public:
 				return ExitCode;
 		}
 
-		if (!Config.Interactive && Contextual.Program.empty())
+		if (!Config.Interactive && Contextual.Addon.empty() && Contextual.Program.empty())
 		{
 			Config.Interactive = true;
 			if (Contextual.Params.Base.size() > 1)
@@ -68,7 +68,15 @@ public:
 			}
 		}
 
-		if (Config.Interactive)
+		if (!Contextual.Addon.empty())
+		{
+			auto Time = GetTime();
+			int ExitCode = BuilderCreateAddon();
+			if (ExitCode == JUMP_CODE + EXIT_OK)
+				std::cout << "Initialized addon directory: " << Contextual.Addon << std::endl;
+			return ExitCode;
+		}
+		else if (Config.Interactive)
 		{
 			if (Contextual.Path.empty())
 				Contextual.Path = OS::Directory::Get();
@@ -273,14 +281,8 @@ public:
 		{
 			auto Time = GetTime();
 			int ExitCode = BuilderCreateExecutable();
-			std::cout << "Binaries directory: " << Contextual.Output << "bin" << std::endl;
-			return ExitCode;
-		}
-		else if (!Contextual.Addon.empty())
-		{
-			auto Time = GetTime();
-			int ExitCode = BuilderCreateAddon();
-			std::cout << "Binaries directory: " << Contextual.Output << "bin" << std::endl;
+			if (ExitCode == JUMP_CODE + EXIT_OK)
+				std::cout << "Built binaries directory: " << Contextual.Output << "bin" << std::endl;
 			return ExitCode;
 		}
 
@@ -456,7 +458,11 @@ private:
 			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
 				Contextual.Output.erase(Contextual.Output.end() - 1);
 
-			Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
+			if (!Contextual.Name.empty())
+				Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
+			else
+				Contextual.Output += VI_SPLITTER;
+
 			if (!OS::File::State(Contextual.Output, &File))
 			{
 				OS::Directory::Patch(Contextual.Output);
@@ -582,6 +588,30 @@ private:
 
 			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
 			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("-ia, --init", "initialize an addon template in given directory", [this](const String& Path)
+		{
+			FileEntry File;
+			Contextual.Addon = (Path == "." ? OS::Directory::Get() : OS::Path::Resolve(Path, OS::Directory::Get()));
+			if (!Contextual.Addon.empty() && (Contextual.Addon.back() == '/' || Contextual.Addon.back() == '\\'))
+				Contextual.Addon.erase(Contextual.Addon.end() - 1);
+
+			if (!Contextual.Name.empty())
+				Contextual.Addon += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
+			else
+				Contextual.Addon += VI_SPLITTER;
+
+			if (!OS::File::State(Contextual.Addon, &File))
+			{
+				OS::Directory::Patch(Contextual.Addon);
+				return JUMP_CODE + EXIT_CONTINUE;
+			}
+
+			if (File.IsDirectory)
+				return JUMP_CODE + EXIT_CONTINUE;
+
+			VI_ERR("addon path <%s> must be a directory", Path.c_str());
+			return JUMP_CODE + EXIT_INPUT_FAILURE;
 		});
 		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
 		{
@@ -734,13 +764,12 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		if (BuilderGenerate(Contextual.Output, "  ") != 0)
+		if (BuilderGenerate(Contextual.Output, false) != 0)
 		{
 			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		std::cout << "[3] embedding the byte code ..." << std::endl;
 		if (BuilderAppendByteCode(Contextual.Output + "src/program.hex") != 0)
 		{
 			VI_ERR("cannot embed the byte code:\n\tmake sure application has file read/write permissions");
@@ -793,7 +822,7 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
-		if (BuilderGenerate(Contextual.Addon, "  ") != 0)
+		if (BuilderGenerate(Contextual.Addon, true) != 0)
 		{
 			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
@@ -827,7 +856,7 @@ private:
 		VI_RELEASE(Stream);
 		return ExitCode;
 	}
-	int BuilderGenerate(const String& Path, const String& Offset)
+	int BuilderGenerate(const String& Path, bool IsAddon)
 	{
 		Vector<FileEntry> Entries;
 		if (!OS::Directory::Scan(Path, &Entries))
@@ -878,7 +907,7 @@ private:
 			CurrentSize += Item.Size;
 			if (Item.IsDirectory)
 			{
-				int Status = BuilderGenerate(Item.Path, Offset + "  ");
+				int Status = BuilderGenerate(Item.Path, IsAddon);
 				if (Status != 0)
 					return Status;
 				continue;
@@ -900,20 +929,26 @@ private:
 			}
 
 			uint32_t Progress = (uint32_t)(100.0 * (double)CurrentSize / (double)TotalSize);
-			BaseFile->ReadAll([this, TargetFile](char* Buffer, size_t Size)
+			BaseFile->ReadAll([this, TargetFile, &IsAddon](char* Buffer, size_t Size)
 			{
 				if (!Size)
 					return;
 
 				String Data(Buffer, Size);
-				BuilderGenerateTemplate(Data, false);
+				BuilderGenerateTemplate(Data, IsAddon);
 				TargetFile->Write(Data.c_str(), Data.size());
 			});
 			VI_RELEASE(BaseFile);
 			VI_RELEASE(TargetFile);
 
-			String TempPath = Item.Path + ".template";
-			OS::File::Move(Item.Path.c_str(), TempPath.c_str());
+			if (!IsAddon)
+			{
+				String TempPath = Item.Path + ".template";
+				OS::File::Move(Item.Path.c_str(), TempPath.c_str());
+			}
+			else
+				OS::File::Remove(Item.Path.c_str());
+
 			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
 			{
 				VI_ERR("cannot move target files:\n\tmove file from: %s\n\tmove file to: %s", TargetPath.c_str(), Item.Path.c_str());
@@ -967,11 +1002,15 @@ private:
 			{
 				{ "BINDINGS", Mavi::Library::HasBindings() },
 				{ "FAST_MEMORY", Mavi::Library::HasFastMemory() },
+				{ "FCTX", Mavi::Library::HasFContext() && !IsAddon },
+				{ "SIMD", Mavi::Library::HasSIMD() && !IsAddon },
 				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
 				{ "FREETYPE", Mavi::Library::HasFreeType() && IsBuilderUsingGUI() && !IsAddon },
 				{ "GLEW", Mavi::Library::HasGLEW() && IsBuilderUsingGraphics() && !IsAddon },
 				{ "OPENAL", Mavi::Library::HasOpenAL() && IsBuilderUsingAudio() && !IsAddon },
 				{ "OPENGL", Mavi::Library::HasOpenGL() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "OPENSSL", Mavi::Library::HasOpenSSL() && IsBuilderUsingCrypto() && !IsAddon },
+				{ "ZLIB", Mavi::Library::HasOpenSSL() && IsBuilderUsingCompression() && !IsAddon },
 				{ "SDL2", Mavi::Library::HasSDL2() && IsBuilderUsingGraphics() && !IsAddon },
 				{ "POSTGRESQL", Mavi::Library::HasPostgreSQL() && IsBuilderUsingPostgreSQL() && !IsAddon },
 				{ "MONGOC", Mavi::Library::HasMongoDB() && IsBuilderUsingMongoDB() && !IsAddon },
@@ -1006,7 +1045,7 @@ private:
 		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
 		Target.Replace("{{BUILDER_FEATURES}}", ViFeatures);
 		Target.Replace("{{BUILDER_VERSION}}", ViVersion);
-		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name);
+		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name.empty() ? (IsAddon ? "addon_target" : "build_target") : Contextual.Name);
 		return 0;
 	}
 	int BuilderAppendByteCode(const String& Path)
@@ -1042,6 +1081,14 @@ private:
 	{
 		Vector<FileEntry> Entries;
 		return !OS::Directory::Scan(Contextual.Output, &Entries) || Entries.empty();
+	}
+	bool IsBuilderUsingCompression()
+	{
+		return VM->HasSystemAddon("std/file_system") || IsBuilderUsingCrypto();
+	}
+	bool IsBuilderUsingCrypto()
+	{
+		return VM->HasSystemAddon("std/random") || VM->HasSystemAddon("std/crypto") || VM->HasSystemAddon("std/network") || VM->HasSystemAddon("std/engine");
 	}
 	bool IsBuilderUsingAudio()
 	{
