@@ -17,6 +17,12 @@
 #define EXIT_INVALID_COMMAND 0x8
 #define EXIT_INVALID_DECLARATION 0x9
 #define EXIT_COMMAND_FAILURE 0x10
+#define REPOSITORY_TEMPLATE_ADDON "https://github.com/romanpunia/addon.as"
+#define REPOSITORY_TEMPLATE_EXECUTABLE "https://github.com/romanpunia/executable.as"
+#define REPOSITORY_TARGET_MAVI "https://github.com/romanpunia/mavi"
+#define REPOSITORY_SOURCE "https://github.com/"
+#define FILE_INDEX "addon.as"
+#define FILE_ADDON "addon.json"
 
 using namespace Mavi::Core;
 using namespace Mavi::Compute;
@@ -35,11 +41,14 @@ struct ProgramCommand
 struct ProgramContext
 {
 	OS::Process::ArgsContext Params;
+	UnorderedSet<String> Addons;
 	Vector<String> Args;
 	FileEntry File;
 	String Name;
 	String Path;
 	String Program;
+	String Registry;
+	String Mode;
 	String Output;
 	String Addon;
 	const char* Module;
@@ -78,6 +87,7 @@ struct ProgramConfig
 	bool LoadByteCode = false;
 	bool SaveByteCode = false;
 	bool SaveSourceCode = false;
+	bool Dependencies = false;
 };
 
 void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context)

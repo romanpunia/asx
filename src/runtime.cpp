@@ -79,7 +79,7 @@ public:
 		else if (Config.Interactive)
 		{
 			if (Contextual.Path.empty())
-				Contextual.Path = OS::Directory::Get();
+				Contextual.Path = OS::Directory::GetWorking();
 
 			if (Config.Debug)
 			{
@@ -108,6 +108,7 @@ public:
 			VM->SetDebugger(new DebuggerContext());
 
 		Unit = VM->CreateCompiler();
+		Unit->SetIncludeCallback(std::bind(&Mavias::BuilderImportAddon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 		if (Unit->Prepare(Contextual.Module) < 0)
 		{
 			VI_ERR("cannot prepare <%s> module scope", Contextual.Module);
@@ -273,6 +274,12 @@ public:
 			return JUMP_CODE + EXIT_SAVING_FAILURE;
 		}
 
+		if (Config.Dependencies)
+		{
+			PrintDependencies();
+			return JUMP_CODE + EXIT_OK;
+		}
+
 		Function Main = GetEntrypoint(Contextual, Entrypoint, Unit);
 		if (!Main.IsValid())
 			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
@@ -308,7 +315,7 @@ public:
 		});
 
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
-		Bindings::Array* ArgsArray = Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args);
+		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
 		Context->Execute(Main, [&Main, ArgsArray](ImmediateContext* Context)
 		{
 			if (Main.GetArgsCount() > 0)
@@ -316,7 +323,9 @@ public:
 		}).Wait();
 
 		int ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
-		VM->ReleaseObject(ArgsArray, Type);
+		if (ArgsArray != nullptr)
+			VM->ReleaseObject(ArgsArray, Type);
+	
 		AwaitContext(Queue, VM, Context);
 		return ExitCode;
 	}
@@ -386,7 +395,7 @@ private:
 		});
 		AddCommand("-f, --file", "set target file [expects: path, arguments?]", [this](const String& Path)
 		{
-			String Directory = OS::Directory::Get();
+			String Directory = OS::Directory::GetWorking();
 			size_t Index = 0; bool FileFlag = false;
 
 			for (size_t i = 0; i < Contextual.Args.size(); i++)
@@ -398,7 +407,7 @@ private:
 					continue;
 				}
 
-				auto File = OS::Path::Resolve(Value, Directory);
+				auto File = OS::Path::Resolve(Value, Directory, true);
 				if (OS::File::State(File, &Contextual.File))
 				{
 					Contextual.Path = File;
@@ -406,7 +415,7 @@ private:
 					break;
 				}
 
-				File = OS::Path::Resolve(Value + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory);
+				File = OS::Path::Resolve(Value + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory, true);
 				if (OS::File::State(File, &Contextual.File))
 				{
 					Contextual.Path = File;
@@ -421,9 +430,18 @@ private:
 				return JUMP_CODE + EXIT_INPUT_FAILURE;
 			}
 
+			Contextual.Registry = OS::Path::GetDirectory(Contextual.Path.c_str());
+			if (Contextual.Registry == Contextual.Path)
+			{
+				Contextual.Path = Directory + Contextual.Path;
+				Contextual.Registry = OS::Path::GetDirectory(Contextual.Path.c_str());
+			}
+
 			Contextual.Args.erase(Contextual.Args.begin(), Contextual.Args.begin() + Index);
 			Contextual.Module = OS::Path::GetFilename(Contextual.Path.c_str());
 			Contextual.Program = OS::File::ReadAsString(Contextual.Path.c_str());
+			Contextual.Registry += "addons";
+			Contextual.Registry += VI_SPLITTER;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-p, --plain", "disable log colors", [](const String&)
@@ -454,7 +472,7 @@ private:
 		AddCommand("-o, --output", "directory where to build an executable from source code", [this](const String& Path)
 		{
 			FileEntry File;
-			Contextual.Output = (Path == "." ? OS::Directory::Get() : OS::Path::Resolve(Path, OS::Directory::Get()));
+			Contextual.Output = (Path == "." ? OS::Directory::GetWorking() : OS::Path::Resolve(Path, OS::Directory::GetWorking(), true));
 			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
 				Contextual.Output.erase(Contextual.Output.end() - 1);
 
@@ -589,10 +607,31 @@ private:
 			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-ia, --init", "initialize an addon template in given directory", [this](const String& Path)
+		AddCommand("-ia, --init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
 		{
+			size_t Where = Value.find(':');
+			if (Where == std::string::npos)
+			{
+				VI_ERR("addon initialization expects <mode:path> format: <%s> is invalid", Value.c_str());
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
+			String Path = Value.substr(Where + 1);
+			if (Path.empty())
+			{
+				VI_ERR("addon initialization expects <mode:path> format: path must not be empty");
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
+			Contextual.Mode = Value.substr(0, Where);
+			if (Contextual.Mode != "native" && Contextual.Mode != "vm")
+			{
+				VI_ERR("addon initialization expects <mode:path> format: mode <%s> is invalid, [native|vm] expected", Contextual.Mode.c_str());
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
 			FileEntry File;
-			Contextual.Addon = (Path == "." ? OS::Directory::Get() : OS::Path::Resolve(Path, OS::Directory::Get()));
+			Contextual.Addon = (Path == "." ? OS::Directory::GetWorking() : OS::Path::Resolve(Path, OS::Directory::GetWorking(), true));
 			if (!Contextual.Addon.empty() && (Contextual.Addon.back() == '/' || Contextual.Addon.back() == '\\'))
 				Contextual.Addon.erase(Contextual.Addon.end() - 1);
 
@@ -617,6 +656,11 @@ private:
 		{
 			PrintProperties();
 			return JUMP_CODE + EXIT_OK;
+		});
+		AddCommand("--deps, --install, --dependencies", "install and show dependencies message", [this](const String&)
+		{
+			Config.Dependencies = true;
+			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--no-addons", "disable system addon imports", [this](const String&)
 		{
@@ -742,6 +786,23 @@ private:
 			std::cout << "\n";
 		}
 	}
+	void PrintDependencies()
+	{
+		auto Exposes = VM->GetExposedAddons();
+		if (!Exposes.empty())
+		{
+			std::cout << "  runtime dependencies list:" << std::endl;
+			for (auto& Item : Exposes)
+				std::cout << "    " << Item << std::endl;
+		}
+
+		if (!Contextual.Addons.empty())
+		{
+			std::cout << "  compiletime dependencies list:" << std::endl;
+			for (auto& Item : Contextual.Addons)
+				std::cout << "    " << Item << std::endl;
+		}
+	}
 	void ListenForSignals()
 	{
 		static Mavias* Instance = this;
@@ -756,9 +817,150 @@ private:
 		signal(SIGCHLD, SIG_IGN);
 #endif
 	}
+	IncludeType BuilderImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
+	{
+		if (File.Module.empty() || File.Module.front() != '@')
+			return IncludeType::Unchanged;
+
+		if (!Config.CFunctions || !Config.Remotes)
+		{
+			VI_ERR("cannot import addon <%s> from remote repository: not allowed", File.Module.c_str());
+			return IncludeType::Error;
+		}
+
+		IncludeType Status;
+		if (IsBuilderAddonCached(File.Module))
+			Status = BuilderFetchAddonCache(File.Module, Output);
+		else
+			Status = BuilderCreateAddonCache(File.Module, Output);
+
+		Contextual.Addons.insert(File.Module);
+		return Status;
+	}
+	IncludeType BuilderCreateAddonCache(const String& Name, String& Output)
+	{
+		String LocalTarget = Contextual.Registry + Name + VI_SPLITTER, RemoteTarget = Name.substr(1);
+		if (IsBuilderDirectoryEmpty(LocalTarget) && BuilderExecute("git clone " REPOSITORY_SOURCE + RemoteTarget + " " + LocalTarget) != 0)
+		{
+			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
+			return IncludeType::Error;
+		}
+
+		UPtr<Schema> Info = GetBuilderAddonInfo(Name);
+		if (!Info)
+		{
+			VI_ERR("addon <%s> does not seem to have a valid " FILE_ADDON " file", Name.c_str());
+			return IncludeType::Error;
+		}
+
+		String Type = Info->GetVar("type").GetBlob();
+		if (Type == "native")
+		{
+			if (IsBuilderAddonsCacheRegistryEmpty() && BuilderCreateAddonCacheRegistry() != JUMP_CODE + EXIT_OK)
+			{
+				VI_ERR("addon <%s> cannot be created: global target cannot be built", Name.c_str());
+				return IncludeType::Error;
+			}
+
+			if (BuilderCreateAddonLibrary(LocalTarget) != JUMP_CODE + EXIT_OK)
+			{
+				VI_ERR("addon <%s> cannot be created: final target cannot be built", Name.c_str());
+				return IncludeType::Error;
+			}
+
+			String Path = GetBuilderAddonTarget(Name);
+			return VM->ImportAddon(Path) ? IncludeType::Virtual : IncludeType::Error;
+		}
+		else if (Type == "vm")
+		{
+			Stringify Index(Info->GetVar("index").GetBlob());
+			if (Index.Empty() || !Index.EndsWith(".as") || Index.FindOf("/\\").Found)
+			{
+				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", Name.c_str(), Index.Get());
+				return IncludeType::Error;
+			}
+
+			String Path = LocalTarget + Index.R();
+			if (!OS::File::IsExists(Path.c_str()))
+			{
+				VI_ERR("addon <%s> cannot be created: index file cannot be found", Name.c_str());
+				return IncludeType::Error;
+			}
+
+			Output = OS::File::ReadAsString(Path.c_str());
+			return IncludeType::Preprocess;
+		}
+
+		VI_ERR("addon <%s> does not seem to have a valid " FILE_ADDON " file: type <%s> is not recognized", Name.c_str(), Type.c_str());
+		return IncludeType::Error;
+	}
+	IncludeType BuilderFetchAddonCache(const String& Name, String& Output)
+	{
+		UPtr<Schema> Info = GetBuilderAddonInfo(Name);
+		if (!Info)
+		{
+			VI_ERR("addon <%s> does not seem to have a valid " FILE_ADDON " file", Name.c_str());
+			return IncludeType::Error;
+		}
+
+		String Type = Info->GetVar("type").GetBlob();
+		if (Type == "native")
+		{
+			String Path = GetBuilderAddonTarget(Name);
+			return VM->ImportAddon(Path) ? IncludeType::Virtual : IncludeType::Error;
+		}
+		else if (Type == "vm")
+		{
+			String Path = Contextual.Registry + Name + VI_SPLITTER + Info->GetVar("index").GetBlob();
+			if (!OS::File::IsExists(Path.c_str()))
+			{
+				VI_ERR("addon <%s> cannot be imported: index file cannot be found", Name.c_str());
+				return IncludeType::Error;
+			}
+
+			Output = OS::File::ReadAsString(Path.c_str());
+			return IncludeType::Preprocess;
+		}
+
+		VI_ERR("addon <%s> does not seem to have a valid " FILE_ADDON " file: type <%s> is not recognized", Name.c_str(), Type.c_str());
+		return IncludeType::Error;
+	}
+	int BuilderCreateAddonCacheRegistry()
+	{
+		String GlobalTarget = Contextual.Registry + "mavi";
+		if (!IsBuilderDirectoryEmpty(GlobalTarget))
+			return JUMP_CODE + EXIT_OK;
+
+		if (BuilderExecute("git clone --recursive " REPOSITORY_TARGET_MAVI " " + GlobalTarget) != 0)
+		{
+			VI_ERR("cannot download addons repository target:\n\tmake sure you have git installed");
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
+
+		return JUMP_CODE + EXIT_OK;
+	}
+	int BuilderCreateAddonLibrary(const String& SourcesDirectory)
+	{
+#ifdef VI_MICROSOFT
+		String ConfigureCommand = Form("cmake -S %s -B %smake -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), SourcesDirectory.c_str(), Contextual.Registry.c_str()).R();
+#else
+		String ConfigureCommand = Form("cmake -S %s -B %smake -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), SourcesDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType()).R();
+#endif
+		if (BuilderExecute(ConfigureCommand) != 0)
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+#ifdef VI_MICROSOFT
+		String BuildCommand = Form("cmake --build %smake --config %s", SourcesDirectory.c_str(), GetBuilderBuildType()).R();
+#else
+		String BuildCommand = Form("cmake --build %smake", SourcesDirectory.c_str()).R();
+#endif
+		if (BuilderExecute(BuildCommand) != 0)
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+
+		return JUMP_CODE + EXIT_OK;
+	}
 	int BuilderCreateExecutable()
 	{
-		if (IsBuilderDirectoryEmpty() && BuilderExecute("git clone --recursive https://github.com/romanpunia/template.as " + Contextual.Output) != 0)
+		if (IsBuilderDirectoryEmpty(Contextual.Output) && BuilderExecute("git clone --recursive " REPOSITORY_TEMPLATE_EXECUTABLE " " + Contextual.Output) != 0)
 		{
 			VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
@@ -775,15 +977,10 @@ private:
 			VI_ERR("cannot embed the byte code:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
-#ifndef NDEBUG
-		String BuildType = (Config.Debug ? "Debug" : "RelWithDebInfo");
-#else
-		String BuildType = (Config.Debug ? "Debug" : "Release");
-#endif
 #ifdef VI_MICROSOFT
 		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
 #else
-		String ConfigureCommand = Form("cmake -DCMAKE_BUILD_TYPE=%s -S %s -B %smake", BuildType.c_str(), Contextual.Output.c_str(), Contextual.Output.c_str()).R();
+		String ConfigureCommand = Form("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType()).R();
 #endif
 		if (BuilderExecute(ConfigureCommand) != 0)
 		{
@@ -794,9 +991,8 @@ private:
 #endif
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
-
 #ifdef VI_MICROSOFT
-		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), BuildType.c_str()).R();
+		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), GetBuilderBuildType()).R();
 #else
 		String BuildCommand = Form("cmake --build %smake", Contextual.Output.c_str()).R();
 #endif
@@ -810,25 +1006,76 @@ private:
 	}
 	int BuilderCreateAddon()
 	{
-		if (!IsBuilderDirectoryEmpty())
+		if (Contextual.Mode == "vm")
 		{
-			VI_ERR("cannot download addon repository:\n\ttarget directory is not empty: %s", Contextual.Addon.c_str());
-			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
+			Schema* Info = Var::Set::Object();
+			Info->Set("name", Var::String(Contextual.Name));
+			Info->Set("type", Var::String(Contextual.Mode));
+			Info->Set("index", Var::String(FILE_INDEX));
+			Info->Set("runtime", Var::String(GetViVersion()));
+			Info->Set("version", Var::String("1.0.0"));
+
+			String Offset, Data;
+			Schema::ConvertToJSON(Info, [&Offset, &Data](VarForm Pretty, const char* Buffer, size_t Length)
+			{
+				if (Buffer != nullptr && Length > 0)
+					Data.append(Buffer, Length);
+
+				switch (Pretty)
+				{
+					case VarForm::Tab_Decrease:
+						Offset.erase(Offset.end() - 1);
+						break;
+					case VarForm::Tab_Increase:
+						Offset.append(1, '\t');
+						break;
+					case VarForm::Write_Space:
+						Data.append(" ");
+						break;
+					case VarForm::Write_Line:
+						Data.append("\n");
+						break;
+					case VarForm::Write_Tab:
+						Data.append(Offset);
+						break;
+					default:
+						break;
+				}
+			});
+			VI_RELEASE(Info);
+
+			OS::Directory::Patch(Contextual.Addon);
+			OS::File::Write(Contextual.Addon + FILE_INDEX, String());
+			if (!OS::File::Write(Contextual.Addon + FILE_ADDON, Data))
+			{
+				VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
+				return false;
+			}
+		}
+		else if (Contextual.Mode == "native")
+		{
+			if (!IsBuilderDirectoryEmpty(Contextual.Addon))
+			{
+				VI_ERR("cannot download addon repository:\n\ttarget directory is not empty: %s", Contextual.Addon.c_str());
+				return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
+			}
+
+			if (BuilderExecute("git clone --recursive " REPOSITORY_TEMPLATE_ADDON " " + Contextual.Addon) != 0)
+			{
+				VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
+				return JUMP_CODE + EXIT_COMMAND_FAILURE;
+			}
+
+			if (BuilderGenerate(Contextual.Addon, true) != 0)
+			{
+				VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
+				return JUMP_CODE + EXIT_COMMAND_FAILURE;
+			}
+
+			return JUMP_CODE + EXIT_OK;
 		}
 
-		if (BuilderExecute("git clone --recursive https://github.com/romanpunia/addon.as " + Contextual.Addon) != 0)
-		{
-			VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
-			return JUMP_CODE + EXIT_COMMAND_FAILURE;
-		}
-
-		if (BuilderGenerate(Contextual.Addon, true) != 0)
-		{
-			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
-			return JUMP_CODE + EXIT_COMMAND_FAILURE;
-		}
-
-		return JUMP_CODE + EXIT_OK;
+		return JUMP_CODE + EXIT_INPUT_FAILURE;
 	}
 	int BuilderExecute(const String& Command)
 	{
@@ -1029,7 +1276,7 @@ private:
 
 		static String ViVersion;
 		if (ViVersion.empty())
-			ViVersion = ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION);
+			ViVersion = GetViVersion();
 
 		Stringify Target(&Data);
 		Target.Replace("{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
@@ -1077,10 +1324,35 @@ private:
 		VI_RELEASE(TargetFile);
 		return 0;
 	}
-	bool IsBuilderDirectoryEmpty()
+	Schema* GetBuilderAddonInfo(const String& Name)
+	{
+		String LocalTarget = Contextual.Registry + Name + VI_SPLITTER + FILE_ADDON;
+		return Schema::FromJSON(OS::File::ReadAsString(LocalTarget), false);
+	}
+	bool IsBuilderAddonCached(const String& Name)
+	{
+		String LocalTarget = GetBuilderAddonTarget(Name);
+		if (OS::File::IsExists(LocalTarget.c_str()))
+			return true;
+
+		for (auto& Item : VM->GetCompileIncludeOptions().Exts)
+		{
+			String LocalTargetExt = LocalTarget + Item;
+			if (OS::File::IsExists(LocalTargetExt.c_str()))
+				return true;
+		}
+
+		return false;
+	}
+	bool IsBuilderAddonsCacheRegistryEmpty()
+	{
+		String GlobalTarget = Contextual.Registry + "mavi";
+		return !OS::Directory::IsExists(GlobalTarget.c_str());
+	}
+	bool IsBuilderDirectoryEmpty(const String& Target)
 	{
 		Vector<FileEntry> Entries;
-		return !OS::Directory::Scan(Contextual.Output, &Entries) || Entries.empty();
+		return !OS::Directory::Scan(Target, &Entries) || Entries.empty();
 	}
 	bool IsBuilderUsingCompression()
 	{
@@ -1117,6 +1389,22 @@ private:
 	bool IsBuilderUsingGUI()
 	{
 		return VM->HasSystemAddon("std/gui/control") || VM->HasSystemAddon("std/gui/model") || VM->HasSystemAddon("std/gui/context");
+	}
+	String GetBuilderAddonTarget(const String& Name)
+	{
+		return Form("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str())).R();
+	}
+	String GetViVersion()
+	{
+		return ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION);
+	}
+	const char* GetBuilderBuildType()
+	{
+#ifndef NDEBUG
+		return (Config.Debug ? "Debug" : "RelWithDebInfo");
+#else
+		return (Config.Debug ? "Debug" : "Release");
+#endif
 	}
 	std::chrono::milliseconds GetTime()
 	{

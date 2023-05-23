@@ -11,3 +11,4 @@ bin/*.exe
 bin/*.ilk
 bin/*.exp
 bin/examples/test_addon
+bin/examples/addons
