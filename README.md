@@ -109,8 +109,12 @@ After that you will either have a ready to use git repository with CMake configu
 #include "@repo_owner/repo_name" // Must start with <@> symbol
 ```
 
+Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory. First time builds (if native) are slow as it is required to download full Mavi framework beforehand and build the target addon using platform compiler, after shared library has been built loading times are submillisecond.
+
 * Native addons are made using C++. They must be compiled before first usage.
-* VM addons are mode using AngelScript. Compilation is just in time.
+* VM addons are made using AngelScript. Compilation is just in time.
+
+__This feature is considered experimental as it suffers of slow build times when no cache was present and might confuse files in local repository of addons.__
 
 ## Debugging
 You may just run mavi with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.
