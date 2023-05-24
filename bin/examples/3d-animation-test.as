@@ -80,8 +80,8 @@ class runtime
         else if (go_to_left || go_to_right)
         {
             if (go_to_left && --clip_now < 0)
-                clip_now = clip_count - 1;
-            else if (go_to_right && ++clip_now > clip_count)
+                clip_now = int64(clip_count) - 1;
+            else if (go_to_right && ++clip_now > int64(clip_count))
                 clip_now = 0;
             
             skin_animator_component@ animation = cast<skin_animator_component@>(self.scene.get_component(component_id("skin_animator_component"), 0));

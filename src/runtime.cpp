@@ -20,6 +20,9 @@ public:
 		AddDefaultSettings();
 		ListenForSignals();
 		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
+#ifndef NDEBUG
+		OS::Directory::SetWorking(OS::Directory::GetModule().c_str());
+#endif
 	}
 	~Mavias()
 	{
@@ -104,6 +107,7 @@ public:
 		if (Code != 0)
 			return Code;
 
+		OS::Directory::SetWorking(OS::Path::GetDirectory(Contextual.Path.c_str()).c_str());
 		if (Config.Debug)
 			VM->SetDebugger(new DebuggerContext());
 
@@ -296,7 +300,6 @@ public:
 		if (Config.Debug)
 			PrintIntroduction();
 
-		OS::Directory::SetWorking(OS::Path::GetDirectory(Contextual.Path.c_str()).c_str());
 		if (Config.EssentialsOnly)
 		{
 			if (VM->HasSystemAddon("std/graphics") || VM->HasSystemAddon("std/audio"))
@@ -802,16 +805,16 @@ private:
 		auto Exposes = VM->GetExposedAddons();
 		if (!Exposes.empty())
 		{
-			std::cout << "  runtime dependencies list:" << std::endl;
+			std::cout << "  local dependencies list:" << std::endl;
 			for (auto& Item : Exposes)
-				std::cout << "    " << Item << std::endl;
+				std::cout << "    " << Stringify(&Item).Replace(":", ": ").R() << std::endl;
 		}
 
 		if (!Contextual.Addons.empty())
 		{
-			std::cout << "  compiletime dependencies list:" << std::endl;
+			std::cout << "  remote dependencies list:" << std::endl;
 			for (auto& Item : Contextual.Addons)
-				std::cout << "    " << Item << std::endl;
+				std::cout << "    " << Item << ": " << GetBuilderAddonTargetLibrary(Item, nullptr) << std::endl;
 		}
 	}
 	void ListenForSignals()
@@ -851,7 +854,7 @@ private:
 	IncludeType BuilderCreateAddonCache(const String& Name, String& Output)
 	{
 		String LocalTarget = Contextual.Registry + Name + VI_SPLITTER, RemoteTarget = Name.substr(1);
-		if (IsBuilderDirectoryEmpty(LocalTarget) && BuilderExecute("git clone " REPOSITORY_SOURCE + RemoteTarget + " " + LocalTarget) != 0)
+		if (IsBuilderDirectoryEmpty(LocalTarget) && BuilderExecuteGit("git clone " REPOSITORY_SOURCE + RemoteTarget + " " + LocalTarget) != 0)
 		{
 			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
 			return IncludeType::Error;
@@ -942,9 +945,9 @@ private:
 		if (!IsBuilderDirectoryEmpty(GlobalTarget))
 			return JUMP_CODE + EXIT_OK;
 
-		if (BuilderExecute("git clone --recursive " REPOSITORY_TARGET_MAVI " " + GlobalTarget) != 0)
+		if (BuilderExecuteGit("git clone --recursive " REPOSITORY_TARGET_MAVI " " + GlobalTarget) != 0)
 		{
-			VI_ERR("cannot download addons repository target:\n\tmake sure you have git installed");
+			VI_ERR("cannot clone addons repository target");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
@@ -957,23 +960,23 @@ private:
 #else
 		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType()).R();
 #endif
-		if (BuilderExecute(ConfigureCommand) != 0)
+		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 #ifdef VI_MICROSOFT
 		String BuildCommand = Form("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType()).R();
 #else
 		String BuildCommand = Form("cmake --build %s", BuildDirectory.c_str()).R();
 #endif
-		if (BuilderExecute(BuildCommand) != 0)
+		if (BuilderExecuteCMake(BuildCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 
 		return JUMP_CODE + EXIT_OK;
 	}
 	int BuilderCreateExecutable()
 	{
-		if (IsBuilderDirectoryEmpty(Contextual.Output) && BuilderExecute("git clone --recursive " REPOSITORY_TEMPLATE_EXECUTABLE " " + Contextual.Output) != 0)
+		if (IsBuilderDirectoryEmpty(Contextual.Output) && BuilderExecuteGit("git clone --recursive " REPOSITORY_TEMPLATE_EXECUTABLE " " + Contextual.Output) != 0)
 		{
-			VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
+			VI_ERR("cannot clone executable repository");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
@@ -988,12 +991,18 @@ private:
 			VI_ERR("cannot embed the byte code:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
+
+		if (BuilderAppendDependencies(Contextual.Output + "bin/") != 0)
+		{
+			VI_ERR("cannot embed the dependencies:\n\tmake sure application has file read/write permissions");
+			return JUMP_CODE + EXIT_COMMAND_FAILURE;
+		}
 #ifdef VI_MICROSOFT
 		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
 #else
 		String ConfigureCommand = Form("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType()).R();
 #endif
-		if (BuilderExecute(ConfigureCommand) != 0)
+		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 		{
 #ifdef VI_MICROSOFT
 			VI_ERR("cannot configure an executable repository:\n\tmake sure you vcpkg installed and VCPKG_ROOT env is set");
@@ -1007,9 +1016,9 @@ private:
 #else
 		String BuildCommand = Form("cmake --build %smake", Contextual.Output.c_str()).R();
 #endif
-		if (BuilderExecute(BuildCommand) != 0)
+		if (BuilderExecuteCMake(BuildCommand) != 0)
 		{
-			VI_ERR("cannot build an executable repository:\n\tmake sure you have cmake installed");
+			VI_ERR("cannot build an executable repository");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
@@ -1067,13 +1076,13 @@ private:
 		{
 			if (!IsBuilderDirectoryEmpty(Contextual.Addon))
 			{
-				VI_ERR("cannot download addon repository:\n\ttarget directory is not empty: %s", Contextual.Addon.c_str());
+				VI_ERR("cannot clone addon repository:\n\ttarget directory is not empty: %s", Contextual.Addon.c_str());
 				return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
 			}
 
-			if (BuilderExecute("git clone --recursive " REPOSITORY_TEMPLATE_ADDON " " + Contextual.Addon) != 0)
+			if (BuilderExecuteGit("git clone --recursive " REPOSITORY_TEMPLATE_ADDON " " + Contextual.Addon) != 0)
 			{
-				VI_ERR("cannot download executable repository:\n\tmake sure you have git installed");
+				VI_ERR("cannot clone executable repository");
 				return JUMP_CODE + EXIT_COMMAND_FAILURE;
 			}
 
@@ -1106,7 +1115,7 @@ private:
 		if (!OS::Directory::Scan(Contextual.Registry.c_str(), &Entries) || Entries.empty())
 			return JUMP_CODE + EXIT_OK;
 
-		auto Pull = [this](const String& Path) { return BuilderExecute("cd \"" + Path + "\" && git pull") == 0; };
+		auto Pull = [this](const String& Path) { return BuilderExecuteGit("cd \"" + Path + "\" && git pull") == 0; };
 		for (auto& File : Entries)
 		{
 			if (!File.IsDirectory || File.Path.empty() || File.Path.front() == '.')
@@ -1137,8 +1146,41 @@ private:
 
 		return JUMP_CODE + EXIT_OK;
 	}
+	int BuilderExecuteGit(const String& Command)
+	{
+		static int IsGitInstalled = -1;
+		if (IsGitInstalled == -1)
+		{
+			IsGitInstalled = (int)(system("git") == 0);
+			if (!IsGitInstalled)
+			{
+				VI_ERR("cannot find <git> program, please make sure it is installed");
+				return JUMP_CODE + EXIT_COMMAND_FAILURE;
+			}
+		}
+
+		return BuilderExecute(Command);
+	}
+	int BuilderExecuteCMake(const String& Command)
+	{
+		static int IsCMakeInstalled = -1;
+		if (IsCMakeInstalled == -1)
+		{
+			IsCMakeInstalled = (int)(system("cmake") == 0);
+			if (!IsCMakeInstalled)
+			{
+				VI_ERR("cannot find <cmake> program, please make sure it is installed");
+				return JUMP_CODE + EXIT_COMMAND_FAILURE;
+			}
+		}
+
+		return BuilderExecute(Command);
+	}
 	int BuilderExecute(const String& Command)
 	{
+		std::cout << "> " + Command << ":" << std::endl;
+		Console::Get()->ColorBegin(StdColor::Gray);
+
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
 		if (!Stream)
 			return -1;
@@ -1156,6 +1198,7 @@ private:
 		if (NewLineEOF)
 			std::cout << std::endl;
 
+		Console::Get()->ColorEnd();
 		if (!Stream->Close())
 			VI_ERR("cannot close a child process");
 
@@ -1385,6 +1428,25 @@ private:
 		VI_RELEASE(TargetFile);
 		return 0;
 	}
+	int BuilderAppendDependencies(const String& TargetDirectory)
+	{
+		bool IsVM = false;
+		for (auto& Item : Contextual.Addons)
+		{
+			String From = GetBuilderAddonTargetLibrary(Item, &IsVM);
+			if (IsVM)
+				continue;
+
+			String To = TargetDirectory + OS::Path::GetFilename(From.c_str());
+			if (!OS::File::Copy(From.c_str(), To.c_str()))
+			{
+				VI_ERR("cannot copy dependant addon:\n\tfrom: %s\n\tto: %s", From.c_str(), To.c_str());
+				return 1;
+			}
+		}
+		
+		return 0;
+	}
 	Schema* GetBuilderAddonInfo(const String& Name)
 	{
 		String LocalTarget = Contextual.Registry + Name + VI_SPLITTER + FILE_ADDON;
@@ -1454,6 +1516,34 @@ private:
 	String GetBuilderAddonTarget(const String& Name)
 	{
 		return Form("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str())).R();
+	}
+	String GetBuilderAddonTargetLibrary(const String& Name, bool* IsVM)
+	{
+		if (IsVM)
+			*IsVM = false;
+
+		String Path1 = OS::Path::Resolve(GetBuilderAddonTarget(Name).c_str());
+		if (OS::File::IsExists(Path1.c_str()))
+			return Path1;
+
+		for (auto& Ext : VM->GetCompileIncludeOptions().Exts)
+		{
+			String Path = Path1 + Ext;
+			if (OS::File::IsExists(Path.c_str()))
+				return Path;
+		}
+
+		UPtr<Schema> Info = GetBuilderAddonInfo(Name);
+		if (Info->GetVar("type").GetBlob() != "vm")
+			return Path1;
+
+		if (IsVM)
+			*IsVM = true;
+
+		String Index = Info->GetVar("index").GetBlob();
+		Path1 = Contextual.Registry + Name + VI_SPLITTER + Index;
+		Path1 = OS::Path::Resolve(Path1.c_str());
+		return Path1;
 	}
 	String GetBuilderDirectory(const String& LocalTarget)
 	{
