@@ -9,13 +9,26 @@
 Mavi.as is a fully featured memory efficient Angel Script environment similar to Node.js.
 
 ## Usage
-Show all commands: **vi -h** or **vi --help**
-
-Execute a script file: **vi -f [path] [args]**
-
-Debug a script file: **vi -d -f [path] [args]**
-
-Run in interactive mode: **vi** or **vi -i**
+Simplest examples:
+```bash
+# Show all commands:
+    vi -h
+    vi --help
+#Execute a script file:
+    vi -f [path] [args]
+#Debug a script file:
+    vi -d -f [path] [args]
+#Run in interactive mode:
+    vi
+    vi -i
+```
+Also note: -option and --option both have different syntax:
+```bash
+# Shorthand style
+    vi -option [value]
+# Normal style
+    vi --option=[value]
+```
 
 ## Preprocessor
 Scripts support preprocessor that can be used just like C++ preprocessor for dependency management. Preprocessed script lines of code could get shuffled around, however if compile or runtime error happens you will get last N lines of source code where it happend (including column pointer).
@@ -101,7 +114,7 @@ void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitializ
 {
 }
 ```
-You can create your own addon using _--init_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--name_ or _-n_ command.
+You can create your own addon using _--init_ or _-init_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--name_ or _-n_ command.
 
 After that you will either have a ready to use git repository with CMake configuration for C++ project with example code above. Or you will get two files _addon.json_ and _addon.as_. Keep in mind that without having _addon.json_ repository won't be evaluated as addon. Generated repository can be pushed to github and used afterwards with:
 ```cpp
@@ -114,7 +127,7 @@ Keep in mind that if you use remote addons which is a feature that works similia
 * Native addons are made using C++. They must be compiled before first usage.
 * VM addons are made using AngelScript. Compilation is just in time.
 
-__This feature is considered experimental as it suffers of slow build times when no cache was present and might confuse files in local repository of addons.__
+__This feature is considered experimental as it suffers of not fast enough build times for native addons and might confuse files in local repository of addons.__
 
 ## Debugging
 You may just run mavi with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands.

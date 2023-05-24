@@ -608,7 +608,7 @@ private:
 			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("--init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
+		AddCommand("-init, --init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
 		{
 			size_t Where = Value.find(':');
 			if (Where == std::string::npos)
@@ -656,6 +656,11 @@ private:
 		AddCommand("--update", "update locally installed addons", [this](const String& Value)
 		{
 			Config.Update = true;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("--fast", "will use single directory for all CMake addon builds (reuses cache, similar addon names will cause conflicts)", [this](const String& Value)
+		{
+			Config.FastBuilds = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
@@ -868,7 +873,7 @@ private:
 				return IncludeType::Error;
 			}
 
-			if (BuilderCreateAddonLibrary(LocalTarget) != JUMP_CODE + EXIT_OK)
+			if (BuilderCreateAddonLibrary(LocalTarget, GetBuilderDirectory(LocalTarget)) != JUMP_CODE + EXIT_OK)
 			{
 				VI_ERR("addon <%s> cannot be created: final target cannot be built", Name.c_str());
 				return IncludeType::Error;
@@ -945,19 +950,19 @@ private:
 
 		return JUMP_CODE + EXIT_OK;
 	}
-	int BuilderCreateAddonLibrary(const String& SourcesDirectory)
+	int BuilderCreateAddonLibrary(const String& SourcesDirectory, const String& BuildDirectory)
 	{
 #ifdef VI_MICROSOFT
-		String ConfigureCommand = Form("cmake -S %s -B %smake -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), SourcesDirectory.c_str(), Contextual.Registry.c_str()).R();
+		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str()).R();
 #else
-		String ConfigureCommand = Form("cmake -S %s -B %smake -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), SourcesDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType()).R();
+		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType()).R();
 #endif
 		if (BuilderExecute(ConfigureCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 #ifdef VI_MICROSOFT
-		String BuildCommand = Form("cmake --build %smake --config %s", SourcesDirectory.c_str(), GetBuilderBuildType()).R();
+		String BuildCommand = Form("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType()).R();
 #else
-		String BuildCommand = Form("cmake --build %smake", SourcesDirectory.c_str()).R();
+		String BuildCommand = Form("cmake --build %s", BuildDirectory.c_str()).R();
 #endif
 		if (BuilderExecute(BuildCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
@@ -1072,6 +1077,12 @@ private:
 				return JUMP_CODE + EXIT_COMMAND_FAILURE;
 			}
 
+			String GitDirectory = Contextual.Addon + ".git";
+			OS::Directory::Remove(GitDirectory.c_str());
+
+			String MakeDirectory = Contextual.Addon + "make";
+			OS::Directory::Create(MakeDirectory.c_str());
+			
 			if (BuilderGenerate(Contextual.Addon, true) != 0)
 			{
 				VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
@@ -1092,18 +1103,34 @@ private:
 		}
 
 		Vector<FileEntry> Entries;
-		if (!OS::Directory::Scan(Contextual.Registry.c_str(), &Entries))
+		if (!OS::Directory::Scan(Contextual.Registry.c_str(), &Entries) || Entries.empty())
 			return JUMP_CODE + EXIT_OK;
 
+		auto Pull = [this](const String& Path) { return BuilderExecute("cd \"" + Path + "\" && git pull") == 0; };
 		for (auto& File : Entries)
 		{
-			if (!File.IsDirectory)
+			if (!File.IsDirectory || File.Path.empty() || File.Path.front() == '.')
 				continue;
 
-			String Path = Contextual.Registry + File.Path;
-			if (BuilderExecute("cd \"" + Path + "\" && git pull") != 0)
+			if (File.Path.front() == '@')
 			{
-				VI_ERR("cannot pull addon repository: %s", File.Path.c_str());
+				Vector<FileEntry> Addons;
+				String RepositoriesPath = Contextual.Registry + File.Path + VI_SPLITTER;
+				if (!OS::Directory::Scan(RepositoriesPath.c_str(), &Addons) || Addons.empty())
+					continue;
+
+				for (auto& Addon : Addons)
+				{
+					if (Addon.IsDirectory && !Pull(RepositoriesPath + Addon.Path))
+					{
+						VI_ERR("cannot pull addon target repository: %s", File.Path.c_str());
+						return JUMP_CODE + EXIT_COMMAND_FAILURE;
+					}
+				}
+			}
+			else if (!Pull(Contextual.Registry + File.Path))
+			{
+				VI_ERR("cannot pull addon source repository: %s", File.Path.c_str());
 				return JUMP_CODE + EXIT_COMMAND_FAILURE;
 			}
 		}
@@ -1323,6 +1350,7 @@ private:
 		Target.Replace("{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
 		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
+		Target.Replace("{{BUILDER_MAVI_URL}}", REPOSITORY_TARGET_MAVI);
 		Target.Replace("{{BUILDER_FEATURES}}", ViFeatures);
 		Target.Replace("{{BUILDER_VERSION}}", ViVersion);
 		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name.empty() ? (IsAddon ? "addon_target" : "build_target") : Contextual.Name);
@@ -1426,6 +1454,10 @@ private:
 	String GetBuilderAddonTarget(const String& Name)
 	{
 		return Form("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str())).R();
+	}
+	String GetBuilderDirectory(const String& LocalTarget)
+	{
+		return (Config.FastBuilds ? Contextual.Registry + "." : LocalTarget) + "make";
 	}
 	String GetViVersion()
 	{
