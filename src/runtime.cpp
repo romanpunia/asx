@@ -20,7 +20,7 @@ public:
 		AddDefaultSettings();
 		ListenForSignals();
 		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
-#ifndef NDEBUG
+#ifndef NDEBUG1
 		OS::Directory::SetWorking(OS::Directory::GetModule().c_str());
 #endif
 	}
