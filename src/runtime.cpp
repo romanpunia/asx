@@ -296,6 +296,7 @@ public:
 		if (Config.Debug)
 			PrintIntroduction();
 
+		OS::Directory::SetWorking(OS::Path::GetDirectory(Contextual.Path.c_str()).c_str());
 		if (Config.EssentialsOnly)
 		{
 			if (VM->HasSystemAddon("std/graphics") || VM->HasSystemAddon("std/audio"))
@@ -408,7 +409,7 @@ private:
 				}
 
 				auto File = OS::Path::Resolve(Value, Directory, true);
-				if (OS::File::State(File, &Contextual.File))
+				if (OS::File::State(File, &Contextual.File) && !Contextual.File.IsDirectory)
 				{
 					Contextual.Path = File;
 					Index = i;
@@ -416,7 +417,7 @@ private:
 				}
 
 				File = OS::Path::Resolve(Value + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory, true);
-				if (OS::File::State(File, &Contextual.File))
+				if (OS::File::State(File, &Contextual.File) && !Contextual.File.IsDirectory)
 				{
 					Contextual.Path = File;
 					Index = i;
