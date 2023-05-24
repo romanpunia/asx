@@ -88,6 +88,7 @@ struct ProgramConfig
 	bool SaveByteCode = false;
 	bool SaveSourceCode = false;
 	bool Dependencies = false;
+	bool Update = false;
 };
 
 void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context)

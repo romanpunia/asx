@@ -237,8 +237,7 @@ public:
 			VI_RELEASE(Debugger);
 			return JUMP_CODE + EXIT_OK;
 		}
-
-		if (!Config.LoadByteCode)
+		else if (!Config.LoadByteCode)
 		{
 			if (Unit->LoadCode(Contextual.Path, Contextual.Program.c_str(), Contextual.Program.size()) < 0)
 			{
@@ -273,12 +272,13 @@ public:
 			VI_ERR("cannot save <%s> module bytecode", Contextual.Module);
 			return JUMP_CODE + EXIT_SAVING_FAILURE;
 		}
-
-		if (Config.Dependencies)
+		else if (Config.Dependencies)
 		{
 			PrintDependencies();
 			return JUMP_CODE + EXIT_OK;
 		}
+		else if (Config.Update)
+			return BuilderPullAddons();
 
 		Function Main = GetEntrypoint(Contextual, Entrypoint, Unit);
 		if (!Main.IsValid())
@@ -608,7 +608,7 @@ private:
 			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-ia, --init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
+		AddCommand("--init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
 		{
 			size_t Where = Value.find(':');
 			if (Where == std::string::npos)
@@ -652,6 +652,11 @@ private:
 
 			VI_ERR("addon path <%s> must be a directory", Path.c_str());
 			return JUMP_CODE + EXIT_INPUT_FAILURE;
+		});
+		AddCommand("--update", "update locally installed addons", [this](const String& Value)
+		{
+			Config.Update = true;
+			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
 		{
@@ -1077,6 +1082,33 @@ private:
 		}
 
 		return JUMP_CODE + EXIT_INPUT_FAILURE;
+	}
+	int BuilderPullAddons()
+	{
+		if (Contextual.Registry.empty())
+		{
+			VI_ERR("provide entrypoint file to pull addons");
+			return JUMP_CODE + EXIT_INPUT_FAILURE;
+		}
+
+		Vector<FileEntry> Entries;
+		if (!OS::Directory::Scan(Contextual.Registry.c_str(), &Entries))
+			return JUMP_CODE + EXIT_OK;
+
+		for (auto& File : Entries)
+		{
+			if (!File.IsDirectory)
+				continue;
+
+			String Path = Contextual.Registry + File.Path;
+			if (BuilderExecute("cd \"" + Path + "\" && git pull") != 0)
+			{
+				VI_ERR("cannot pull addon repository: %s", File.Path.c_str());
+				return JUMP_CODE + EXIT_COMMAND_FAILURE;
+			}
+		}
+
+		return JUMP_CODE + EXIT_OK;
 	}
 	int BuilderExecute(const String& Command)
 	{

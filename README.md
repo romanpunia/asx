@@ -101,7 +101,7 @@ void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitializ
 {
 }
 ```
-You can create your own addon using _--init_ or _-ia_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--name_ or _-n_ command.
+You can create your own addon using _--init_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--name_ or _-n_ command.
 
 After that you will either have a ready to use git repository with CMake configuration for C++ project with example code above. Or you will get two files _addon.json_ and _addon.as_. Keep in mind that without having _addon.json_ repository won't be evaluated as addon. Generated repository can be pushed to github and used afterwards with:
 ```cpp
