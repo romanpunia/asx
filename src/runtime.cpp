@@ -1151,7 +1151,13 @@ private:
 		static int IsGitInstalled = -1;
 		if (IsGitInstalled == -1)
 		{
-			IsGitInstalled = (int)(system("git") == 0);
+			if (OS::IsLogPretty())
+				Console::Get()->ColorBegin(StdColor::Gray);
+
+			IsGitInstalled = (int)(system("git") == COMMAND_GIT_EXIT_OK);
+			if (OS::IsLogPretty())
+				Console::Get()->ColorEnd();
+
 			if (!IsGitInstalled)
 			{
 				VI_ERR("cannot find <git> program, please make sure it is installed");
@@ -1166,7 +1172,13 @@ private:
 		static int IsCMakeInstalled = -1;
 		if (IsCMakeInstalled == -1)
 		{
-			IsCMakeInstalled = (int)(system("cmake") == 0);
+			if (OS::IsLogPretty())
+				Console::Get()->ColorBegin(StdColor::Gray);
+
+			IsCMakeInstalled = (int)(system("cmake") == COMMAND_CMAKE_EXIT_OK);
+			if (OS::IsLogPretty())
+				Console::Get()->ColorEnd();
+
 			if (!IsCMakeInstalled)
 			{
 				VI_ERR("cannot find <cmake> program, please make sure it is installed");
@@ -1179,7 +1191,8 @@ private:
 	int BuilderExecute(const String& Command)
 	{
 		std::cout << "> " + Command << ":" << std::endl;
-		Console::Get()->ColorBegin(StdColor::Gray);
+		if (OS::IsLogPretty())
+			Console::Get()->ColorBegin(StdColor::Gray);
 
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
 		if (!Stream)
@@ -1198,7 +1211,9 @@ private:
 		if (NewLineEOF)
 			std::cout << std::endl;
 
-		Console::Get()->ColorEnd();
+		if (OS::IsLogPretty())
+			Console::Get()->ColorEnd();
+
 		if (!Stream->Close())
 			VI_ERR("cannot close a child process");
 
