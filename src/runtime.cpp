@@ -955,15 +955,15 @@ private:
 	}
 	int BuilderCreateAddonLibrary(const String& SourcesDirectory, const String& BuildDirectory)
 	{
-#ifdef VI_MICROSOFT
+#if defined(VI_MICROSOFT) || defined(VI_APPLE)
 		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str()).R();
 #else
-		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType()).R();
+		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType(true)).R();
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
-#ifdef VI_MICROSOFT
-		String BuildCommand = Form("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType()).R();
+#if defined(VI_MICROSOFT) || defined(VI_APPLE)
+		String BuildCommand = Form("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType(true)).R();
 #else
 		String BuildCommand = Form("cmake --build %s", BuildDirectory.c_str()).R();
 #endif
@@ -997,10 +997,10 @@ private:
 			VI_ERR("cannot embed the dependencies:\n\tmake sure application has file read/write permissions");
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
-#ifdef VI_MICROSOFT
+#if defined(VI_MICROSOFT) || defined(VI_APPLE)
 		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
 #else
-		String ConfigureCommand = Form("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType()).R();
+		String ConfigureCommand = Form("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType(false)).R();
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 		{
@@ -1011,8 +1011,8 @@ private:
 #endif
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
-#ifdef VI_MICROSOFT
-		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), GetBuilderBuildType()).R();
+#if defined(VI_MICROSOFT) || defined(VI_APPLE)
+		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), GetBuilderBuildType(false)).R();
 #else
 		String BuildCommand = Form("cmake --build %smake", Contextual.Output.c_str()).R();
 #endif
@@ -1151,6 +1151,7 @@ private:
 		static int IsGitInstalled = -1;
 		if (IsGitInstalled == -1)
 		{
+			std::cout << "> CHECK git:" << std::endl;
 			if (OS::IsLogPretty())
 				Console::Get()->ColorBegin(StdColor::Gray);
 
@@ -1172,6 +1173,7 @@ private:
 		static int IsCMakeInstalled = -1;
 		if (IsCMakeInstalled == -1)
 		{
+			std::cout << "> CHECK cmake:" << std::endl;
 			if (OS::IsLogPretty())
 				Console::Get()->ColorBegin(StdColor::Gray);
 
@@ -1568,11 +1570,17 @@ private:
 	{
 		return ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION);
 	}
-	const char* GetBuilderBuildType()
+	const char* GetBuilderBuildType(bool IsAddon)
 	{
 #ifndef NDEBUG
+		if (IsAddon)
+			return "Debug";
+
 		return (Config.Debug ? "Debug" : "RelWithDebInfo");
 #else
+		if (IsAddon)
+			return "Release";
+
 		return (Config.Debug ? "Debug" : "Release");
 #endif
 	}
