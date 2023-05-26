@@ -12,9 +12,7 @@ void exit()
 int main()
 {
     console@ output = console::get();
-    schedule_policy policy;
-    policy.set_threads(4);
-
+    schedule_policy policy; // Creates up to "CPU threads count" threads
     schedule@ queue = schedule::get();
     queue.start(policy);
     
