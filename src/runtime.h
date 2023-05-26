@@ -17,8 +17,9 @@
 #define EXIT_INVALID_COMMAND 0x8
 #define EXIT_INVALID_DECLARATION 0x9
 #define EXIT_COMMAND_FAILURE 0x10
-#define COMMAND_GIT_EXIT_OK 1
-#define COMMAND_CMAKE_EXIT_OK 0
+#define EXIT_KILL 0x11
+#define COMMAND_GIT_EXIT_OK 0x1
+#define COMMAND_CMAKE_EXIT_OK 0x0
 #define REPOSITORY_TEMPLATE_ADDON "https://github.com/romanpunia/addon.as"
 #define REPOSITORY_TEMPLATE_EXECUTABLE "https://github.com/romanpunia/executable.as"
 #define REPOSITORY_TARGET_MAVI "https://github.com/romanpunia/mavi"
@@ -69,6 +70,7 @@ struct ProgramEntrypoint
 	const char* ReturnsWithArgs = "int main(array<string>@)";
 	const char* Returns = "int main()";
 	const char* Simple = "void main()";
+	const char* Terminate = "void exit()";
 };
 
 struct ProgramConfig

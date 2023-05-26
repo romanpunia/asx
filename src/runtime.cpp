@@ -10,11 +10,12 @@ private:
 	ProgramContext Contextual;
 	ProgramEntrypoint Entrypoint;
 	ProgramConfig Config;
+	Function Terminate;
 	VirtualMachine* VM;
 	Compiler* Unit;
 
 public:
-	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), VM(nullptr), Unit(nullptr)
+	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), Terminate(nullptr), VM(nullptr), Unit(nullptr)
 	{
 		AddDefaultCommands();
 		AddDefaultSettings();
@@ -317,6 +318,7 @@ public:
 				std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
 			}
 		});
+		Terminate = Unit->GetModule().GetFunctionByDecl(Entrypoint.Terminate);
 
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
@@ -335,12 +337,19 @@ public:
 	}
 	void Shutdown()
 	{
-		static size_t Exits = 0;
 		{
+			if (Terminate.IsValid() && Unit->GetContext()->Execute(Terminate, nullptr).Get() == 0)
+			{
+				Terminate = nullptr;
+				VI_DEBUG("graceful shutdown using [%s call]", Entrypoint.Terminate);
+				goto GracefulShutdown;
+			}
+
 			auto* App = Application::Get();
 			if (App != nullptr && App->GetState() == ApplicationState::Active)
 			{
 				App->Stop();
+				VI_DEBUG("graceful shutdown using [application stop]");
 				goto GracefulShutdown;
 			}
 
@@ -348,16 +357,14 @@ public:
 			if (Queue->IsActive())
 			{
 				Queue->Stop();
+				VI_DEBUG("graceful shutdown using [scheduler stop]");
 				goto GracefulShutdown;
 			}
 
-			if (Exits > 0)
-				VI_DEBUG("program is not responding; killed");
-
-			return std::exit(0);
+			VI_DEBUG("forcing shutdown using [kill]");
+			return std::exit(JUMP_CODE + EXIT_KILL);
 		}
 	GracefulShutdown:
-		++Exits;
 		ListenForSignals();
 	}
 	void Interrupt()
