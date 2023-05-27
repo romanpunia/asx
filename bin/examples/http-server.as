@@ -4,7 +4,7 @@
 
 http::server@ server = null;
 
-void exit()
+void exit_main()
 {
     server.unlisten(1);
     schedule::get().stop();

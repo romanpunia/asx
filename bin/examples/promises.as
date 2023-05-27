@@ -22,7 +22,7 @@ promise<void>@ set_timeout(uint64 timeout_ms)
     task.time = timeout_ms;
 
     schedule@ queue = schedule::get();
-    queue.set_timeout(timeout_ms, task_event(task.settle), difficulty::light, true);
+    queue.set_timeout(timeout_ms, task_event(task.settle), difficulty::light);
     return task.data;
 }
 

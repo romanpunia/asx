@@ -70,7 +70,7 @@ struct ProgramEntrypoint
 	const char* ReturnsWithArgs = "int main(array<string>@)";
 	const char* Returns = "int main()";
 	const char* Simple = "void main()";
-	const char* Terminate = "void exit()";
+	const char* Terminate = "void exit_main()";
 };
 
 struct ProgramConfig
