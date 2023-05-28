@@ -203,9 +203,9 @@ class runtime
 int main()
 {
     application_desc init;
-    init.graphics.vsync_mode = vsync::on;
+    init.graphics.vsync_mode = vsync::off;
     init.window.maximized = true;
-    init.environment = "content";
+    init.environment = "assets";
 
     runtime app(init);
     return app.self.start();

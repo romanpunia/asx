@@ -138,8 +138,9 @@ class runtime
 int main()
 {
     application_desc init;
+    init.graphics.vsync_mode = vsync::off;
     init.window.maximized = true;
-    init.environment = "content";
+    init.environment = "assets";
 
     console@ output = console::get();
     output.show();

@@ -14,9 +14,10 @@ function finalize(child, childs)
 }
 function test(value, index)
 {
+    let shift = 5n, zero = 0n;
     let hash = index, max = 2n << 29n;
-    while (value > 0)
-        hash = ((hash << 5n) - hash + value--) % max;
+    while (value > zero)
+        hash = ((hash << shift) - hash + value--) % max;
     return hash;
 }
 async function main()
