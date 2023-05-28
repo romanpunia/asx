@@ -12,6 +12,7 @@ private:
 	ProgramConfig Config;
 	Function Terminate;
 	VirtualMachine* VM;
+	ImmediateContext* Context;
 	Compiler* Unit;
 
 public:
@@ -28,6 +29,7 @@ public:
 	~Mavias()
 	{
 		Console::Get()->Detach();
+		VI_RELEASE(Context);
 		VI_RELEASE(Unit);
 		VI_RELEASE(VM);
 	}
@@ -120,6 +122,7 @@ public:
 			return JUMP_CODE + EXIT_PREPARE_FAILURE;
 		}
 
+		Context = VM->RequestContext();
 		if (Config.Interactive)
 		{
 			String Data, Multidata;
@@ -218,25 +221,26 @@ public:
 				if (Data.empty())
 					continue;
 
-				if (Contextual.Inline)
-				{
-					ImmediateContext* Context = Unit->GetContext();
-					if (Unit->ExecuteScoped(Data, "any@").Get() == (int)Activation::Finished)
-					{
-						String Indent = "  ";
-						auto* Value = Context->GetReturnObject<Bindings::Any>();
-						std::cout << Indent << Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()) << std::endl;
-					}
-					else
-						Context->Abort();
-					Context->Unprepare();
-				}
-				else
+				if (!Contextual.Inline)
 				{
 					String Index = ":" + ToString(++Section);
 					if (Unit->LoadCode(Contextual.Path + Index, Data.c_str(), Data.size()) < 0 || Unit->Compile().Get() < 0)
 						continue;
 				}
+
+				Function Inline = Unit->CompileFunction(Data, "any@").Get();
+				if (!Inline.IsValid())
+					continue;
+
+				if (Context->ExecuteCall(Inline, nullptr).Get() == (int)Activation::Finished)
+				{
+					String Indent = "  ";
+					auto* Value = Context->GetReturnObject<Bindings::Any>();
+					std::cout << Indent << Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()) << std::endl;
+				}
+				else
+					Context->Abort();
+				Context->Unprepare();
 			}
 
 			VI_RELEASE(Debugger);
@@ -309,7 +313,6 @@ public:
 		else if (!VM->HasSystemAddon("std/graphics") && !!VM->HasSystemAddon("std/audio"))
 			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
-		ImmediateContext* Context = Unit->GetContext();
 		Context->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
@@ -322,7 +325,7 @@ public:
 
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
-		Context->Execute(Main, [&Main, ArgsArray](ImmediateContext* Context)
+		Context->ExecuteCall(Main, [&Main, ArgsArray](ImmediateContext* Context)
 		{
 			if (Main.GetArgsCount() > 0)
 				Context->SetArgObject(0, ArgsArray);
@@ -338,7 +341,7 @@ public:
 	void Shutdown()
 	{
 		{
-			if (Terminate.IsValid() && Unit->GetContext()->Execute(Terminate, nullptr).Get() == 0)
+			if (Terminate.IsValid() && FunctionDelegate(Terminate, Context)(nullptr).Get() >= 0)
 			{
 				Terminate = nullptr;
 				VI_DEBUG("graceful shutdown using [%s call]", Entrypoint.Terminate);
