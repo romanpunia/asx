@@ -10,6 +10,7 @@
 class runtime
 {
     application@ self;
+    bool debug_body_states = false;
 
     runtime(application_desc&in init)
     {
@@ -48,6 +49,26 @@ class runtime
         top_material.surface.roughness.x = 0.445f;
         top_material.set_diffuse_map(diffuse);
         top_material.set_name("top-material");
+
+        material@ is_material = self.scene.clone_material(top_material);
+        is_material.surface.diffuse = vector3(1, 0, 0);
+        is_material.set_name("is-material");
+
+        material@ dn_material = self.scene.clone_material(top_material);
+        dn_material.surface.diffuse = vector3(0, 1, 0);
+        dn_material.set_name("dn-material");
+
+        material@ dd_material = self.scene.clone_material(top_material);
+        dd_material.surface.diffuse = vector3(0, 0, 1);
+        dd_material.set_name("dd-material");
+
+        material@ ds_material = self.scene.clone_material(top_material);
+        ds_material.surface.diffuse = vector3(0, 1, 1);
+        ds_material.set_name("ds-material");
+
+        material@ uk_material = self.scene.clone_material(top_material);
+        uk_material.surface.diffuse = vector3(1, 1, 0);
+        uk_material.set_name("uk-material");
 
         scene_entity@ camera = self.scene.get_camera_entity();
         {
@@ -157,7 +178,7 @@ class runtime
                 }
             }
         }
-        else if (self.window.is_key_down_hit(key_code::cursor_middle))
+        if (self.window.is_key_down_hit(key_code::cursor_middle))
         {
             auto@ entities = self.scene.query_by_name("light");
             if (!entities.empty())
@@ -167,11 +188,48 @@ class runtime
                 entities[0].get_transform().set_position(where.get_position());
             }
         }
-
         if (self.window.is_key_down_hit(key_code::t))
         {
             physics_simulator@ physics = self.scene.get_simulator();
             physics.create_linear_impulse(vector3::random() * 30.0, true);
+        }
+        if (self.window.is_key_down_hit(key_code::g))
+            debug_body_states = !debug_body_states;
+
+        if (debug_body_states)
+        {
+            uint64 rigidbody_id = component_id("rigid_body_component");
+            uint64 model_id = component_id("model_component");
+            usize size = self.scene.get_components_count(rigidbody_id);
+            for (usize i = 0; i < size; i++)
+            {
+                auto@ body = cast<rigid_body_component@>(self.scene.get_component(rigidbody_id, i));
+                if (body.get_body().get_mass() < 10.0)
+                    continue;
+
+                auto@ mesh = cast<model_component@>(body.get_entity().get_component(model_id));
+                switch (body.get_body().get_activation_state())
+                {
+                    case physics_motion_state::active:
+                        mesh.set_material(self.scene.get_material("top-material"));
+                        break;
+                    case physics_motion_state::island_sleeping:
+                        mesh.set_material(self.scene.get_material("is-material"));
+                        break;
+                    case physics_motion_state::deactivation_needed:
+                        mesh.set_material(self.scene.get_material("dn-material"));
+                        break;
+                    case physics_motion_state::disable_deactivation:
+                        mesh.set_material(self.scene.get_material("dd-material"));
+                        break;
+                    case physics_motion_state::disable_simulation:
+                        mesh.set_material(self.scene.get_material("ds-material"));
+                        break;
+                    default:
+                        mesh.set_material(self.scene.get_material("uk-material"));
+                        break;
+                }
+            }
         }
 
         self.scene.dispatch(time);
