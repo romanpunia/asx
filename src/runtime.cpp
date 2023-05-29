@@ -16,7 +16,7 @@ private:
 	Compiler* Unit;
 
 public:
-	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), Terminate(nullptr), VM(nullptr), Unit(nullptr)
+	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), Terminate(nullptr), VM(nullptr), Context(nullptr), Unit(nullptr)
 	{
 		AddDefaultCommands();
 		AddDefaultSettings();
@@ -460,12 +460,17 @@ private:
 		});
 		AddCommand("-p, --plain", "disable log colors", [](const String&)
 		{
-			OS::SetLogPretty(false);
+			OS::SetLogFlag(LogOption::Pretty, false);
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-q, --quiet", "disable logging", [](const String&)
 		{
-			OS::SetLogActive(false);
+			OS::SetLogFlag(LogOption::Active, false);
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("-t, --timings", "append date for each logging message", [](const String&)
+		{
+			OS::SetLogFlag(LogOption::Dated, true);
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-d, --debug", "enable debugger interface", [this](const String&)
@@ -583,7 +588,7 @@ private:
 			Config.EssentialsOnly = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-u, --use", "set virtual machine property (expects: prop_name:prop_value)", [this](const String& Value)
+		AddCommand("-u, --use", "set virtual machine property [expects: prop_name:prop_value]", [this](const String& Value)
 		{
 			auto Args = Stringify(&Value).Split(':');
 			if (Args.size() != 2)
@@ -621,7 +626,7 @@ private:
 			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-init, --init", "initialize an addon template in given directory (expects: [native|vm]:relpath)", [this](const String& Value)
+		AddCommand("-init, --init", "initialize an addon template in given directory [expects: [native|vm]:relpath]", [this](const String& Value)
 		{
 			size_t Where = Value.find(':');
 			if (Where == std::string::npos)
@@ -1162,11 +1167,11 @@ private:
 		if (IsGitInstalled == -1)
 		{
 			std::cout << "> CHECK git:" << std::endl;
-			if (OS::IsLogPretty())
+			if (OS::HasLogFlag(LogOption::Pretty))
 				Console::Get()->ColorBegin(StdColor::Gray);
 
 			IsGitInstalled = (int)(system("git") == COMMAND_GIT_EXIT_OK);
-			if (OS::IsLogPretty())
+			if (OS::HasLogFlag(LogOption::Pretty))
 				Console::Get()->ColorEnd();
 
 			if (!IsGitInstalled)
@@ -1184,11 +1189,11 @@ private:
 		if (IsCMakeInstalled == -1)
 		{
 			std::cout << "> CHECK cmake:" << std::endl;
-			if (OS::IsLogPretty())
+			if (OS::HasLogFlag(LogOption::Pretty))
 				Console::Get()->ColorBegin(StdColor::Gray);
 
 			IsCMakeInstalled = (int)(system("cmake") == COMMAND_CMAKE_EXIT_OK);
-			if (OS::IsLogPretty())
+			if (OS::HasLogFlag(LogOption::Pretty))
 				Console::Get()->ColorEnd();
 
 			if (!IsCMakeInstalled)
@@ -1203,7 +1208,7 @@ private:
 	int BuilderExecute(const String& Command)
 	{
 		std::cout << "> " + Command << ":" << std::endl;
-		if (OS::IsLogPretty())
+		if (OS::HasLogFlag(LogOption::Pretty))
 			Console::Get()->ColorBegin(StdColor::Gray);
 
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
@@ -1223,7 +1228,7 @@ private:
 		if (NewLineEOF)
 			std::cout << std::endl;
 
-		if (OS::IsLogPretty())
+		if (OS::HasLogFlag(LogOption::Pretty))
 			Console::Get()->ColorEnd();
 
 		if (!Stream->Close())
