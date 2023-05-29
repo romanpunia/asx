@@ -1311,15 +1311,13 @@ private:
 			}
 
 			uint32_t Progress = (uint32_t)(100.0 * (double)CurrentSize / (double)TotalSize);
-			BaseFile->ReadAll([this, TargetFile, &IsAddon](char* Buffer, size_t Size)
 			{
-				if (!Size)
-					return;
-
-				String Data(Buffer, Size);
+				String Data;
+				Data.reserve(Item.Size);
+				BaseFile->ReadAll([&Data](char* Buffer, size_t Size) { Data.append(Buffer, Size); });
 				BuilderGenerateTemplate(Data, IsAddon);
 				TargetFile->Write(Data.c_str(), Data.size());
-			});
+			}
 			VI_RELEASE(BaseFile);
 			VI_RELEASE(TargetFile);
 
