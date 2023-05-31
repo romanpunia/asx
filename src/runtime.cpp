@@ -384,7 +384,7 @@ public:
 		if (Context != nullptr)
 			StackTrace = Context->Get()->GetStackTrace(0, 64);
 		else
-			StackTrace = OS::GetStackTrace(0, 32);
+			StackTrace = ErrorHandling::GetStackTrace(0, 32);
 
 		VI_ERR("runtime error detected: %s\n%s", Signal, StackTrace.c_str());
 		std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
@@ -460,17 +460,17 @@ private:
 		});
 		AddCommand("-p, --plain", "disable log colors", [](const String&)
 		{
-			OS::SetLogFlag(LogOption::Pretty, false);
+			ErrorHandling::SetFlag(LogOption::Pretty, false);
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-q, --quiet", "disable logging", [](const String&)
 		{
-			OS::SetLogFlag(LogOption::Active, false);
+			ErrorHandling::SetFlag(LogOption::Active, false);
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-t, --timings", "append date for each logging message", [](const String&)
 		{
-			OS::SetLogFlag(LogOption::Dated, true);
+			ErrorHandling::SetFlag(LogOption::Dated, true);
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-d, --debug", "enable debugger interface", [this](const String&)
@@ -1167,11 +1167,11 @@ private:
 		if (IsGitInstalled == -1)
 		{
 			std::cout << "> CHECK git:" << std::endl;
-			if (OS::HasLogFlag(LogOption::Pretty))
+			if (ErrorHandling::HasFlag(LogOption::Pretty))
 				Console::Get()->ColorBegin(StdColor::Gray);
 
 			IsGitInstalled = (int)(system("git") == COMMAND_GIT_EXIT_OK);
-			if (OS::HasLogFlag(LogOption::Pretty))
+			if (ErrorHandling::HasFlag(LogOption::Pretty))
 				Console::Get()->ColorEnd();
 
 			if (!IsGitInstalled)
@@ -1189,11 +1189,11 @@ private:
 		if (IsCMakeInstalled == -1)
 		{
 			std::cout << "> CHECK cmake:" << std::endl;
-			if (OS::HasLogFlag(LogOption::Pretty))
+			if (ErrorHandling::HasFlag(LogOption::Pretty))
 				Console::Get()->ColorBegin(StdColor::Gray);
 
 			IsCMakeInstalled = (int)(system("cmake") == COMMAND_CMAKE_EXIT_OK);
-			if (OS::HasLogFlag(LogOption::Pretty))
+			if (ErrorHandling::HasFlag(LogOption::Pretty))
 				Console::Get()->ColorEnd();
 
 			if (!IsCMakeInstalled)
@@ -1208,7 +1208,7 @@ private:
 	int BuilderExecute(const String& Command)
 	{
 		std::cout << "> " + Command << ":" << std::endl;
-		if (OS::HasLogFlag(LogOption::Pretty))
+		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorBegin(StdColor::Gray);
 
 		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
@@ -1228,7 +1228,7 @@ private:
 		if (NewLineEOF)
 			std::cout << std::endl;
 
-		if (OS::HasLogFlag(LogOption::Pretty))
+		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorEnd();
 
 		if (!Stream->Close())
