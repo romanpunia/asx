@@ -379,15 +379,7 @@ public:
 	}
 	void Abort(const char* Signal)
 	{
-		String StackTrace;
-		ImmediateContext* Context = ImmediateContext::Get();
-		if (Context != nullptr)
-			StackTrace = Context->Get()->GetStackTrace(0, 64);
-		else
-			StackTrace = ErrorHandling::GetStackTrace(0, 32);
-
-		VI_ERR("runtime error detected: %s\n%s", Signal, StackTrace.c_str());
-		std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
+		VI_PANIC(false, "%s which is a critical runtime error", Signal);
 }
 	bool WantsAllFeatures()
 	{
@@ -843,7 +835,6 @@ private:
 		static Mavias* Instance = this;
 		signal(SIGINT, [](int) { Instance->Interrupt(); });
 		signal(SIGTERM, [](int) { Instance->Shutdown(); });
-		signal(SIGABRT, [](int) { Instance->Abort("abort"); });
 		signal(SIGFPE, [](int) { Instance->Abort("division by zero"); });
 		signal(SIGILL, [](int) { Instance->Abort("illegal instruction"); });
 		signal(SIGSEGV, [](int) { Instance->Abort("segmentation fault"); });
@@ -1387,7 +1378,8 @@ private:
 			Vector<std::pair<String, bool>> Features =
 			{
 				{ "BINDINGS", Mavi::Library::HasBindings() },
-				{ "FAST_MEMORY", Mavi::Library::HasFastMemory() },
+				{ "BACKTRACE", Mavi::Library::HasBacktrace() },
+				{ "ALLOCATOR", Mavi::Library::HasAllocator() },
 				{ "FCTX", Mavi::Library::HasFContext() && !IsAddon },
 				{ "SIMD", Mavi::Library::HasSIMD() && !IsAddon },
 				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
@@ -1407,7 +1399,7 @@ private:
 			};
 
 			for (auto& Item : Features)
-				ViFeatures += Stringify::Text("set(VI_USE_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF");
+				ViFeatures += Stringify::Text("set(VI_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF");
 
 			if (!ViFeatures.empty())
 				ViFeatures.erase(ViFeatures.end() - 1);
