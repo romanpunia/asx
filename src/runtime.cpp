@@ -171,7 +171,7 @@ public:
 				else if (Data.empty())
 					continue;
 
-				Stringify(&Data).Trim();
+				Stringify::Trim(Data);
 				if (Editor)
 				{
 					if (!Data.empty() && Data.back() == '\x4')
@@ -519,21 +519,21 @@ private:
 		});
 		AddCommand("-s, --system", "import system addon(s) by name [expects: plus(+) separated list]", [this](const String& Value)
 		{
-			for (auto& Item : Stringify(&Value).Split('+'))
+			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.SystemAddons.push_back(Item);
 
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-a, --addon", "import external addon(s) by path [expects: plus(+) separated list]", [this](const String& Value)
 		{
-			for (auto& Item : Stringify(&Value).Split('+'))
+			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.Libraries.emplace_back(std::make_pair(Item, true));
 
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-cl, --clib", "import clibrary(ies) by path [expects: plus(+) separated list]", [this](const String& Value)
 		{
-			for (auto& Item : Stringify(&Value).Split('+'))
+			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.Libraries.emplace_back(std::make_pair(Item, false));
 
 			return JUMP_CODE + EXIT_CONTINUE;
@@ -554,9 +554,15 @@ private:
 				return JUMP_CODE + EXIT_INVALID_DECLARATION;
 			}
 
-			auto CLibraryName = Stringify(Value.substr(0, Offset1)).Trim().R();
-			auto CFunctionName = Stringify(Value.substr(Offset1 + 1, Offset2 - Offset1 - 1)).Trim().R();
-			auto Declaration = Stringify(Value.substr(Offset2 + 1)).Trim().R();
+			auto CLibraryName = Value.substr(0, Offset1);
+			Stringify::Trim(CLibraryName);
+
+			auto CFunctionName = Value.substr(Offset1 + 1, Offset2 - Offset1 - 1);
+			Stringify::Trim(CLibraryName);
+
+			auto Declaration = Value.substr(Offset2 + 1);
+			Stringify::Trim(CLibraryName);
+
 			if (CLibraryName.empty() || CFunctionName.empty() || Declaration.empty())
 			{
 				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
@@ -590,30 +596,31 @@ private:
 		});
 		AddCommand("-u, --use", "set virtual machine property [expects: prop_name:prop_value]", [this](const String& Value)
 		{
-			auto Args = Stringify(&Value).Split(':');
+			auto Args = Stringify::Split(Value, ':');
 			if (Args.size() != 2)
 			{
 				VI_ERR("invalid property declaration <%s>", Value.c_str());
 				return JUMP_CODE + EXIT_INPUT_FAILURE;
 			}
 
-			auto It = Settings.find(Stringify(&Args[0]).Trim().R());
+			auto It = Settings.find(Stringify::Trim(Args[0]));
 			if (It == Settings.end())
 			{
 				VI_ERR("invalid property name <%s>", Args[0].c_str());
 				return JUMP_CODE + EXIT_INPUT_FAILURE;
 			}
 
-			Stringify Data(&Args[1]);
-			Data.Trim().ToLower();
+			String& Data = Args[1];
+			Stringify::Trim(Data);
+			Stringify::ToLower(Data);
 
-			if (Data.Empty())
+			if (Data.empty())
 			{
 			InputFailure:
 				VI_ERR("property value <%s>: %s", Args[0].c_str(), Args[1].empty() ? "?" : Args[1].c_str());
 				return JUMP_CODE + EXIT_INPUT_FAILURE;
 			}
-			else if (!Data.HasInteger())
+			else if (!Stringify::HasInteger(Data))
 			{
 				if (Args[1] == "on" || Args[1] == "true")
 					VM->SetProperty((Features)It->second, 1);
@@ -623,7 +630,7 @@ private:
 					goto InputFailure;
 			}
 
-			VM->SetProperty((Features)It->second, (size_t)Data.ToUInt64());
+			VM->SetProperty((Features)It->second, (size_t)*FromString<uint64_t>(Data));
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("-init, --init", "initialize an addon template in given directory [expects: [native|vm]:relpath]", [this](const String& Value)
@@ -756,9 +763,9 @@ private:
 	void AddCommand(const String& Name, const String& Description, const CommandCallback& Callback)
 	{
 		Descriptions[Name] = Description;
-		for (auto& Command : Stringify(&Name).Split(','))
+		for (auto& Command : Stringify::Split(Name, ','))
 		{
-			auto Naming = Stringify(Command).Trim().R();
+			auto& Naming = Stringify::Trim(Command);
 			while (!Naming.empty() && Naming.front() == '-')
 				Naming.erase(Naming.begin());
 			auto& Data = Commands[Naming];
@@ -799,12 +806,11 @@ private:
 	{
 		for (auto& Item : Settings)
 		{
-			Stringify Name(&Item.first);
 			size_t Value = VM->GetProperty((Features)Item.second);
 			std::cout << "  " << Item.first << ": ";
-			if (Name.EndsWith("mode"))
+			if (Stringify::EndsWith(Item.first, "mode"))
 				std::cout << "mode " << Value;
-			else if (Name.EndsWith("size"))
+			else if (Stringify::EndsWith(Item.first, "size"))
 				std::cout << (Value > 0 ? ToString(Value) : "unlimited");
 			else if (Value == 0)
 				std::cout << "OFF";
@@ -822,7 +828,7 @@ private:
 		{
 			std::cout << "  local dependencies list:" << std::endl;
 			for (auto& Item : Exposes)
-				std::cout << "    " << Stringify(&Item).Replace(":", ": ").R() << std::endl;
+				std::cout << "    " << Stringify::Replace(Item, ":", ": ") << std::endl;
 		}
 
 		if (!Contextual.Addons.empty())
@@ -902,14 +908,14 @@ private:
 		}
 		else if (Type == "vm")
 		{
-			Stringify Index(Info->GetVar("index").GetBlob());
-			if (Index.Empty() || !Index.EndsWith(".as") || Index.FindOf("/\\").Found)
+			String Index(Info->GetVar("index").GetBlob());
+			if (Index.empty() || !Stringify::EndsWith(Index, ".as") || Stringify::FindOf(Index, "/\\").Found)
 			{
-				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", Name.c_str(), Index.Get());
+				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", Name.c_str(), Index.c_str());
 				return IncludeType::Error;
 			}
 
-			String Path = LocalTarget + Index.R();
+			String Path = LocalTarget + Index;
 			if (!OS::File::IsExists(Path.c_str()))
 			{
 				VI_ERR("addon <%s> cannot be created: index file cannot be found", Name.c_str());
@@ -971,16 +977,16 @@ private:
 	int BuilderCreateAddonLibrary(const String& SourcesDirectory, const String& BuildDirectory)
 	{
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str()).R();
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str());
 #else
-		String ConfigureCommand = Form("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType(true)).R();
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType(true));
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String BuildCommand = Form("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType(true)).R();
+		String BuildCommand = Stringify::Text("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuilderBuildType(true));
 #else
-		String BuildCommand = Form("cmake --build %s", BuildDirectory.c_str()).R();
+		String BuildCommand = Stringify::Text("cmake --build %s", BuildDirectory.c_str());
 #endif
 		if (BuilderExecuteCMake(BuildCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
@@ -1013,9 +1019,9 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String ConfigureCommand = Form("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str()).R();
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str());
 #else
-		String ConfigureCommand = Form("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType(false)).R();
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType(false));
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 		{
@@ -1027,9 +1033,9 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String BuildCommand = Form("cmake --build %smake --config %s", Contextual.Output.c_str(), GetBuilderBuildType(false)).R();
+		String BuildCommand = Stringify::Text("cmake --build %smake --config %s", Contextual.Output.c_str(), GetBuilderBuildType(false));
 #else
-		String BuildCommand = Form("cmake --build %smake", Contextual.Output.c_str()).R();
+		String BuildCommand = Stringify::Text("cmake --build %smake", Contextual.Output.c_str());
 #endif
 		if (BuilderExecuteCMake(BuildCommand) != 0)
 		{
@@ -1346,7 +1352,7 @@ private:
 			for (auto& Item : Settings)
 			{
 				size_t Value = VM->GetProperty((Features)Item.second);
-				ConfigSettingsArray += Form("{ (uint32_t)%i, (size_t)%" PRIu64 " }, ", Item.second, (uint64_t)Value).R();
+				ConfigSettingsArray += Stringify::Text("{ (uint32_t)%i, (size_t)%" PRIu64 " }, ", Item.second, (uint64_t)Value);
 			}
 		}
 
@@ -1356,7 +1362,7 @@ private:
 			for (auto& Item : VM->GetSystemAddons())
 			{
 				if (Item.second.Exposed)
-					ConfigSystemAddonsArray += Form("\"%s\", ", Item.first.c_str()).R();
+					ConfigSystemAddonsArray += Stringify::Text("\"%s\", ", Item.first.c_str());
 			}
 		}
 
@@ -1366,12 +1372,12 @@ private:
 		{
 			for (auto& Item : VM->GetCLibraries())
 			{
-				ConfigLibrariesArray += Form("{ \"%s\", %s }, ", Item.first.c_str(), Item.second.IsAddon ? "true" : "false").R();
+				ConfigLibrariesArray += Stringify::Text("{ \"%s\", %s }, ", Item.first.c_str(), Item.second.IsAddon ? "true" : "false");
 				if (Item.second.IsAddon)
 					continue;
 
 				for (auto& Function : Item.second.Functions)
-					ConfigFunctionsArray += Form("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Function.first.c_str()).R();
+					ConfigFunctionsArray += Stringify::Text("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Function.first.c_str());
 			}
 		}
 
@@ -1401,7 +1407,7 @@ private:
 			};
 
 			for (auto& Item : Features)
-				ViFeatures += Form("set(VI_USE_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF").R();
+				ViFeatures += Stringify::Text("set(VI_USE_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF");
 
 			if (!ViFeatures.empty())
 				ViFeatures.erase(ViFeatures.end() - 1);
@@ -1411,22 +1417,21 @@ private:
 		if (ViVersion.empty())
 			ViVersion = GetViVersion();
 
-		Stringify Target(&Data);
-		Target.Replace("{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
-		Target.Replace("{{BUILDER_CONFIG_LIBRARIES}}", ConfigLibrariesArray);
-		Target.Replace("{{BUILDER_CONFIG_FUNCTIONS}}", ConfigFunctionsArray);
-		Target.Replace("{{BUILDER_CONFIG_ADDONS}}", ConfigSystemAddonsArray);
-		Target.Replace("{{BUILDER_CONFIG_SYSTEM_ADDONS}}", Config.Addons ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_CFUNCTIONS}}", Config.CFunctions ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_FILES}}", Config.Files ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
-		Target.Replace("{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
-		Target.Replace("{{BUILDER_MAVI_URL}}", REPOSITORY_TARGET_MAVI);
-		Target.Replace("{{BUILDER_FEATURES}}", ViFeatures);
-		Target.Replace("{{BUILDER_VERSION}}", ViVersion);
-		Target.Replace("{{BUILDER_OUTPUT}}", Contextual.Name.empty() ? (IsAddon ? "addon_target" : "build_target") : Contextual.Name);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_SETTINGS}}", ConfigSettingsArray);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_LIBRARIES}}", ConfigLibrariesArray);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_FUNCTIONS}}", ConfigFunctionsArray);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_ADDONS}}", ConfigSystemAddonsArray);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_SYSTEM_ADDONS}}", Config.Addons ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_CFUNCTIONS}}", Config.CFunctions ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_FILES}}", Config.Files ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_REMOTES}}", Config.Remotes ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_TRANSLATOR}}", Config.Translator ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_ESSENTIALS_ONLY}}", Config.EssentialsOnly ? "true" : "false");
+		Stringify::Replace(Data, "{{BUILDER_MAVI_URL}}", REPOSITORY_TARGET_MAVI);
+		Stringify::Replace(Data, "{{BUILDER_FEATURES}}", ViFeatures);
+		Stringify::Replace(Data, "{{BUILDER_VERSION}}", ViVersion);
+		Stringify::Replace(Data, "{{BUILDER_OUTPUT}}", Contextual.Name.empty() ? (IsAddon ? "addon_target" : "build_target") : Contextual.Name);
 		return 0;
 	}
 	int BuilderAppendByteCode(const String& Path)
@@ -1545,7 +1550,7 @@ private:
 	}
 	String GetBuilderAddonTarget(const String& Name)
 	{
-		return Form("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str())).R();
+		return Stringify::Text("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str()));
 	}
 	String GetBuilderAddonTargetLibrary(const String& Name, bool* IsVM)
 	{
@@ -1610,6 +1615,6 @@ int main(int argc, char* argv[])
 	int ExitCode = Instance->Dispatch();
 	delete Instance;
 	Mavi::Uninitialize();
-	
+
 	return ExitCode;
 }
