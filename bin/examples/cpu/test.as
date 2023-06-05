@@ -32,7 +32,7 @@ int main(string[]@ args)
         return 1;
     }
 
-    int64 index = to_int(args[args.size() - 1]);
+    int64 index = to_int64(args[args.size() - 1]);
     if (index <= 0)
     {
         term.write_line("invalid test sequence index");
