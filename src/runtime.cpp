@@ -21,11 +21,12 @@ public:
 		AddDefaultCommands();
 		AddDefaultSettings();
 		ListenForSignals();
-		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
 #ifndef NDEBUG
 		OS::Directory::SetWorking(OS::Directory::GetModule().c_str());
+		Config.SaveSourceCode = true;
 #endif
+		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
 	}
 	~Mavias()
 	{
@@ -483,16 +484,18 @@ private:
 		});
 		AddCommand("-o, --output", "directory where to build an executable from source code", [this](const String& Path)
 		{
+			if (Contextual.Name.empty())
+			{
+				VI_ERR("output directory is set but name was not specified: use -n or --name before specifying output");
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
 			FileEntry File;
 			Contextual.Output = (Path == "." ? OS::Directory::GetWorking() : OS::Path::Resolve(Path, OS::Directory::GetWorking(), true));
 			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
 				Contextual.Output.erase(Contextual.Output.end() - 1);
 
-			if (!Contextual.Name.empty())
-				Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
-			else
-				Contextual.Output += VI_SPLITTER;
-
+			Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
 			if (!OS::File::State(Contextual.Output, &File))
 			{
 				OS::Directory::Patch(Contextual.Output);
@@ -628,6 +631,12 @@ private:
 		});
 		AddCommand("-init, --init", "initialize an addon template in given directory [expects: [native|vm]:relpath]", [this](const String& Value)
 		{
+			if (Contextual.Name.empty())
+			{
+				VI_ERR("init directory is set but name was not specified: use -n or --name before specifying init");
+				return JUMP_CODE + EXIT_INPUT_FAILURE;
+			}
+
 			size_t Where = Value.find(':');
 			if (Where == std::string::npos)
 			{
@@ -654,11 +663,7 @@ private:
 			if (!Contextual.Addon.empty() && (Contextual.Addon.back() == '/' || Contextual.Addon.back() == '\\'))
 				Contextual.Addon.erase(Contextual.Addon.end() - 1);
 
-			if (!Contextual.Name.empty())
-				Contextual.Addon += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
-			else
-				Contextual.Addon += VI_SPLITTER;
-
+			Contextual.Addon += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
 			if (!OS::File::State(Contextual.Addon, &File))
 			{
 				OS::Directory::Patch(Contextual.Addon);
@@ -1229,9 +1234,7 @@ private:
 		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorEnd();
 
-		if (!Stream->Close())
-			VI_ERR("cannot close a child process");
-
+		Stream->Close();
 		int ExitCode = Stream->GetExitCode();
 		VI_RELEASE(Stream);
 		return ExitCode;
@@ -1280,6 +1283,13 @@ private:
 				It = Entries.erase(It);
 		}
 
+		if (ErrorHandling::HasFlag(LogOption::Pretty))
+			Console::Get()->ColorEnd();
+
+		std::cout << "> GENERATE " << Path << ":" << std::endl;
+		if (ErrorHandling::HasFlag(LogOption::Pretty))
+			Console::Get()->ColorBegin(StdColor::Gray);
+
 		size_t CurrentSize = 0;
 		for (auto& Item : Entries)
 		{
@@ -1288,14 +1298,28 @@ private:
 			if (Item.IsDirectory)
 			{
 				int Status = BuilderGenerate(Item.Path, IsAddon);
-				if (Status != 0)
-					return Status;
-				continue;
+				if (Status == 0)
+					continue;
+
+				if (ErrorHandling::HasFlag(LogOption::Pretty))
+					Console::Get()->ColorEnd();
+
+				return Status;
 			}
 
+			if (ErrorHandling::HasFlag(LogOption::Pretty))
+			{
+				Console::Get()->ColorEnd();
+				Console::Get()->ColorBegin(StdColor::Gray);
+			}
+			
+			std::cout << "-- Build template " << Item.Path << std::endl;
 			Stream* BaseFile = OS::File::Open(Item.Path, FileMode::Binary_Read_Only);
 			if (!BaseFile)
 			{
+				if (ErrorHandling::HasFlag(LogOption::Pretty))
+					Console::Get()->ColorEnd();
+
 				VI_ERR("cannot open source file: %s", Item.Path.c_str());
 				return -1;
 			}
@@ -1303,6 +1327,9 @@ private:
 			Stream* TargetFile = OS::File::Open(TargetPath, FileMode::Binary_Write_Only);
 			if (!TargetFile)
 			{
+				if (ErrorHandling::HasFlag(LogOption::Pretty))
+					Console::Get()->ColorEnd();
+
 				VI_ERR("cannot create target source file: %s", TargetPath.c_str());
 				VI_RELEASE(BaseFile);
 				return -1;
@@ -1329,10 +1356,16 @@ private:
 
 			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
 			{
+				if (ErrorHandling::HasFlag(LogOption::Pretty))
+					Console::Get()->ColorEnd();
+
 				VI_ERR("cannot move target files:\n\tmove file from: %s\n\tmove file to: %s", TargetPath.c_str(), Item.Path.c_str());
 				return -1;
 			}
 		}
+
+		if (ErrorHandling::HasFlag(LogOption::Pretty))
+			Console::Get()->ColorEnd();
 
 		return 0;
 	}
@@ -1584,15 +1617,12 @@ private:
 	const char* GetBuilderBuildType(bool IsAddon)
 	{
 #ifndef NDEBUG
-		if (IsAddon)
-			return "Debug";
-
-		return (Config.Debug ? "Debug" : "RelWithDebInfo");
+		return "Debug";
 #else
 		if (IsAddon)
 			return "Release";
 
-		return (Config.Debug ? "Debug" : "Release");
+		return (Config.Debug ? "RelWithDebInfo" : "Release");
 #endif
 	}
 	std::chrono::milliseconds GetTime()
