@@ -88,11 +88,6 @@ void remove_client(http::websocket_frame@ base)
     /* Send a notification to other clients */
     broadcast_client(@base, client.name + " has disconnected", http::websocket_op::text);
 }
-void exit_main()
-{
-    server.unlisten(1);
-    schedule::get().stop();
-}
 int main()
 {
     console@ output = console::get();
@@ -138,5 +133,11 @@ int main()
     @server = http::server();
     server.configure(@router);
     server.listen();
+
+    at_exit(function(signal)
+    {
+        server.unlisten(1);
+        schedule::get().stop();
+    });
     return 0;
 }

@@ -10,13 +10,12 @@ private:
 	ProgramContext Contextual;
 	ProgramEntrypoint Entrypoint;
 	ProgramConfig Config;
-	Function Terminate;
 	VirtualMachine* VM;
 	ImmediateContext* Context;
 	Compiler* Unit;
 
 public:
-	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), Terminate(nullptr), VM(nullptr), Context(nullptr), Unit(nullptr)
+	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), VM(nullptr), Context(nullptr), Unit(nullptr)
 	{
 		AddDefaultCommands();
 		AddDefaultSettings();
@@ -323,7 +322,6 @@ public:
 				std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
 			}
 		});
-		Terminate = Unit->GetModule().GetFunctionByDecl(Entrypoint.Terminate);
 
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
@@ -340,12 +338,11 @@ public:
 		AwaitContext(Queue, VM, Context);
 		return ExitCode;
 	}
-	void Shutdown()
+	void Shutdown(int Value)
 	{
 		{
-			if (Terminate.IsValid() && FunctionDelegate(Terminate, Context)(nullptr).Get() >= 0)
+			if (TryContextExit(Contextual, Value))
 			{
-				Terminate = nullptr;
 				VI_DEBUG("graceful shutdown using [%s call]", Entrypoint.Terminate);
 				goto GracefulShutdown;
 			}
@@ -372,12 +369,12 @@ public:
 	GracefulShutdown:
 		ListenForSignals();
 	}
-	void Interrupt()
+	void Interrupt(int Value)
 	{
 		if (Config.Debug && VM->GetDebugger()->Interrupt())
 			ListenForSignals();
 		else
-			Shutdown();
+			Shutdown(Value);
 	}
 	void Abort(const char* Signal)
 	{
@@ -839,8 +836,8 @@ private:
 	void ListenForSignals()
 	{
 		static Mavias* Instance = this;
-		signal(SIGINT, [](int) { Instance->Interrupt(); });
-		signal(SIGTERM, [](int) { Instance->Shutdown(); });
+		signal(SIGINT, [](int Value) { Instance->Interrupt(Value); });
+		signal(SIGTERM, [](int Value) { Instance->Shutdown(Value); });
 		signal(SIGFPE, [](int) { Instance->Abort("division by zero"); });
 		signal(SIGILL, [](int) { Instance->Abort("illegal instruction"); });
 		signal(SIGSEGV, [](int) { Instance->Abort("segmentation fault"); });

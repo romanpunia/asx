@@ -46,6 +46,7 @@ struct ProgramContext
 	OS::Process::ArgsContext Params;
 	UnorderedSet<String> Addons;
 	Vector<String> Args;
+	FunctionDelegate AtExit;
 	FileEntry File;
 	String Name;
 	String Path;
@@ -63,6 +64,12 @@ struct ProgramContext
 		for (int i = 0; i < ArgsCount; i++)
 			Args.push_back(ArgsData[i]);
 	}
+	static ProgramContext& Get(ProgramContext* Other = nullptr)
+	{
+		static ProgramContext* Base = Other;
+		VI_ASSERT(Base != nullptr, "context was not set");
+		return *Base;
+	}
 };
 
 struct ProgramEntrypoint
@@ -70,7 +77,6 @@ struct ProgramEntrypoint
 	const char* ReturnsWithArgs = "int main(array<string>@)";
 	const char* Returns = "int main()";
 	const char* Simple = "void main()";
-	const char* Terminate = "void exit_main()";
 };
 
 struct ProgramConfig
@@ -96,6 +102,10 @@ struct ProgramConfig
 	bool FastBuilds = false;
 };
 
+void AtExitContext(asIScriptFunction* Callback)
+{
+	ProgramContext::Get().AtExit = FunctionDelegate(Callback, nullptr);
+}
 void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context)
 {
 	while (Queue->IsActive() || Context->GetState() == Activation::Active || Context->IsPending())
@@ -155,7 +165,23 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 		}
 	}
 
+	ProgramContext::Get(&Contextual);
+	VM->SetFunctionDef("void exit_event(int)");
+	VM->SetFunction("void at_exit(exit_event@+)", &AtExitContext);
 	return 0;
+}
+bool TryContextExit(ProgramContext& Contextual, int Value)
+{
+	if (!Contextual.AtExit.IsValid())
+		return false;
+	
+	int ExitCode = Contextual.AtExit([Value](ImmediateContext* Context)
+	{
+		Context->SetArg32(0, Value);
+	}).Get();
+
+	Contextual.AtExit.Release();
+	return ExitCode >= 0;
 }
 Function GetEntrypoint(ProgramContext& Contextual, ProgramEntrypoint& Entrypoint, Compiler* Unit)
 {

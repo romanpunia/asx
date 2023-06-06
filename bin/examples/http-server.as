@@ -4,17 +4,11 @@
 
 http::server@ server = null;
 
-void exit_main()
-{
-    server.unlisten(1);
-    schedule::get().stop();
-}
 int main()
 {
     console@ output = console::get();
-    schedule_policy policy; // Creates up to "CPU threads count" threads
     schedule@ queue = schedule::get();
-    queue.start(policy);
+    queue.start(schedule_policy()); // Creates up to "CPU threads count" threads
     
     http::map_router@ router = http::map_router();
     router.listen("127.0.0.1", 8080);
@@ -37,5 +31,11 @@ int main()
     @server = http::server();
     server.configure(@router);
     server.listen();
+
+    at_exit(function(signal)
+    {
+        server.unlisten(1);
+        schedule::get().stop();
+    });
     return 0;
 }
