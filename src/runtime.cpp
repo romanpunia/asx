@@ -995,6 +995,12 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 
+		String GitDirectory = Contextual.Output + ".git";
+		OS::Directory::Remove(GitDirectory.c_str());
+
+		String MakeDirectory = Contextual.Output + "make";
+		OS::Directory::Patch(MakeDirectory);
+
 		if (BuilderGenerate(Contextual.Output, false) != 0)
 		{
 			VI_ERR("cannot generate the template:\n\tmake sure application has file read/write permissions");
