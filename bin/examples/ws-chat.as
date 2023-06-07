@@ -36,7 +36,7 @@ ws_client@ get_client(http::websocket_frame@ base, bool erase)
         if (next.is_matching(@base))
         {
             if (erase)
-                clients.remove_at(i);
+                clients.erase(i);
 
             section.unlock();
             return next;
@@ -91,6 +91,8 @@ void remove_client(http::websocket_frame@ base)
 int main()
 {
     console@ output = console::get();
+    output.show();
+    
     schedule_policy policy;
     schedule@ queue = schedule::get();
     queue.start(policy);

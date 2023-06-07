@@ -7,6 +7,8 @@ http::server@ server = null;
 int main()
 {
     console@ output = console::get();
+    output.show();
+    
     schedule@ queue = schedule::get();
     queue.start(schedule_policy()); // Creates up to "CPU threads count" threads
     
