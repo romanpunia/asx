@@ -1637,7 +1637,7 @@ private:
 int main(int argc, char* argv[])
 {
 	Mavias* Instance = new Mavias(argc, argv);
-	Mavi::Runtime Lib(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
+	Mavi::Runtime Scope(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
 	int ExitCode = Instance->Dispatch();
 
 	delete Instance;
