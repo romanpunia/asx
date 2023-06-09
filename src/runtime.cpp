@@ -41,10 +41,8 @@ public:
 
 		auto* Queue = Schedule::Get();
 		Queue->SetImmediate(true);
-
+		
 		VM = new VirtualMachine();
-		Multiplexer::Create();
-
 		for (auto& Next : Contextual.Params.Base)
 		{
 			if (Next.first == "__path__")
@@ -343,7 +341,7 @@ public:
 		{
 			if (TryContextExit(Contextual, Value))
 			{
-				VI_DEBUG("graceful shutdown using [%s call]", Entrypoint.Terminate);
+				VI_DEBUG("graceful shutdown using [signal vcall]");
 				goto GracefulShutdown;
 			}
 
@@ -770,7 +768,8 @@ private:
 	}
 	void PrintIntroduction()
 	{
-		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Mavi::Library::GetCompiler() << " on " << Mavi::Library::GetPlatform() << "]" << std::endl;
+		auto* Lib = Mavi::Runtime::Get();
+		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Lib->GetCompiler() << " on " << Lib->GetPlatform() << "]" << std::endl;
 		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "vi --help")) << "\" for more information";
 		if (Config.Interactive)
 			std::cout << " (loaded " << VM->GetExposedAddons().size() << " addons)";
@@ -1412,27 +1411,28 @@ private:
 		static String ViFeatures;
 		if (ViFeatures.empty())
 		{
+			auto* Lib = Mavi::Runtime::Get();
 			Vector<std::pair<String, bool>> Features =
 			{
-				{ "BINDINGS", Mavi::Library::HasBindings() },
-				{ "BACKTRACE", Mavi::Library::HasBacktrace() },
-				{ "ALLOCATOR", Mavi::Library::HasAllocator() },
-				{ "FCTX", Mavi::Library::HasFContext() && !IsAddon },
-				{ "SIMD", Mavi::Library::HasSIMD() && !IsAddon },
-				{ "ASSIMP", Mavi::Library::HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
-				{ "FREETYPE", Mavi::Library::HasFreeType() && IsBuilderUsingGUI() && !IsAddon },
-				{ "GLEW", Mavi::Library::HasGLEW() && IsBuilderUsingGraphics() && !IsAddon },
-				{ "OPENAL", Mavi::Library::HasOpenAL() && IsBuilderUsingAudio() && !IsAddon },
-				{ "OPENGL", Mavi::Library::HasOpenGL() && IsBuilderUsingGraphics() && !IsAddon },
-				{ "OPENSSL", Mavi::Library::HasOpenSSL() && IsBuilderUsingCrypto() && !IsAddon },
-				{ "ZLIB", Mavi::Library::HasOpenSSL() && IsBuilderUsingCompression() && !IsAddon },
-				{ "SDL2", Mavi::Library::HasSDL2() && IsBuilderUsingGraphics() && !IsAddon },
-				{ "POSTGRESQL", Mavi::Library::HasPostgreSQL() && IsBuilderUsingPostgreSQL() && !IsAddon },
-				{ "MONGOC", Mavi::Library::HasMongoDB() && IsBuilderUsingMongoDB() && !IsAddon },
-				{ "SPIRV", Mavi::Library::HasSPIRV() && IsBuilderUsingGraphics() && !IsAddon },
-				{ "BULLET3", Mavi::Library::HasBullet3() && IsBuilderUsingPhysics() && !IsAddon },
-				{ "RMLUI", Mavi::Library::HasRmlUI() && IsBuilderUsingGUI() && !IsAddon },
-				{ "SHADERS", Mavi::Library::HasShaders() && IsBuilderUsingGraphics() && !IsAddon }
+				{ "BINDINGS", Lib->HasBindings() },
+				{ "BACKTRACE", Lib->HasBacktrace() },
+				{ "ALLOCATOR", Lib->HasAllocator() },
+				{ "FCTX", Lib->HasFContext() && !IsAddon },
+				{ "SIMD", Lib->HasSIMD() && !IsAddon },
+				{ "ASSIMP", Lib->HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
+				{ "FREETYPE", Lib->HasFreeType() && IsBuilderUsingGUI() && !IsAddon },
+				{ "GLEW", Lib->HasGLEW() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "OPENAL", Lib->HasOpenAL() && IsBuilderUsingAudio() && !IsAddon },
+				{ "OPENGL", Lib->HasOpenGL() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "OPENSSL", Lib->HasOpenSSL() && IsBuilderUsingCrypto() && !IsAddon },
+				{ "ZLIB", Lib->HasOpenSSL() && IsBuilderUsingCompression() && !IsAddon },
+				{ "SDL2", Lib->HasSDL2() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "POSTGRESQL", Lib->HasPostgreSQL() && IsBuilderUsingPostgreSQL() && !IsAddon },
+				{ "MONGOC", Lib->HasMongoDB() && IsBuilderUsingMongoDB() && !IsAddon },
+				{ "SPIRV", Lib->HasSPIRV() && IsBuilderUsingGraphics() && !IsAddon },
+				{ "BULLET3", Lib->HasBullet3() && IsBuilderUsingPhysics() && !IsAddon },
+				{ "RMLUI", Lib->HasRmlUI() && IsBuilderUsingGUI() && !IsAddon },
+				{ "SHADERS", Lib->HasShaders() && IsBuilderUsingGraphics() && !IsAddon }
 			};
 
 			for (auto& Item : Features)
@@ -1637,10 +1637,9 @@ private:
 int main(int argc, char* argv[])
 {
 	Mavias* Instance = new Mavias(argc, argv);
-    Mavi::Initialize(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
+	Mavi::Runtime Lib(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
 	int ExitCode = Instance->Dispatch();
-	delete Instance;
-	Mavi::Uninitialize();
 
+	delete Instance;
 	return ExitCode;
 }

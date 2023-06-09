@@ -181,6 +181,7 @@ bool TryContextExit(ProgramContext& Contextual, int Value)
 	}).Get();
 
 	Contextual.AtExit.Release();
+	VirtualMachine::CleanupThisThread();
 	return ExitCode >= 0;
 }
 Function GetEntrypoint(ProgramContext& Contextual, ProgramEntrypoint& Entrypoint, Compiler* Unit)
