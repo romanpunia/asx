@@ -23,7 +23,7 @@ class thread_routine
         {
             auto error = exception::unwrap(); // get catched exception
             if (error.type != "emotional damage" || wants_crash)
-                exception::rethrow(); // will rethrow and propagate to joiner, this thread will die here
+                exception::rethrow(); // will rethrow, this thread will die here
             
             console::get().write_line("oh no, " + error.what()); // what() has info about stack frame
         }
@@ -40,7 +40,7 @@ void start(bool wants_crash)
     
     this_thread::sleep(1000);
     console::get().write_line("O_O"); // We are still OK
-    basic.join(); // crash might happen here if joinable thread will rethrow the exception
+    basic.join();
 }
 int main(string[]@ args)
 { 

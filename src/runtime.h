@@ -115,7 +115,8 @@ void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context
 		Queue->Dispatch();
 
 	Context->Unprepare();
-	VM->Collect();
+	VM->PerformFullGarbageCollection();
+	AtExitContext(nullptr);
 }
 int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMachine* VM)
 {
@@ -167,7 +168,7 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 
 	ProgramContext::Get(&Contextual);
 	VM->SetFunctionDef("void exit_event(int)");
-	VM->SetFunction("void at_exit(exit_event@+)", &AtExitContext);
+	VM->SetFunction("void at_exit(exit_event@)", &AtExitContext);
 	return 0;
 }
 bool TryContextExit(ProgramContext& Contextual, int Value)
@@ -175,14 +176,13 @@ bool TryContextExit(ProgramContext& Contextual, int Value)
 	if (!Contextual.AtExit.IsValid())
 		return false;
 	
-	int ExitCode = Contextual.AtExit([Value](ImmediateContext* Context)
+	auto Status = Contextual.AtExit([Value](ImmediateContext* Context)
 	{
 		Context->SetArg32(0, Value);
 	}).Get();
-
 	Contextual.AtExit.Release();
 	VirtualMachine::CleanupThisThread();
-	return ExitCode >= 0;
+	return !!Status;
 }
 Function GetEntrypoint(ProgramContext& Contextual, ProgramEntrypoint& Entrypoint, Compiler* Unit)
 {

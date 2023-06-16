@@ -36,6 +36,7 @@ int main()
         string value;
         while (self.pop(value))
         {
+            this_thread::sleep(100);
             output.write_line("cdt: pop " + value);
             if (value.empty())
                 break;
@@ -48,9 +49,11 @@ int main()
         output.write_line("coroutine thread: " + self.get_id());
         output.write_line("ct: suspend 1");
         self.suspend();
+        this_thread::sleep(500);
         output.write_line("ct: resume 1");
         output.write_line("ct: suspend 2");
         self.suspend();
+        this_thread::sleep(500);
         output.write_line("ct: resume 2");
         this_thread::sleep(100);
     });
@@ -78,13 +81,13 @@ int main()
 
     // coroutine
     output.write_line("mt: sleep 500");
-    this_thread::sleep(500);
+    this_thread::sleep(1500);
     coroutine.resume();
     output.write_line("mt: sleep 500");
-    this_thread::sleep(500);
+    this_thread::sleep(1500);
     coroutine.resume();
 
-    // join, may also be joined while destroying ()
+    // join
     basic_parallel.join();
     shared_data.join();
     channel_data.join();

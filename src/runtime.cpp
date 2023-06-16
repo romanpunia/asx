@@ -22,7 +22,7 @@ public:
 		ListenForSignals();
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
 #ifndef NDEBUG
-		OS::Directory::SetWorking(OS::Directory::GetModule().c_str());
+		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;
 #endif
 		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
@@ -84,7 +84,7 @@ public:
 		else if (Config.Interactive)
 		{
 			if (Contextual.Path.empty())
-				Contextual.Path = OS::Directory::GetWorking();
+				Contextual.Path = *OS::Directory::GetWorking();
 
 			if (Config.Debug)
 			{
@@ -115,7 +115,7 @@ public:
 
 		Unit = VM->CreateCompiler();
 		Unit->SetIncludeCallback(std::bind(&Mavias::BuilderImportAddon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-		if (Unit->Prepare(Contextual.Module) < 0)
+		if (!Unit->Prepare(Contextual.Module))
 		{
 			VI_ERR("cannot prepare <%s> module scope", Contextual.Module);
 			return JUMP_CODE + EXIT_PREPARE_FAILURE;
@@ -137,14 +137,14 @@ public:
 			Contextual.Path += Contextual.Module;
 			Debugger->SetEngine(VM);
 
-			if (Unit->LoadCode(Contextual.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1) < 0)
+			if (!Unit->LoadCode(Contextual.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1))
 			{
 				VI_ERR("cannot load default entrypoint for interactive mode");
 				VI_RELEASE(Debugger);
 				return JUMP_CODE + EXIT_LOADING_FAILURE;
 			}
 
-			if (Unit->Compile().Get() < 0)
+			if (!Unit->Compile().Get())
 			{
 				VI_ERR("cannot compile default module for interactive mode");
 				VI_RELEASE(Debugger);
@@ -223,15 +223,16 @@ public:
 				if (!Contextual.Inline)
 				{
 					String Index = ":" + ToString(++Section);
-					if (Unit->LoadCode(Contextual.Path + Index, Data.c_str(), Data.size()) < 0 || Unit->Compile().Get() < 0)
+					if (!Unit->LoadCode(Contextual.Path + Index, Data.c_str(), Data.size()) || !Unit->Compile().Get())
 						continue;
 				}
 
-				Function Inline = Unit->CompileFunction(Data, "any@").Get();
-				if (!Inline.IsValid())
+				auto Inline = Unit->CompileFunction(Data, "any@").Get();
+				if (!Inline)
 					continue;
 
-				if (Context->ExecuteCall(Inline, nullptr).Get() == (int)Activation::Finished)
+				auto Status = Context->ExecuteCall(*Inline, nullptr).Get();
+				if (Status && *Status == Activation::Finished)
 				{
 					String Indent = "  ";
 					auto* Value = Context->GetReturnObject<Bindings::Any>();
@@ -247,13 +248,13 @@ public:
 		}
 		else if (!Config.LoadByteCode)
 		{
-			if (Unit->LoadCode(Contextual.Path, Contextual.Program.c_str(), Contextual.Program.size()) < 0)
+			if (!Unit->LoadCode(Contextual.Path, Contextual.Program.c_str(), Contextual.Program.size()))
 			{
 				VI_ERR("cannot load <%s> module script code", Contextual.Module);
 				return JUMP_CODE + EXIT_LOADING_FAILURE;
 			}
 
-			if (Unit->Compile().Get() < 0)
+			if (!Unit->Compile().Get())
 			{
 				VI_ERR("cannot compile <%s> module", Contextual.Module);
 				return JUMP_CODE + EXIT_COMPILER_FAILURE;
@@ -263,7 +264,7 @@ public:
 		{
 			ByteCodeInfo Info;
 			Info.Data.insert(Info.Data.begin(), Contextual.Program.begin(), Contextual.Program.end());
-			if (Unit->LoadByteCode(&Info).Get() < 0)
+			if (!Unit->LoadByteCode(&Info).Get())
 			{
 				VI_ERR("cannot load <%s> module bytecode", Contextual.Module);
 				return JUMP_CODE + EXIT_LOADING_FAILURE;
@@ -274,7 +275,7 @@ public:
 		{
 			ByteCodeInfo Info;
 			Info.Debug = Config.Debug;
-			if (Unit->SaveByteCode(&Info) >= 0 && OS::File::Write(Contextual.Path + ".gz", (const char*)Info.Data.data(), Info.Data.size()))
+			if (Unit->SaveByteCode(&Info) && OS::File::Write(Contextual.Path + ".gz", (const char*)Info.Data.data(), Info.Data.size()))
 				return JUMP_CODE + EXIT_OK;
 
 			VI_ERR("cannot save <%s> module bytecode", Contextual.Module);
@@ -312,7 +313,7 @@ public:
 		else if (!VM->HasSystemAddon("std/graphics") && !!VM->HasSystemAddon("std/audio"))
 			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
-		Context->SetExceptionCallback([](ImmediateContext* Context)
+		VM->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
 			{
@@ -398,7 +399,7 @@ private:
 		});
 		AddCommand("-f, --file", "set target file [expects: path, arguments?]", [this](const String& Path)
 		{
-			String Directory = OS::Directory::GetWorking();
+			String Directory = *OS::Directory::GetWorking();
 			size_t Index = 0; bool FileFlag = false;
 
 			for (size_t i = 0; i < Contextual.Args.size(); i++)
@@ -411,17 +412,17 @@ private:
 				}
 
 				auto File = OS::Path::Resolve(Value, Directory, true);
-				if (OS::File::State(File, &Contextual.File) && !Contextual.File.IsDirectory)
+				if (File && OS::File::GetState(*File, &Contextual.File) && !Contextual.File.IsDirectory)
 				{
-					Contextual.Path = File;
+					Contextual.Path = *File;
 					Index = i;
 					break;
 				}
 
 				File = OS::Path::Resolve(Value + (Config.LoadByteCode ? ".as.gz" : ".as"), Directory, true);
-				if (OS::File::State(File, &Contextual.File) && !Contextual.File.IsDirectory)
+				if (File && OS::File::GetState(*File, &Contextual.File) && !Contextual.File.IsDirectory)
 				{
-					Contextual.Path = File;
+					Contextual.Path = *File;
 					Index = i;
 					break;
 				}
@@ -442,7 +443,7 @@ private:
 
 			Contextual.Args.erase(Contextual.Args.begin(), Contextual.Args.begin() + Index);
 			Contextual.Module = OS::Path::GetFilename(Contextual.Path.c_str());
-			Contextual.Program = OS::File::ReadAsString(Contextual.Path.c_str());
+			Contextual.Program = *OS::File::ReadAsString(Contextual.Path.c_str());
 			Contextual.Registry += "addons";
 			Contextual.Registry += VI_SPLITTER;
 			return JUMP_CODE + EXIT_CONTINUE;
@@ -486,12 +487,20 @@ private:
 			}
 
 			FileEntry File;
-			Contextual.Output = (Path == "." ? OS::Directory::GetWorking() : OS::Path::Resolve(Path, OS::Directory::GetWorking(), true));
+			if (Path != ".")
+			{
+				auto Target = OS::Path::Resolve(Path, *OS::Directory::GetWorking(), true);
+				if (Target)
+					Contextual.Output = *Target;
+			}
+			else
+				Contextual.Output = *OS::Directory::GetWorking();
+
 			if (!Contextual.Output.empty() && (Contextual.Output.back() == '/' || Contextual.Output.back() == '\\'))
 				Contextual.Output.erase(Contextual.Output.end() - 1);
 
 			Contextual.Output += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
-			if (!OS::File::State(Contextual.Output, &File))
+			if (!OS::File::GetState(Contextual.Output, &File))
 			{
 				OS::Directory::Patch(Contextual.Output);
 				return JUMP_CODE + EXIT_CONTINUE;
@@ -654,12 +663,20 @@ private:
 			}
 
 			FileEntry File;
-			Contextual.Addon = (Path == "." ? OS::Directory::GetWorking() : OS::Path::Resolve(Path, OS::Directory::GetWorking(), true));
+			if (Path != ".")
+			{
+				auto Target = OS::Path::Resolve(Path, *OS::Directory::GetWorking(), true);
+				if (Target)
+					Contextual.Addon = *Target;
+			}
+			else
+				Contextual.Addon = *OS::Directory::GetWorking();
+
 			if (!Contextual.Addon.empty() && (Contextual.Addon.back() == '/' || Contextual.Addon.back() == '\\'))
 				Contextual.Addon.erase(Contextual.Addon.end() - 1);
 
 			Contextual.Addon += VI_SPLITTER + Contextual.Name + VI_SPLITTER;
-			if (!OS::File::State(Contextual.Addon, &File))
+			if (!OS::File::GetState(Contextual.Addon, &File))
 			{
 				OS::Directory::Patch(Contextual.Addon);
 				return JUMP_CODE + EXIT_CONTINUE;
@@ -915,7 +932,7 @@ private:
 				return IncludeType::Error;
 			}
 
-			Output = OS::File::ReadAsString(Path.c_str());
+			Output = *OS::File::ReadAsString(Path.c_str());
 			return IncludeType::Preprocess;
 		}
 
@@ -946,7 +963,7 @@ private:
 				return IncludeType::Error;
 			}
 
-			Output = OS::File::ReadAsString(Path.c_str());
+			Output = *OS::File::ReadAsString(Path.c_str());
 			return IncludeType::Preprocess;
 		}
 
@@ -1131,35 +1148,35 @@ private:
 			return JUMP_CODE + EXIT_INPUT_FAILURE;
 		}
 
-		Vector<FileEntry> Entries;
+		Vector<std::pair<String, FileEntry>> Entries;
 		if (!OS::Directory::Scan(Contextual.Registry.c_str(), &Entries) || Entries.empty())
 			return JUMP_CODE + EXIT_OK;
 
 		auto Pull = [this](const String& Path) { return BuilderExecuteGit("cd \"" + Path + "\" && git pull") == 0; };
 		for (auto& File : Entries)
 		{
-			if (!File.IsDirectory || File.Path.empty() || File.Path.front() == '.')
+			if (!File.second.IsDirectory || File.first.empty() || File.first.front() == '.')
 				continue;
 
-			if (File.Path.front() == '@')
+			if (File.first.front() == '@')
 			{
-				Vector<FileEntry> Addons;
-				String RepositoriesPath = Contextual.Registry + File.Path + VI_SPLITTER;
+				Vector<std::pair<String, FileEntry>> Addons;
+				String RepositoriesPath = Contextual.Registry + File.first + VI_SPLITTER;
 				if (!OS::Directory::Scan(RepositoriesPath.c_str(), &Addons) || Addons.empty())
 					continue;
 
 				for (auto& Addon : Addons)
 				{
-					if (Addon.IsDirectory && !Pull(RepositoriesPath + Addon.Path))
+					if (Addon.second.IsDirectory && !Pull(RepositoriesPath + Addon.first))
 					{
-						VI_ERR("cannot pull addon target repository: %s", File.Path.c_str());
+						VI_ERR("cannot pull addon target repository: %s", File.first.c_str());
 						return JUMP_CODE + EXIT_COMMAND_FAILURE;
 					}
 				}
 			}
-			else if (!Pull(Contextual.Registry + File.Path))
+			else if (!Pull(Contextual.Registry + File.first))
 			{
-				VI_ERR("cannot pull addon source repository: %s", File.Path.c_str());
+				VI_ERR("cannot pull addon source repository: %s", File.first.c_str());
 				return JUMP_CODE + EXIT_COMMAND_FAILURE;
 			}
 		}
@@ -1216,7 +1233,7 @@ private:
 		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorBegin(StdColor::Gray);
 
-		ProcessStream* Stream = OS::Process::ExecuteReadOnly(Command);
+		ProcessStream* Stream = *OS::Process::ExecuteReadOnly(Command);
 		if (!Stream)
 			return -1;
 
@@ -1243,7 +1260,7 @@ private:
 	}
 	int BuilderGenerate(const String& Path, bool IsAddon)
 	{
-		Vector<FileEntry> Entries;
+		Vector<std::pair<String, FileEntry>> Entries;
 		if (!OS::Directory::Scan(Path, &Entries))
 		{
 			VI_ERR("cannot scan directory: %s", Path.c_str());
@@ -1253,32 +1270,32 @@ private:
 		size_t TotalSize = 0;
 		for (auto It = Entries.begin(); It != Entries.end();)
 		{
-			if (!It->Path.empty() && It->Path.front() != '.' && It->Path != "make" && It->Path != "bin" && It->Path != "deps" && It->Path.rfind(".codegen") == std::string::npos && It->Path.rfind(".hex") == std::string::npos)
+			if (!It->first.empty() && It->first.front() != '.' && It->first != "make" && It->first != "bin" && It->first != "deps" && It->first.rfind(".codegen") == std::string::npos && It->first.rfind(".hex") == std::string::npos)
 			{
 				if (!Path.empty() && Path.back() != '\\' && Path.back() != '/')
-					It->Path = Path + VI_SPLITTER + It->Path;
+					It->first = Path + VI_SPLITTER + It->first;
 				else
-					It->Path = Path + It->Path;
+					It->first = Path + It->first;
 
-				size_t Index = It->Path.rfind(".template");
+				size_t Index = It->first.rfind(".template");
 				if (Index != std::string::npos)
 				{
-					String TargetPath = It->Path.substr(0, Index);
+					String TargetPath = It->first.substr(0, Index);
 					if (OS::File::IsExists(TargetPath.c_str()))
 					{
 						OS::File::Remove(TargetPath.c_str());
-						OS::File::Move(It->Path.c_str(), TargetPath.c_str());
+						OS::File::Move(It->first.c_str(), TargetPath.c_str());
 						It = Entries.erase(It);
 						continue;
 					}
 					else
 					{
-						OS::File::Move(It->Path.c_str(), TargetPath.c_str());
-						It->Path = TargetPath;
+						OS::File::Move(It->first.c_str(), TargetPath.c_str());
+						It->first = TargetPath;
 					}
 				}
 
-				TotalSize += It->Size;
+				TotalSize += It->second.Size;
 				++It;
 			}
 			else
@@ -1295,11 +1312,11 @@ private:
 		size_t CurrentSize = 0;
 		for (auto& Item : Entries)
 		{
-			String TargetPath = Item.Path + ".codegen";
-			CurrentSize += Item.Size;
-			if (Item.IsDirectory)
+			String TargetPath = Item.first + ".codegen";
+			CurrentSize += Item.second.Size;
+			if (Item.second.IsDirectory)
 			{
-				int Status = BuilderGenerate(Item.Path, IsAddon);
+				int Status = BuilderGenerate(Item.first, IsAddon);
 				if (Status == 0)
 					continue;
 
@@ -1315,18 +1332,18 @@ private:
 				Console::Get()->ColorBegin(StdColor::Gray);
 			}
 			
-			std::cout << "-- Build template " << Item.Path << std::endl;
-			Stream* BaseFile = OS::File::Open(Item.Path, FileMode::Binary_Read_Only);
+			std::cout << "-- Build template " << Item.first << std::endl;
+			auto BaseFile = OS::File::Open(Item.first, FileMode::Binary_Read_Only);
 			if (!BaseFile)
 			{
 				if (ErrorHandling::HasFlag(LogOption::Pretty))
 					Console::Get()->ColorEnd();
 
-				VI_ERR("cannot open source file: %s", Item.Path.c_str());
+				VI_ERR("cannot open source file: %s", Item.first.c_str());
 				return -1;
 			}
 
-			Stream* TargetFile = OS::File::Open(TargetPath, FileMode::Binary_Write_Only);
+			auto TargetFile = OS::File::Open(TargetPath, FileMode::Binary_Write_Only);
 			if (!TargetFile)
 			{
 				if (ErrorHandling::HasFlag(LogOption::Pretty))
@@ -1340,7 +1357,7 @@ private:
 			uint32_t Progress = (uint32_t)(100.0 * (double)CurrentSize / (double)TotalSize);
 			{
 				String Data;
-				Data.reserve(Item.Size);
+				Data.reserve(Item.second.Size);
 				BaseFile->ReadAll([&Data](char* Buffer, size_t Size) { Data.append(Buffer, Size); });
 				BuilderGenerateTemplate(Data, IsAddon);
 				TargetFile->Write(Data.c_str(), Data.size());
@@ -1350,18 +1367,18 @@ private:
 
 			if (!IsAddon)
 			{
-				String TempPath = Item.Path + ".template";
-				OS::File::Move(Item.Path.c_str(), TempPath.c_str());
+				String TempPath = Item.first + ".template";
+				OS::File::Move(Item.first.c_str(), TempPath.c_str());
 			}
 			else
-				OS::File::Remove(Item.Path.c_str());
+				OS::File::Remove(Item.first.c_str());
 
-			if (!OS::File::Move(TargetPath.c_str(), Item.Path.c_str()))
+			if (!OS::File::Move(TargetPath.c_str(), Item.first.c_str()))
 			{
 				if (ErrorHandling::HasFlag(LogOption::Pretty))
 					Console::Get()->ColorEnd();
 
-				VI_ERR("cannot move target files:\n\tmove file from: %s\n\tmove file to: %s", TargetPath.c_str(), Item.Path.c_str());
+				VI_ERR("cannot move target files:\n\tmove file from: %s\n\tmove file to: %s", TargetPath.c_str(), Item.first.c_str());
 				return -1;
 			}
 		}
@@ -1467,14 +1484,14 @@ private:
 	{
 		ByteCodeInfo Info;
 		Info.Debug = Config.Debug;
-		if (Unit->SaveByteCode(&Info) < 0)
+		if (!Unit->SaveByteCode(&Info))
 		{
 			VI_ERR("cannot fetch the byte code");
 			return -1;
 		}
 
 		OS::Directory::Patch(OS::Path::GetDirectory(Path.c_str()));
-		Stream* TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only);
+		auto TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only);
 		if (!TargetFile)
 		{
 			VI_ERR("cannot create the byte code file: %s", Path.c_str());
@@ -1514,7 +1531,12 @@ private:
 	Schema* GetBuilderAddonInfo(const String& Name)
 	{
 		String LocalTarget = Contextual.Registry + Name + VI_SPLITTER + FILE_ADDON;
-		return Schema::FromJSON(OS::File::ReadAsString(LocalTarget), false);
+		auto Data = OS::File::ReadAsString(LocalTarget);
+		if (!Data)
+			return nullptr;
+
+		auto Result = Schema::FromJSON(*Data);
+		return Result ? *Result : nullptr;
 	}
 	bool IsBuilderAddonCached(const String& Name)
 	{
@@ -1538,7 +1560,7 @@ private:
 	}
 	bool IsBuilderDirectoryEmpty(const String& Target)
 	{
-		Vector<FileEntry> Entries;
+		Vector<std::pair<String, FileEntry>> Entries;
 		return !OS::Directory::Scan(Target, &Entries) || Entries.empty();
 	}
 	bool IsBuilderUsingCompression()
@@ -1586,7 +1608,9 @@ private:
 		if (IsVM)
 			*IsVM = false;
 
-		String Path1 = OS::Path::Resolve(GetBuilderAddonTarget(Name).c_str());
+		String BaseName = GetBuilderAddonTarget(Name);
+		auto Result = OS::Path::Resolve(BaseName.c_str());
+		String Path1 = (Result ? *Result : BaseName);
 		if (OS::File::IsExists(Path1.c_str()))
 			return Path1;
 
@@ -1606,7 +1630,9 @@ private:
 
 		String Index = Info->GetVar("index").GetBlob();
 		Path1 = Contextual.Registry + Name + VI_SPLITTER + Index;
-		Path1 = OS::Path::Resolve(Path1.c_str());
+		Result = OS::Path::Resolve(Path1.c_str());
+		if (Result)
+			Path1 = *Result;
 		return Path1;
 	}
 	String GetBuilderDirectory(const String& LocalTarget)
@@ -1639,7 +1665,6 @@ int main(int argc, char* argv[])
 	Mavias* Instance = new Mavias(argc, argv);
 	Mavi::Runtime Scope(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
 	int ExitCode = Instance->Dispatch();
-
 	delete Instance;
 	return ExitCode;
 }

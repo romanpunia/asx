@@ -15,10 +15,10 @@ class runtime
     runtime(application_desc&in init)
     {
         @self = application(init);
-        @self.initialize = initialize_callback(this.initialize);
-        @self.dispatch = dispatch_callback(this.dispatch);
-        @self.publish = publish_callback(this.publish);
-        @self.window_event = window_event_callback(this.window_event);
+        self.set_on_initialize(initialize_callback(this.initialize));
+        self.set_on_dispatch(dispatch_callback(this.dispatch));
+        self.set_on_publish(publish_callback(this.publish));
+        self.set_on_window_event(window_event_callback(this.window_event));
     }
     void initialize()
     {
