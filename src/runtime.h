@@ -108,7 +108,7 @@ void AtExitContext(asIScriptFunction* Callback)
 }
 void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context)
 {
-	while (Queue->IsActive() || Context->GetState() == Activation::Active || Context->IsPending())
+	while (Queue->IsActive() || Context->GetState() == Execution::Active || Context->IsPending())
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())

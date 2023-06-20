@@ -232,7 +232,7 @@ public:
 					continue;
 
 				auto Status = Context->ExecuteCall(*Inline, nullptr).Get();
-				if (Status && *Status == Activation::Finished)
+				if (Status && *Status == Execution::Finished)
 				{
 					String Indent = "  ";
 					auto* Value = Context->GetReturnObject<Bindings::Any>();
