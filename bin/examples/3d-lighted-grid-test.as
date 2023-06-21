@@ -62,8 +62,9 @@ class runtime
             where.set_position(vector3(-10.0f, 10.0f, -10.0f));
 
             line_light_component@ line = cast<line_light_component@>(light.add_component(line_light_component(light)));
-            line.shadow.distance0 = 20;
-            line.shadow.cascades = 1;
+            line.shadow.distance0 = grid_size.x * grid_radius;
+            line.shadow.distance1 = grid_size.x * grid_radius;
+            line.shadow.cascades = 2;
             line.shadow.enabled = true;
             line.shadow.softness = 10.0f;
             line.shadow.iterations = 64;
@@ -116,7 +117,7 @@ class runtime
             light.shadow.enabled = !light.shadow.enabled;
 
         float delta = time.get_elapsed() * 0.1;
-        float x = sin(delta), y = cos(delta);
+        float x = sin(delta) * 2.0, y = cos(delta) * 2.0;
         light.get_entity().get_transform().set_position(vector3(-10.0f * x, 10.0f, -10.0f * y));
 
         const float elapsed = time.get_elapsed_mills();
@@ -143,11 +144,7 @@ class runtime
     }
     void publish(clock_timer@ time)
     {
-        self.renderer.clear(0, 0, 0);
-        self.renderer.clear_depth();
-        self.scene.publish(time);
-        self.scene.submit();
-        self.renderer.submit();
+        self.scene.publish_and_submit(time, 0, 0, 0, false);
     }
     void window_event(window_state state, int x, int y)
     {
@@ -180,10 +177,10 @@ int main()
     if (size <= 0.0f)
         size = 5.0f;
 
-    output.write("type in grid radius (default 3): ");
+    output.write("type in grid radius (default 4): ");
     float radius = to_float(output.read(16));
     if (radius <= 0.0f)
-        radius = 3.0f;
+        radius = 4.0f;
 
     float entities = size * size * size * 8;
     if (entities > 64000.0f)

@@ -93,11 +93,7 @@ class runtime
     }
     void publish(clock_timer@ time)
     {
-        self.renderer.clear(0, 0, 0);
-        self.renderer.clear_depth();
-        self.scene.publish(time);
-        self.scene.submit();
-        self.renderer.submit();
+        self.scene.publish_and_submit(time, 0, 0, 0, false);
     }
     void window_event(window_state state, int x, int y)
     {
