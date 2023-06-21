@@ -1,0 +1,46 @@
+<html>
+    <head>
+        <style>
+            .quad {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            body {
+                position: relative;
+            }
+
+            quad {
+                background-color: yellow;
+                width: 200px;
+                height: 200px;
+                animation: 6s linear infinite alternate quad-animation;
+            }
+
+            @keyframes quad-animation {
+                from { }
+                to { transform: rotateZ(360deg); }
+            }
+        </style>
+        <script>
+            #include <std/gui/control>
+            #include <std/math>
+
+            void randomize(ui_element&in element)
+            {
+                float r = randomf_range(0, 255);
+                float g = randomf_range(0, 255);
+                float b = randomf_range(0, 255);
+                element.set_property("background-color", "rgb(" + to_string(r) + ", " + to_string(g) + ", " + to_string(b) + ")");
+            }
+        </script>
+    </head>
+    <body>
+        <div class="quad">
+            <quad onclick="randomize(event.get_target_element())"></quad>
+        </div>
+    </body>
+</html>
