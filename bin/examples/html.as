@@ -22,6 +22,8 @@ class runtime
     }
     void dispatch(clock_timer@ time)
     {
+        if (!self.has_processed_events())
+            self.window.dispatch_blocking(context.get_idle_timeout_ms(10000));
         context.update_events(@self.window);
     }
     void publish(clock_timer@ time)
