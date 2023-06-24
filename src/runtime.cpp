@@ -10,12 +10,13 @@ private:
 	ProgramContext Contextual;
 	ProgramEntrypoint Entrypoint;
 	ProgramConfig Config;
+	EventLoop* Loop;
 	VirtualMachine* VM;
 	ImmediateContext* Context;
 	Compiler* Unit;
 
 public:
-	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), VM(nullptr), Context(nullptr), Unit(nullptr)
+	Mavias(int ArgsCount, char** Args) : Contextual(ArgsCount, Args), Loop(nullptr), VM(nullptr), Context(nullptr), Unit(nullptr)
 	{
 		AddDefaultCommands();
 		AddDefaultSettings();
@@ -33,6 +34,7 @@ public:
 		VI_RELEASE(Context);
 		VI_RELEASE(Unit);
 		VI_RELEASE(VM);
+		VI_RELEASE(Loop);
 	}
 	int Dispatch()
 	{
@@ -313,6 +315,9 @@ public:
 		else if (!VM->HasSystemAddon("std/graphics") && !!VM->HasSystemAddon("std/audio"))
 			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
+		int ExitCode = 0;
+		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
+		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
 		VM->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
@@ -322,19 +327,21 @@ public:
 			}
 		});
 
-		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
-		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
-		Context->ExecuteCall(Main, [&Main, ArgsArray](ImmediateContext* Context)
+		Main.AddRef();
+		Loop = new EventLoop();
+		Loop->Listen(Context);
+		Loop->Enqueue(FunctionDelegate(Main, Context), [&Main, ArgsArray](ImmediateContext* Context)
 		{
 			if (Main.GetArgsCount() > 0)
 				Context->SetArgObject(0, ArgsArray);
-		}).Wait();
+		}, [&ExitCode, &Type, &Main, ArgsArray](ImmediateContext* Context)
+		{
+			ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
+			if (ArgsArray != nullptr)
+				Context->GetVM()->ReleaseObject(ArgsArray, Type);
+		});
 
-		int ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
-		if (ArgsArray != nullptr)
-			VM->ReleaseObject(ArgsArray, Type);
-	
-		AwaitContext(Queue, VM, Context);
+		AwaitContext(Queue, Loop, VM, Context);
 		return ExitCode;
 	}
 	void Shutdown(int Value)
@@ -342,6 +349,7 @@ public:
 		{
 			if (TryContextExit(Contextual, Value))
 			{
+				Loop->Wakeup();
 				VI_DEBUG("graceful shutdown using [signal vcall]");
 				goto GracefulShutdown;
 			}
@@ -350,6 +358,7 @@ public:
 			if (App != nullptr && App->GetState() == ApplicationState::Active)
 			{
 				App->Stop();
+				Loop->Wakeup();
 				VI_DEBUG("graceful shutdown using [application stop]");
 				goto GracefulShutdown;
 			}
@@ -358,6 +367,7 @@ public:
 			if (Queue->IsActive())
 			{
 				Queue->Stop();
+				Loop->Wakeup();
 				VI_DEBUG("graceful shutdown using [scheduler stop]");
 				goto GracefulShutdown;
 			}

@@ -106,14 +106,16 @@ void AtExitContext(asIScriptFunction* Callback)
 {
 	ProgramContext::Get().AtExit = FunctionDelegate(Callback, nullptr);
 }
-void AwaitContext(Schedule* Queue, VirtualMachine* VM, ImmediateContext* Context)
+void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
 {
-	while (Queue->IsActive() || Context->GetState() == Execution::Active || Context->IsPending())
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	EventLoop::Set(Loop);
+	while (Loop->PollExtended(Context, 1000))
+		Loop->Dequeue(VM);
 
 	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
 		Queue->Dispatch();
 
+	EventLoop::Set(nullptr);
 	Context->Unprepare();
 	VM->PerformFullGarbageCollection();
 	AtExitContext(nullptr);
