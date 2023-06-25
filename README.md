@@ -160,6 +160,9 @@ Generated output will not embed any resources requested by runtime such as image
 
 __This feature is considered experimental as it suffers of very slow build times. You may also open generated project or regenerate it manually and open it in your IDE. Runtime code is very minimal as well as output binary size.__
 
+## Other info
+You may take a look into __html.as__ example which leverages HTML/CSS + AngelScript powers. This shows how to create memory and CPU efficient GUI applications based on modern graphics API. 
+
 ## Dependencies
 * [Mavi (submodule)](https://github.com/romanpunia/mavi)
 

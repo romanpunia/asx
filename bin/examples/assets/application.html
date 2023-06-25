@@ -3,15 +3,15 @@
         <style>
             body {
                 font-family: "SF UI Display";
-                font-weight: normal;
-                font-style: normal;
-                font-size: 13px;
                 position: relative;
                 width: 100%;
                 height: 100%;
+                background-color: #121212;
+                cursor: default;
+                padding: 12px;
             }
 
-            .quad-wrapper {
+            .center {
                 width: 100%;
                 height: 100%;
                 display: flex;
@@ -19,16 +19,17 @@
                 align-items: center;
             }
 
-            .quad {
-                background-color: yellow;
-                width: 200px;
-                height: 200px;
-                animation: 6s linear infinite alternate quad-animation;
+            .clickable {
+                font-size: 24px;
+	            transition: transform 1.6s elastic-out;
             }
 
-            @keyframes quad-animation {
-                from { }
-                to { transform: rotateZ(360deg); }
+            .clickable:hover {
+                cursor: pointer;
+            }
+
+            .clickable:active {
+                transform: scale(0.8);
             }
         </style>
         <script>
@@ -39,14 +40,14 @@
                 float r = randomf_range(0, 255);
                 float g = randomf_range(0, 255);
                 float b = randomf_range(0, 255);
-                element.set_property("background-color", "rgb(" + to_string(r) + ", " + to_string(g) + ", " + to_string(b) + ")");
+                element.set_property("color", "rgb(" + to_string(r) + ", " + to_string(g) + ", " + to_string(b) + ")");
             }
         </script>
     </head>
     <body>
-        <p>Hello, i am a simple dumb quad.</p>
-        <div class="quad-wrapper">
-            <div class="quad" onclick="randomize(event.get_target_element())"></div>
+        <p style="font-size: 16px;">Hello, i am a simple dumb HTML page.</p>
+        <div class="center">
+            <p class="clickable" onclick="randomize(event.get_target_element())">Click me!</p>
         </div>
     </body>
 </html>
