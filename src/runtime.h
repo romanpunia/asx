@@ -55,10 +55,11 @@ struct ProgramContext
 	String Mode;
 	String Output;
 	String Addon;
+	Compiler* ThisCompiler;
 	const char* Module;
 	bool Inline;
 
-	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), Module("__anonymous__"), Inline(true)
+	ProgramContext(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), ThisCompiler(nullptr), Module("__anonymous__"), Inline(true)
 	{
 		Args.reserve((size_t)ArgsCount);
 		for (int i = 0; i < ArgsCount; i++)
@@ -102,6 +103,10 @@ struct ProgramConfig
 	bool FastBuilds = false;
 };
 
+Compiler* GetThisCompiler()
+{
+	return ProgramContext::Get().ThisCompiler;
+}
 void AtExitContext(asIScriptFunction* Callback)
 {
 	ProgramContext::Get().AtExit = FunctionDelegate(Callback, nullptr);
@@ -120,7 +125,7 @@ void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, Immediat
 	VM->PerformFullGarbageCollection();
 	AtExitContext(nullptr);
 }
-int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMachine* VM)
+int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMachine* VM, Compiler* ThisCompiler)
 {
 	uint32_t ImportOptions = 0;
 	if (Config.Addons)
@@ -168,9 +173,13 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 		}
 	}
 
+	Contextual.ThisCompiler = ThisCompiler;
 	ProgramContext::Get(&Contextual);
+
+	VM->ImportSystemAddon("std/ctypes");
 	VM->SetFunctionDef("void exit_event(int)");
 	VM->SetFunction("void at_exit(exit_event@)", &AtExitContext);
+	VM->SetFunction("uptr@ get_compiler()", &GetThisCompiler);
 	return 0;
 }
 bool TryContextExit(ProgramContext& Contextual, int Value)

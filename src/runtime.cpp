@@ -107,7 +107,8 @@ public:
 			}
 		}
 
-		int Code = ConfigureEngine(Config, Contextual, VM);
+		Unit = VM->CreateCompiler();
+		int Code = ConfigureEngine(Config, Contextual, VM, Unit);
 		if (Code != 0)
 			return Code;
 
@@ -115,7 +116,6 @@ public:
 		if (Config.Debug)
 			VM->SetDebugger(new DebuggerContext());
 
-		Unit = VM->CreateCompiler();
 		Unit->SetIncludeCallback(std::bind(&Mavias::BuilderImportAddon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 		if (!Unit->Prepare(Contextual.Module))
 		{
@@ -312,7 +312,7 @@ public:
 			if (VM->HasSystemAddon("std/graphics") || VM->HasSystemAddon("std/audio"))
 				VI_WARN("program includes disabled graphics/audio features: consider using -g option");
 		}
-		else if (!VM->HasSystemAddon("std/graphics") && !!VM->HasSystemAddon("std/audio"))
+		else if (!VM->HasSystemAddon("std/graphics") && !VM->HasSystemAddon("std/audio"))
 			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
 
 		int ExitCode = 0;

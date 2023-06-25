@@ -16,7 +16,7 @@ class runtime
     }
     void initialize()
     {
-        @context = gui_context(@self.renderer);
+        @context = gui_context(get_compiler(), @self.renderer);
         if (!context.initialize("manifest.xml"))
             self.stop();
     }
