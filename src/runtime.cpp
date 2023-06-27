@@ -114,7 +114,20 @@ public:
 
 		OS::Directory::SetWorking(OS::Path::GetDirectory(Contextual.Path.c_str()).c_str());
 		if (Config.Debug)
-			VM->SetDebugger(new DebuggerContext());
+		{
+			DebuggerContext* Debugger = new DebuggerContext();
+			Debugger->SetInterruptCallback([Queue](bool IsInterrupted)
+			{
+				if (Queue->IsActive())
+				{
+					if (IsInterrupted)
+						Queue->Suspend();
+					else
+						Queue->Resume();
+				}
+			});
+			VM->SetDebugger(Debugger);
+		}
 
 		Unit->SetIncludeCallback(std::bind(&Mavias::BuilderImportAddon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 		if (!Unit->Prepare(Contextual.Module))
@@ -129,7 +142,7 @@ public:
 			String Data, Multidata;
 			Data.reserve(1024 * 1024);
 			VM->ImportSystemAddon("std");
-			PrintIntroduction();
+			PrintIntroduction("interactive mode");
 
 			auto* Debugger = new DebuggerContext(DebugType::Detach);
 			char DefaultCode[] = "void main(){}";
@@ -305,7 +318,7 @@ public:
 		}
 
 		if (Config.Debug)
-			PrintIntroduction();
+			PrintIntroduction("debugger");
 
 		if (Config.EssentialsOnly)
 		{
@@ -404,7 +417,7 @@ private:
 		});
 		AddCommand("-v, --version", "show version message", [this](const String&)
 		{
-			PrintIntroduction();
+			PrintIntroduction("runtime");
 			return JUMP_CODE + EXIT_OK;
 		});
 		AddCommand("-f, --file", "set target file [expects: path, arguments?]", [this](const String& Path)
@@ -793,10 +806,10 @@ private:
 			Data.Description = Description;
 		}
 	}
-	void PrintIntroduction()
+	void PrintIntroduction(const char* Label)
 	{
 		auto* Lib = Mavi::Runtime::Get();
-		std::cout << "Welcome to Mavi.as v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Lib->GetCompiler() << " on " << Lib->GetPlatform() << "]" << std::endl;
+		std::cout << "Welcome to Mavi.as " << Label << " v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Lib->GetCompiler() << " on " << Lib->GetPlatform() << "]" << std::endl;
 		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "vi --help")) << "\" for more information";
 		if (Config.Interactive)
 			std::cout << " (loaded " << VM->GetExposedAddons().size() << " addons)";

@@ -120,6 +120,7 @@ void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, Immediat
 	while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
 		Queue->Dispatch();
 
+	Queue->Stop();
 	EventLoop::Set(nullptr);
 	Context->Unprepare();
 	VM->PerformFullGarbageCollection();
