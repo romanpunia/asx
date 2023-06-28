@@ -14,9 +14,9 @@
 */
 #include <std/console.as>
 
-int64 test(int64 value, int64 index)
+int32 test(int32 value, int32 index)
 {
-    int64 hash = 0, max = 2 << 29;
+    int32 hash = 0, max = 2 << 29;
     while (value > 0)
         hash = ((hash << 5) - hash + value--) % max;
     return hash;
@@ -32,7 +32,7 @@ int main(string[]@ args)
         return 1;
     }
 
-    int64 index = to_int64(args[args.size() - 1]);
+    int32 index = to_int32(args[args.size() - 1]);
     if (index <= 0)
     {
         term.write_line("invalid test sequence index");

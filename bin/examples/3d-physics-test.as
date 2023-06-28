@@ -73,7 +73,7 @@ class runtime
         scene_entity@ camera = self.scene.get_camera_entity();
         {
             transform@ where = camera.get_transform();
-            where.set_rotation(vector3(deg2rad() * 30.0f, 0.0f, 0.0f));
+            where.set_rotation(vector3(deg2radf() * 30.0f, 0.0f, 0.0f));
             where.set_position(vector3(0.0f, 5.0f, -10.0f));
             
             camera.add_component(free_look_component(camera));

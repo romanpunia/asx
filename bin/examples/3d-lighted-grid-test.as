@@ -117,7 +117,7 @@ class runtime
             light.shadow.enabled = !light.shadow.enabled;
 
         float delta = time.get_elapsed() * 0.1;
-        float x = sin(delta) * 2.0, y = cos(delta) * 2.0;
+        float x = sinf(delta) * 2.0, y = cosf(delta) * 2.0;
         light.get_entity().get_transform().set_position(vector3(-10.0f * x, 10.0f, -10.0f * y));
 
         const float elapsed = time.get_elapsed_mills();

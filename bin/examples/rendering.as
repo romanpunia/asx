@@ -20,7 +20,7 @@ void render_pass(uint64 start_time)
     render_target_2d@ target = device.get_render_target();
     float w = target.get_width(), h = target.get_height();
     float t = float(timestamp().milliseconds() - start_time);
-    float x = sin(t), y = cos(t), z = sin(t / 2.0f);
+    float x = sinf(t), y = cosf(t), z = sinf(t / 2.0f);
 
     device.set_target();
     device.clear(0.0f, 0.0f, 0.0f);
@@ -28,7 +28,7 @@ void render_pass(uint64 start_time)
     device.im_begin();
     {
         device.im_transform(
-            matrix4x4::create_rotation_z(angle_saturate(deg2rad() * t * 0.05f)) *
+            matrix4x4::create_rotation_z(angle_saturatef(deg2radf() * t * 0.05f)) *
             matrix4x4::create_translated_scale(vector3(w / 2.0f, h / 2.0f), vector3(h / 8.0f, h / 8.0f)) *
             matrix4x4::create_orthographic_off_center(0, w, h, 0.0f, -100.0f, 100.0f));
 

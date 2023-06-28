@@ -14,25 +14,30 @@ function finalize(child, childs)
 }
 function test(value, index)
 {
-    let shift = 5n, zero = 0n;
-    let hash = index, max = 2n << 29n;
+    let shift = 5, zero = 0;
+    let hash = index, max = 2 << 29;
     while (value > zero)
         hash = ((hash << shift) - hash + value--) % max;
     return hash;
 }
+function time()
+{
+    const hrTime = process.hrtime();
+    return hrTime[0] * 1000000 + hrTime[1] / 1000; 
+}
 async function main()
 {
-    let timing = new Date().getTime();
+    let timing = time();
     if (process.argv.length < 2)
     {
         console.log('provide test sequence index');
-        console.log('time: ' + (new Date().getTime() - timing) + "ms");
+        console.log('time: ' + ((time() - timing) / 1000) + "ms");
         return 1;
     }
     
     if (process.argv[2] == 'fork' && process.argv.length >= 5)
     {
-        let data = test(BigInt(process.argv[3]), BigInt(process.argv[4]));
+        let data = test(parseFloat(process.argv[3]), parseFloat(process.argv[4]));
         process.send(data.toString());
         return 0;
     }
@@ -41,7 +46,7 @@ async function main()
     if (isNaN(index) || index <= 0)
     {
         console.log('invalid test sequence index');
-        console.log('time: ' + (new Date().getTime() - timing) + "ms");
+        console.log('time: ' + ((time() - timing) / 1000) + "ms");
         return 2;
     }
 
@@ -62,7 +67,7 @@ async function main()
     for (let i = 0; i < hashes.length; i++)
         console.log("worker result #" + (i + 1) + ": " + hashes[i]);
 
-    console.log('time: ' + (new Date().getTime() - timing) + "ms");
+    console.log('time: ' + ((time() - timing) / 1000) + "ms");
     return 0;
 }
 

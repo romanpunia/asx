@@ -22,6 +22,7 @@ public:
 		AddDefaultSettings();
 		ListenForSignals();
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
+		ErrorHandling::SetFlag(LogOption::Active, true);
 #ifndef NDEBUG
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;

@@ -37,9 +37,9 @@
 
             void randomize(ui_element&in element)
             {
-                float r = randomf_range(0, 255);
-                float g = randomf_range(0, 255);
-                float b = randomf_range(0, 255);
+                float r = random_rangef(0, 255);
+                float g = random_rangef(0, 255);
+                float b = random_rangef(0, 255);
                 element.set_property("color", "rgb(" + to_string(r) + ", " + to_string(g) + ", " + to_string(b) + ")");
             }
         </script>

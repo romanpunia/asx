@@ -35,7 +35,7 @@ class runtime
         system.add_renderer(skin_renderer(system));
 
         scene_entity@ wolf = self.scene.add_entity();
-        wolf.get_transform().set_rotation(vector3(270 * deg2rad(), 0, 0));
+        wolf.get_transform().set_rotation(vector3(270 * deg2radf(), 0, 0));
         
         material@ body_material = self.scene.add_material();
         material@ eyes_material = self.scene.add_material();

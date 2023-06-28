@@ -4,25 +4,25 @@
 
 class test_worker
 {
-    int64[]@ hashes = null;
-    int64 index = 0;
-    int64 value = 0;
+    int32[]@ hashes = null;
+    int32 index = 0;
+    int32 value = 0;
     usize group = 0;
 
     void execute(thread@)
     {
-        int64 hash = index, max = 2 << 29;
+        int32 hash = index, max = 2 << 29;
         while (value > 0)
             hash = ((hash << 5) - hash + value--) % max;
         hashes[group] = hash;
     }
 }
 
-int64[]@ test(int64 value)
+int32[]@ test(int32 value)
 {
     usize threads_count = usize(os::cpu::get_quantity_info().logical);
     thread@[] threads = array<thread@>();
-    int64[]@ hashes = array<int64>();
+    int32[]@ hashes = array<int32>();
     threads.reserve(threads_count);
     hashes.reserve(threads_count);
 
@@ -61,7 +61,7 @@ int main(string[]@ args)
         return 1;
     }
 
-    int64 index = to_int64(args[args.size() - 1]);
+    int32 index = to_int32(args[args.size() - 1]);
     if (index <= 0)
     {
         term.write_line("invalid test sequence index");
@@ -69,7 +69,7 @@ int main(string[]@ args)
         return 2;
     }
 
-    int64[]@ hashes = test(index);
+    int32[]@ hashes = test(index);
     for (usize i = 0; i < hashes.size(); i++)
     {
         string value = to_string(hashes[i]);
