@@ -152,11 +152,8 @@ class image_fill
 
 int main(string[]@ args)
 {
-    schedule_policy policy;
-    policy.set_threads(4);
-
     schedule@ queue = schedule::get();
-    queue.start(policy);
+    queue.start(schedule_policy(4));
     
     image_fill main;
     string type = (args.size() > 1 ? args[1] : "matrix");

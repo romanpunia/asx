@@ -11,11 +11,8 @@ void stop(console@ output, schedule@ queue, http::client@ client)
 int main()
 {
     console@ output = console::get();
-    schedule_policy policy;
-    policy.set_threads(2);
-
     schedule@ queue = schedule::get();
-    queue.start(policy);
+    queue.start(schedule_policy(2));
     
     remote_host address;
     address.hostname = "jsonplaceholder.typicode.com";

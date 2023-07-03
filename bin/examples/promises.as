@@ -22,7 +22,7 @@ promise<void>@ set_timeout(uint64 timeout_ms)
     task.time = timeout_ms;
 
     schedule@ queue = schedule::get();
-    queue.set_timeout(timeout_ms, task_event(task.settle), difficulty::light);
+    queue.set_timeout(timeout_ms, task_event(task.settle));
     return task.data;
 }
 
@@ -32,11 +32,8 @@ int main()
     output.show();
     output.write_line("test start");
 
-    schedule_policy policy;
-    policy.set_threads(4);
-
     schedule@ queue = schedule::get();
-    queue.start(policy);
+    queue.start(schedule_policy(4));
 
     auto start = timestamp().milliseconds();
     output.write_line("[timeout] 1 -> 1000ms");
