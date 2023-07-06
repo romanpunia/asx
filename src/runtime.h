@@ -100,6 +100,7 @@ struct ProgramConfig
 	bool SaveSourceCode = false;
 	bool Dependencies = false;
 	bool Install = false;
+	size_t Installed = 0;
 };
 
 Compiler* GetThisCompiler()

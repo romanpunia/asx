@@ -305,7 +305,12 @@ public:
 		}
 		else if (Config.Install)
 		{
-			if (Contextual.Output.empty())
+			if (Config.Installed > 0)
+			{
+				std::cout << "Successfully installed " << Config.Installed << (Config.Installed > 1 ? " addons" : " addon") << std::endl;
+				return JUMP_CODE + EXIT_SUCCESS;
+			}
+			else if (Contextual.Output.empty())
 				return BuilderPullAddons();
 
 			auto Time = GetTime();
@@ -909,6 +914,7 @@ private:
 			}
 			else
 				Status = BuilderCreateAddonCache(File.Module, Output);
+			++Config.Installed;
 		}
 		else
 			Status = BuilderFetchAddonCache(File.Module, Output);
@@ -1020,9 +1026,9 @@ private:
 	int BuilderCreateAddonLibrary(const String& SourcesDirectory, const String& BuildDirectory)
 	{
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%smavi", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str());
+		String ConfigureCommand = Stringify::Text("cmake --fresh -S %s -B %s -DVI_DIRECTORY=%smavi -DVI_CXX=%i %s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), VI_CXX, GetBuilderCacheRegistryFlags());
 #else
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%smavi -DCMAKE_BUILD_TYPE=%s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), GetBuilderBuildType(true));
+		String ConfigureCommand = Stringify::Text("cmake --fresh -S %s -B %s -DVI_DIRECTORY=%smavi -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s %s", SourcesDirectory.c_str(), BuildDirectory.c_str(), Contextual.Registry.c_str(), VI_CXX, GetBuilderBuildType(true), GetBuilderCacheRegistryFlags());
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
@@ -1068,9 +1074,9 @@ private:
 			return JUMP_CODE + EXIT_COMMAND_FAILURE;
 		}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake", Contextual.Output.c_str(), Contextual.Output.c_str());
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DVI_CXX=%s", Contextual.Output.c_str(), VI_CXX, Contextual.Output.c_str());
 #else
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), GetBuilderBuildType(false));
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DVI_CXX=%s -DCMAKE_BUILD_TYPE=%s", Contextual.Output.c_str(), Contextual.Output.c_str(), VI_CXX, GetBuilderBuildType(false));
 #endif
 		if (BuilderExecuteCMake(ConfigureCommand) != 0)
 		{
@@ -1446,8 +1452,9 @@ private:
 			Vector<std::pair<String, bool>> Features =
 			{
 				{ "BINDINGS", Lib->HasBindings() },
-				{ "BACKTRACE", Lib->HasBacktrace() },
 				{ "ALLOCATOR", Lib->HasAllocator() },
+				{ "BACKTRACE", Lib->HasBacktrace() && !IsAddon },
+				{ "WEPOLL", Lib->HasWindowsEpoll() && !IsAddon },
 				{ "FCTX", Lib->HasFContext() && !IsAddon },
 				{ "SIMD", Lib->HasSIMD() && !IsAddon },
 				{ "ASSIMP", Lib->HasAssimp() && IsBuilderUsingEngine() && !IsAddon },
@@ -1552,9 +1559,9 @@ private:
 		auto Result = Schema::FromJSON(*Data);
 		return Result ? *Result : nullptr;
 	}
-	bool IsBuilderAddonCached(const String& Name)
+	bool IsBuilderAddonCached(const String& Name, bool Nested = false)
 	{
-		String LocalTarget = GetBuilderAddonTarget(Name);
+		String LocalTarget = (Nested ? Name : GetBuilderAddonTarget(Name));
 		if (OS::File::IsExists(LocalTarget.c_str()))
 			return true;
 
@@ -1564,6 +1571,13 @@ private:
 			if (OS::File::IsExists(LocalTargetExt.c_str()))
 				return true;
 		}
+
+		if (Nested)
+			return false;
+
+		UPtr<Schema> Info = GetBuilderAddonInfo(Name);
+		if (Info && Info->GetVar("type").GetBlob() == "vm")
+			return IsBuilderAddonCached(Contextual.Registry + Name + VI_SPLITTER + Info->GetVar("index").GetBlob(), true);
 
 		return false;
 	}
@@ -1651,11 +1665,33 @@ private:
 	}
 	String GetBuilderDirectory(const String& LocalTarget)
 	{
-		return (false ? Contextual.Registry + "." : LocalTarget) + "make";
+		return Contextual.Registry + ".make";
 	}
 	String GetViVersion()
 	{
-		return ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION);
+		return ToString((size_t)Mavi::MAJOR_VERSION) + '.' + ToString((size_t)Mavi::MINOR_VERSION) + '.' + ToString((size_t)Mavi::PATCH_VERSION) + '.' + ToString((size_t)Mavi::BUILD_VERSION);
+	}
+	const char* GetBuilderCacheRegistryFlags()
+	{
+		return 
+			"-DVI_ASSIMP=OFF "
+			"-DVI_FREETYPE=OFF "
+			"-DVI_GLEW=OFF "
+			"-DVI_MONGOC=OFF "
+			"-DVI_POSTGRESQL=OFF "
+			"-DVI_OPENAL=OFF "
+			"-DVI_OPENGL=OFF "
+			"-DVI_OPENSSL=OFF "
+			"-DVI_SDL2=OFF "
+			"-DVI_ZLIB=OFF "
+			"-DVI_SPIRV=OFF "
+			"-DVI_SHADERS=OFF "
+			"-DVI_SIMD=OFF "
+			"-DVI_JIT=OFF "
+			"-DVI_FCTX=OFF "
+			"-DVI_BULLET3=OFF "
+			"-DVI_RMLUI=OFF "
+			"-DVI_BACKTRACE=OFF";
 	}
 	const char* GetBuilderBuildType(bool IsAddon)
 	{

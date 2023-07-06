@@ -124,6 +124,8 @@ After that you will either have a ready to use git repository with CMake configu
 
 Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory. First time builds (if native) are slow as it is required to download full Mavi framework beforehand and build the target addon using platform compiler, after shared library has been built loading times are submillisecond.
 
+To install dependencies of a program run _--install_ and provide a _--file_ that should be scanned for dependencies. This will only download and build required addons. Afterwards you may run a program.
+
 * Native addons are made using C++. They must be compiled before first usage.
 * VM addons are made using AngelScript. Compilation is just in time.
 
@@ -149,6 +151,7 @@ Mavi.as supports a feature that allows one to build the executable from AngelScr
 3. CMake configuration and build will be executed.
 ```bash
 # Build an example program (cwd is mavi.as/bin/examples), you may run it multiple times (minimal rebuilds are enabled)
+# Will create a directory named "console" near "console.as" file, directory will contain CMake project named "console" and built targets
     vi -n console -o . -f console
 ```
 
