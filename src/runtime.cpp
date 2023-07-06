@@ -28,6 +28,7 @@ public:
 		Config.SaveSourceCode = true;
 #endif
 		Config.EssentialsOnly = !Contextual.Params.Has("graphics", "g");
+		Config.Install = Contextual.Params.Has("install") || Contextual.Params.Has("output", "o");
 	}
 	~Mavias()
 	{
@@ -302,21 +303,21 @@ public:
 			PrintDependencies();
 			return JUMP_CODE + EXIT_OK;
 		}
-		else if (Config.Update)
-			return BuilderPullAddons();
-
-		Function Main = GetEntrypoint(Contextual, Entrypoint, Unit);
-		if (!Main.IsValid())
-			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
-
-		if (!Contextual.Output.empty())
+		else if (Config.Install)
 		{
+			if (Contextual.Output.empty())
+				return BuilderPullAddons();
+
 			auto Time = GetTime();
 			int ExitCode = BuilderCreateExecutable();
 			if (ExitCode == JUMP_CODE + EXIT_OK)
 				std::cout << "Built binaries directory: " << Contextual.Output << "bin" << std::endl;
 			return ExitCode;
 		}
+
+		Function Main = GetEntrypoint(Contextual, Entrypoint, Unit);
+		if (!Main.IsValid())
+			return JUMP_CODE + EXIT_ENTRYPOINT_FAILURE;
 
 		if (Config.Debug)
 			PrintIntroduction("debugger");
@@ -403,9 +404,15 @@ public:
 	{
 		VI_PANIC(false, "%s which is a critical runtime error", Signal);
 }
-	bool WantsAllFeatures()
+	size_t GetInitFlags()
 	{
-		return !Config.EssentialsOnly;
+		if (Config.Install)
+			return (size_t)Mavi::Preset::App & ~(size_t)Mavi::Init::Providers;
+
+		if (Config.EssentialsOnly)
+			return (size_t)Mavi::Preset::App;
+
+		return (size_t)Mavi::Preset::Game;
 	}
 
 private:
@@ -712,14 +719,9 @@ private:
 			VI_ERR("addon path <%s> must be a directory", Path.c_str());
 			return JUMP_CODE + EXIT_INPUT_FAILURE;
 		});
-		AddCommand("--update", "update locally installed addons", [this](const String& Value)
+		AddCommand("--install", "install or update script dependencies", [this](const String& Value)
 		{
-			Config.Update = true;
-			return JUMP_CODE + EXIT_CONTINUE;
-		});
-		AddCommand("--fast", "will use single directory for all CMake addon builds (reuses cache, similar addon names will cause conflicts)", [this](const String& Value)
-		{
-			Config.FastBuilds = true;
+			Config.Install = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
@@ -727,7 +729,7 @@ private:
 			PrintProperties();
 			return JUMP_CODE + EXIT_OK;
 		});
-		AddCommand("--deps, --install, --dependencies", "install and show dependencies message", [this](const String&)
+		AddCommand("--deps, --dependencies", "install and show dependencies message", [this](const String&)
 		{
 			Config.Dependencies = true;
 			return JUMP_CODE + EXIT_CONTINUE;
@@ -898,11 +900,18 @@ private:
 		}
 
 		IncludeType Status;
-		if (IsBuilderAddonCached(File.Module))
-			Status = BuilderFetchAddonCache(File.Module, Output);
+		if (!IsBuilderAddonCached(File.Module))
+		{
+			if (!Config.Install)
+			{
+				VI_ERR("program requires <%s> addon: run installation with --install flag", File.Module.c_str());
+				Status = IncludeType::Error;
+			}
+			else
+				Status = BuilderCreateAddonCache(File.Module, Output);
+		}
 		else
-			Status = BuilderCreateAddonCache(File.Module, Output);
-
+			Status = BuilderFetchAddonCache(File.Module, Output);
 		Contextual.Addons.insert(File.Module);
 		return Status;
 	}
@@ -1257,29 +1266,10 @@ private:
 		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorBegin(StdColor::Gray);
 
-		ProcessStream* Stream = *OS::Process::ExecuteReadOnly(Command);
-		if (!Stream)
-			return -1;
-
-		bool NewLineEOF = false;
-		size_t Size = Stream->ReadAll([&NewLineEOF](char* Buffer, size_t Size)
-		{
-			if (!Size)
-				return;
-
-			std::cout << String(Buffer, Size);
-			NewLineEOF = Buffer[Size - 1] == '\r' || Buffer[Size - 1] == '\n';
-		});
-
-		if (NewLineEOF)
-			std::cout << std::endl;
-
+		int ExitCode = system(Command.c_str());
 		if (ErrorHandling::HasFlag(LogOption::Pretty))
 			Console::Get()->ColorEnd();
 
-		Stream->Close();
-		int ExitCode = Stream->GetExitCode();
-		VI_RELEASE(Stream);
 		return ExitCode;
 	}
 	int BuilderGenerate(const String& Path, bool IsAddon)
@@ -1661,7 +1651,7 @@ private:
 	}
 	String GetBuilderDirectory(const String& LocalTarget)
 	{
-		return (Config.FastBuilds ? Contextual.Registry + "." : LocalTarget) + "make";
+		return (false ? Contextual.Registry + "." : LocalTarget) + "make";
 	}
 	String GetViVersion()
 	{
@@ -1687,7 +1677,7 @@ private:
 int main(int argc, char* argv[])
 {
 	Mavias* Instance = new Mavias(argc, argv);
-	Mavi::Runtime Scope(Instance->WantsAllFeatures() ? (size_t)Mavi::Preset::Game : (size_t)Mavi::Preset::App);
+	Mavi::Runtime Scope(Instance->GetInitFlags());
 	int ExitCode = Instance->Dispatch();
 	delete Instance;
 	return ExitCode;

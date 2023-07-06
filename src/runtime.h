@@ -99,8 +99,7 @@ struct ProgramConfig
 	bool SaveByteCode = false;
 	bool SaveSourceCode = false;
 	bool Dependencies = false;
-	bool Update = false;
-	bool FastBuilds = false;
+	bool Install = false;
 };
 
 Compiler* GetThisCompiler()
