@@ -14,20 +14,19 @@ Simplest examples:
 # Show all commands:
     vi -h
     vi --help
-#Execute a script file:
+# Execute a script file:
     vi -f [path] [args]
-#Debug a script file:
+# Debug a script file:
     vi -d -f [path] [args]
-#Run in interactive mode:
-    vi
-    vi -i
+# Install dependencies of a script file
+    vi -i -f [path]
 ```
 Also note: -option and --option both have different syntax:
 ```bash
 # Shorthand style
-    vi -option [value]
+    vi -option [value?]
 # Normal style
-    vi --option=[value]
+    vi --option=[value?]
 ```
 
 ## Preprocessor

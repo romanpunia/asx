@@ -509,11 +509,6 @@ private:
 			Config.Translator = true;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-i, --interactive", "enable interactive mode", [this](const String )
-		{
-			Config.Interactive = true;
-			return JUMP_CODE + EXIT_CONTINUE;
-		});
 		AddCommand("-o, --output", "directory where to build an executable from source code", [this](const String& Path)
 		{
 			if (Contextual.Name.empty())
@@ -669,7 +664,12 @@ private:
 			VM->SetProperty((Features)It->second, (size_t)*FromString<uint64_t>(Data));
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
-		AddCommand("-init, --init", "initialize an addon template in given directory [expects: [native|vm]:relpath]", [this](const String& Value)
+		AddCommand("-i, --install", "install or update script dependencies", [this](const String& Value)
+		{
+			Config.Install = true;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("--init", "initialize an addon template in given directory [expects: [native|vm]:relpath]", [this](const String& Value)
 		{
 			if (Contextual.Name.empty())
 			{
@@ -724,17 +724,12 @@ private:
 			VI_ERR("addon path <%s> must be a directory", Path.c_str());
 			return JUMP_CODE + EXIT_INPUT_FAILURE;
 		});
-		AddCommand("--install", "install or update script dependencies", [this](const String& Value)
-		{
-			Config.Install = true;
-			return JUMP_CODE + EXIT_CONTINUE;
-		});
-		AddCommand("--uses, --settings, --properties", "show virtual machine properties message", [this](const String&)
+		AddCommand("--props", "show virtual machine properties message", [this](const String&)
 		{
 			PrintProperties();
 			return JUMP_CODE + EXIT_OK;
 		});
-		AddCommand("--deps, --dependencies", "install and show dependencies message", [this](const String&)
+		AddCommand("--deps", "install and show dependencies message", [this](const String&)
 		{
 			Config.Dependencies = true;
 			return JUMP_CODE + EXIT_CONTINUE;
