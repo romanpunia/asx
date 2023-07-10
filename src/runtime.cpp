@@ -1472,6 +1472,8 @@ private:
 				{ "RMLUI", Lib->HasRmlUI() && IsBuilderUsingGUI() && !IsAddon },
 				{ "TINYFILEDIALOGS", Lib->HasTinyFileDialogs() && IsBuilderUsingOS() && !IsAddon },
 				{ "STB", Lib->HasSTB() && IsBuilderUsingEngine() && !IsAddon },
+				{ "PUGIXML", Lib->HasPugiXML() && IsBuilderUsingEngine() && !IsAddon },
+				{ "RAPIDJSON", Lib->HasRapidJSON() && IsBuilderUsingEngine() && !IsAddon },
 				{ "SHADERS", Lib->HasShaders() && IsBuilderUsingGraphics() && !IsAddon }
 			};
 
@@ -1597,6 +1599,10 @@ private:
 	{
 		return VM->HasSystemAddon("std/file_system") || IsBuilderUsingCrypto();
 	}
+	bool IsBuilderUsingSchemas()
+	{
+		return VM->HasSystemAddon("std/schema");
+	}
 	bool IsBuilderUsingCrypto()
 	{
 		return VM->HasSystemAddon("std/random") || VM->HasSystemAddon("std/crypto") || VM->HasSystemAddon("std/network") || VM->HasSystemAddon("std/engine");
@@ -1699,7 +1705,9 @@ private:
 			"-DVI_RMLUI=OFF "
 			"-DVI_BACKTRACE=OFF"
 			"-DVI_TINYFILEDIALOGS=OFF "
-			"-DVI_STB=OFF ";
+			"-DVI_STB=OFF "
+			"-DVI_PUGIXML=OFF "
+			"-DVI_RAPIDJSON=OFF ";
 	}
 	const char* GetBuilderBuildType(bool IsAddon)
 	{
