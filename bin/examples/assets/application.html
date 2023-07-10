@@ -19,22 +19,34 @@
                 align-items: center;
             }
 
-            .clickable {
-                font-size: 24px;
-	            transition: transform 1.6s elastic-out;
+            .info {
+                font-size: 16px;
             }
 
+            .info button {
+                font-size: 14px;
+                display: block;
+                margin-top: 4px;
+            }
+
+            .animated {
+                font-size: 24px;
+                transition: transform 1.6s elastic-out;
+            }
+
+            .animated:active {
+                transform: scale(0.8);
+            }
+            
             .clickable:hover {
                 cursor: pointer;
-            }
-
-            .clickable:active {
-                transform: scale(0.8);
+                opacity: 0.7;
             }
         </style>
         <script>
             #include <std/math>
 
+            external shared void close_app();
             void randomize(ui_element&in element)
             {
                 float r = random_rangef(0, 255);
@@ -45,9 +57,12 @@
         </script>
     </head>
     <body>
-        <p style="font-size: 16px;">Hello, i am a simple dumb HTML page.</p>
+        <div class="info">
+            <p>Hello, i am a simple dumb HTML page.</p>
+            <button class="clickable" onclick="close_app()">Click here to close me.</button>
+        </div>
         <div class="center">
-            <p class="clickable" onclick="randomize(event.get_target_element())">Click me!</p>
+            <p class="clickable animated" onclick="randomize(event.get_target_element())">Change my color!</p>
         </div>
     </body>
 </html>

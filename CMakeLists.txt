@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.6)
 set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/mavi CACHE STRING "Mavi directory")
 set(VI_JIT ON CACHE BOOL "JIT can be used")
 set(VI_SIMD ON CACHE BOOL "SIMD is preferred")
-include(${VI_DIRECTORY}/lib/toolchain.cmake)
+include(${VI_DIRECTORY}/deps/toolchain.cmake)
 
 #Project's metadata
 project(mavias)

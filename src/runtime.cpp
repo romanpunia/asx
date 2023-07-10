@@ -1470,6 +1470,8 @@ private:
 				{ "SPIRV", Lib->HasSPIRV() && IsBuilderUsingGraphics() && !IsAddon },
 				{ "BULLET3", Lib->HasBullet3() && IsBuilderUsingPhysics() && !IsAddon },
 				{ "RMLUI", Lib->HasRmlUI() && IsBuilderUsingGUI() && !IsAddon },
+				{ "TINYFILEDIALOGS", Lib->HasTinyFileDialogs() && IsBuilderUsingOS() && !IsAddon },
+				{ "STB", Lib->HasSTB() && IsBuilderUsingEngine() && !IsAddon },
 				{ "SHADERS", Lib->HasShaders() && IsBuilderUsingGraphics() && !IsAddon }
 			};
 
@@ -1627,6 +1629,10 @@ private:
 	{
 		return VM->HasSystemAddon("std/gui/control") || VM->HasSystemAddon("std/gui/model") || VM->HasSystemAddon("std/gui/context");
 	}
+	bool IsBuilderUsingOS()
+	{
+		return VM->HasSystemAddon("std/os");
+	}
 	String GetBuilderAddonTarget(const String& Name)
 	{
 		return Stringify::Text("%s%s%cbin%c%s", Contextual.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str()));
@@ -1691,7 +1697,9 @@ private:
 			"-DVI_FCTX=OFF "
 			"-DVI_BULLET3=OFF "
 			"-DVI_RMLUI=OFF "
-			"-DVI_BACKTRACE=OFF";
+			"-DVI_BACKTRACE=OFF"
+			"-DVI_TINYFILEDIALOGS=OFF "
+			"-DVI_STB=OFF ";
 	}
 	const char* GetBuilderBuildType(bool IsAddon)
 	{

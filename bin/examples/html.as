@@ -16,8 +16,14 @@ class runtime
     }
     void initialize()
     {
-        @context = gui_context(get_compiler(), @self.renderer);
-        if (!context.initialize("manifest.xml"))
+        @context = gui_context(@self.renderer);
+        context.load_font_face("sf-ui-display-regular.ttf");
+        context.load_font_face("sf-ui-display-bold.ttf");
+        
+        ui_document document = context.load_document("application.html");
+        if (document.is_valid())
+            document.show();
+        else
             self.stop();
     }
     void dispatch(clock_timer@ time)
@@ -49,6 +55,13 @@ class runtime
     {
         return @context;
     }
+}
+
+shared void close_app()
+{
+    application@ app = application::get();
+    if (app !is null)
+        app.stop();
 }
 
 int main()
