@@ -812,7 +812,7 @@ private:
 	void PrintIntroduction(const char* Label)
 	{
 		auto* Lib = Mavi::Runtime::Get();
-		std::cout << "Welcome to Mavi.as " << Label << " v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << " [" << Lib->GetCompiler() << " on " << Lib->GetPlatform() << "]" << std::endl;
+		std::cout << "Welcome to Mavi.as " << Label << " v" << (uint32_t)Mavi::MAJOR_VERSION << "." << (uint32_t)Mavi::MINOR_VERSION << "." << (uint32_t)Mavi::PATCH_VERSION << "/" << (uint32_t)Mavi::BUILD_VERSION << " [" << Lib->GetCompiler() << " " << Lib->GetBuild() << " on " << Lib->GetPlatform() << "]" << std::endl;
 		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "vi --help")) << "\" for more information";
 		if (Config.Interactive)
 			std::cout << " (loaded " << VM->GetExposedAddons().size() << " addons)";
