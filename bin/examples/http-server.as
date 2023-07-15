@@ -13,7 +13,7 @@ int main()
     queue.start(schedule_policy()); // Creates up to "CPU threads count" threads
     
     http::map_router@ router = http::map_router();
-    router.listen("127.0.0.1", 8080);
+    router.listen("0.0.0.0", 8080);
     
     http::site_entry@ site = router.site("*");
     site.get("/", function(http::connection@ base)
