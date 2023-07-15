@@ -1680,7 +1680,8 @@ private:
 	}
 	const char* GetBuilderCacheRegistryFlags()
 	{
-		return 
+		return
+			"-DVI_ANGELSCRIPT=OFF "
 			"-DVI_ASSIMP=OFF "
 			"-DVI_FREETYPE=OFF "
 			"-DVI_GLEW=OFF "
