@@ -2,6 +2,7 @@
 #include <std/promise.as>
 #include <std/timestamp.as>
 #include <std/console.as>
+#include <std/schema.as>
 
 class timeout_task
 {
@@ -23,7 +24,24 @@ promise<void>@ set_timeout(uint64 timeout_ms)
 
     schedule@ queue = schedule::get();
     queue.set_timeout(timeout_ms, task_event(task.settle));
+    
+    console@ output = console::get();
+    output.write_line("[timeout] -> " + to_string(timeout_ms) + "ms");
     return task.data;
+}
+promise<string>@ get_prices_json()
+{
+    schema@ packages =
+    {
+        { "week", "3.99" },
+        { "month", "14.99" },
+        { "year", "139.99" }
+    };
+    
+    co_await set_timeout(500);
+    promise<string>@ result = promise<string>();
+    result.wrap(packages.to_json());
+    return @result;
 }
 
 int main()
@@ -36,13 +54,11 @@ int main()
     queue.start(schedule_policy(4));
 
     auto start = timestamp().milliseconds();
-    output.write_line("[timeout] 1 -> 1000ms");
-    co_await set_timeout(1000);
+    string data = co_await get_prices_json();
+    output.write_line("[response] -> " + data);
     
-    output.write_line("[timeout] 2 -> 500ms");
+    co_await set_timeout(1000);
     co_await set_timeout(500);
-
-    output.write_line("[timeout] 3 -> 1000ms");
     co_await set_timeout(1000);
 
     auto end = timestamp().milliseconds();
