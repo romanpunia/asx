@@ -173,14 +173,19 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 			return JUMP_CODE + EXIT_LOADING_FAILURE;
 		}
 	}
+	
+	auto* Macro = ThisCompiler->GetProcessor();
+	Macro->AddDefaultDefinitions();
 
 	Contextual.ThisCompiler = ThisCompiler;
 	ProgramContext::Get(&Contextual);
 
 	VM->ImportSystemAddon("std/ctypes");
+	VM->BeginNamespace("this_process");
 	VM->SetFunctionDef("void exit_event(int)");
-	VM->SetFunction("void at_exit(exit_event@)", &AtExitContext);
+	VM->SetFunction("void before_exit(exit_event@)", &AtExitContext);
 	VM->SetFunction("uptr@ get_compiler()", &GetThisCompiler);
+	VM->EndNamespace();
 	return 0;
 }
 bool TryContextExit(ProgramContext& Contextual, int Value)

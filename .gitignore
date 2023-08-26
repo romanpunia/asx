@@ -13,3 +13,4 @@ bin/*.exp
 bin/examples/test_addon
 bin/examples/addons
 bin/examples/temp
+bin/examples/web

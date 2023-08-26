@@ -1,6 +1,7 @@
 #include <std/schedule.as>
 #include <std/http.as>
 #include <std/console.as>
+#include <std/os.as>
 
 http::server@ server = null;
 
@@ -18,23 +19,43 @@ int main()
     http::site_entry@ site = router.site("*");
     site.get("/", function(http::connection@ base)
     {
+        /* Set content type of text */
         base.response.set_header("content-type", "text/plain");
+
+        /* Set content text message */
         base.response.content.assign("Hello, World!");
+
+        /* Return result */
         base.finish(200);
     });
-    site.get("/echo", function(http::connection@ base)
+    site.post("/upload", function(http::connection@ base)
     {
-        string content = co_await base.consume();
-        base.response.set_header("content-type", "text/plain");
-        base.response.content.assign(content);
-        base.finish(200);
+        /* Prepare and store all possible files to local "temp" directory */
+        http::resource_info[]@ resources = co_await base.store();
+
+        /* Generate directory name using macro */
+        string directory = __DIRECTORY__ + "/web/";
+
+        /* Create a "web" directory in directory of this file */
+        os::directory::patch(directory);
+
+        for (usize i = 0; i < resources.size(); i++)
+        {
+            http::resource_info next = resources[i];
+
+            /* Move from "temp" to "web" directory */
+            os::file::move(next.path, directory + next.name);
+        }
+
+        /* Finish with success */
+        base.finish(204);
     });
 
     @server = http::server();
     server.configure(@router);
     server.listen();
 
-    at_exit(function(signal)
+    this_process::before_exit(function(signal)
     {
         server.unlisten(1);
         schedule::get().stop();

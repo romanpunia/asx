@@ -130,7 +130,7 @@ int main()
     server.configure(@router);
     server.listen();
 
-    at_exit(function(signal)
+    this_process::before_exit(function(signal)
     {
         server.unlisten(1);
         schedule::get().stop();
