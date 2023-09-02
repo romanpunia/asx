@@ -4,7 +4,7 @@
 #include <std/os.as>
 #include <std/timestamp.as>
 
-int main()
+int main(string[]@ args)
 {
     console@ output = console::get();
     schedule@ queue = schedule::get();
@@ -25,7 +25,7 @@ int main()
     }
 
     uint64 time = timestamp().milliseconds();
-    pdb::cursor cursor = co_await connection.query("SELECT * FROM pg_catalog.pg_tables;");
+    pdb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
     if (cursor.error_or_empty())
     {
         output.write_line("cannot query database");
