@@ -29,6 +29,5 @@ int main()
     }
 
     output.write_line(response.content.get_text());
-    output.read(1);
     return 0;
 }
