@@ -39,7 +39,7 @@ int main()
     }
 
     output.write_line(client.response.content.get_text());
-    co_await client.close(); // If forgotten then connection will be hard reset
+    co_await client.disconnect(); // If forgotten then connection will be hard reset
     queue.stop();
     return 0;
 }
