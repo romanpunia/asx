@@ -327,14 +327,6 @@ public:
 		if (Config.Debug)
 			PrintIntroduction("debugger");
 
-		if (Config.EssentialsOnly)
-		{
-			if (VM->HasSystemAddon("std/graphics") || VM->HasSystemAddon("std/audio"))
-				VI_WARN("program includes disabled graphics/audio features: consider using -g option");
-		}
-		else if (!VM->HasSystemAddon("std/graphics") && !VM->HasSystemAddon("std/audio"))
-			VI_WARN("program does not include loaded graphics/audio features: consider removing -g option");
-
 		int ExitCode = 0;
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
 		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Contextual.Args) : nullptr;
@@ -1598,47 +1590,47 @@ private:
 	}
 	bool IsBuilderUsingCompression()
 	{
-		return VM->HasSystemAddon("std/file_system") || IsBuilderUsingCrypto();
+		return VM->HasSystemAddon("fs") || IsBuilderUsingCrypto();
 	}
 	bool IsBuilderUsingSchemas()
 	{
-		return VM->HasSystemAddon("std/schema");
+		return VM->HasSystemAddon("schema");
 	}
 	bool IsBuilderUsingCrypto()
 	{
-		return VM->HasSystemAddon("std/random") || VM->HasSystemAddon("std/crypto") || VM->HasSystemAddon("std/network") || VM->HasSystemAddon("std/engine");
+		return VM->HasSystemAddon("random") || VM->HasSystemAddon("crypto") || VM->HasSystemAddon("network") || VM->HasSystemAddon("engine");
 	}
 	bool IsBuilderUsingAudio()
 	{
-		return VM->HasSystemAddon("std/audio");
+		return VM->HasSystemAddon("audio");
 	}
 	bool IsBuilderUsingGraphics()
 	{
-		return VM->HasSystemAddon("std/graphics");
+		return VM->HasSystemAddon("graphics");
 	}
 	bool IsBuilderUsingEngine()
 	{
-		return VM->HasSystemAddon("std/engine");
+		return VM->HasSystemAddon("engine");
 	}
 	bool IsBuilderUsingPostgreSQL()
 	{
-		return VM->HasSystemAddon("std/postgresql");
+		return VM->HasSystemAddon("postgresql");
 	}
 	bool IsBuilderUsingMongoDB()
 	{
-		return VM->HasSystemAddon("std/mongodb");
+		return VM->HasSystemAddon("mongodb");
 	}
 	bool IsBuilderUsingPhysics()
 	{
-		return VM->HasSystemAddon("std/physics");
+		return VM->HasSystemAddon("physics");
 	}
 	bool IsBuilderUsingGUI()
 	{
-		return VM->HasSystemAddon("std/gui/control") || VM->HasSystemAddon("std/gui/model") || VM->HasSystemAddon("std/gui/context");
+		return VM->HasSystemAddon("gui-control") || VM->HasSystemAddon("gui-model") || VM->HasSystemAddon("gui-context");
 	}
 	bool IsBuilderUsingOS()
 	{
-		return VM->HasSystemAddon("std/os");
+		return VM->HasSystemAddon("os");
 	}
 	String GetBuilderAddonTarget(const String& Name)
 	{
