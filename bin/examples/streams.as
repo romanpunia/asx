@@ -1,6 +1,4 @@
-#include <std/console.as>
-#include <std/schema.as>
-#include <std/os.as>
+import from { "console", "schema", "os" };
 
 int main(string[]@ args)
 {

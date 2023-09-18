@@ -1,7 +1,10 @@
-#include <std/engine.as>
-#include <std/components.as>
-#include <std/renderers.as>
-#include <std/math.as>
+import from
+{
+    "engine",
+    "components",
+    "renderers",
+    "math"
+};
 
 /*
     Warning: this example wants active internet connection,

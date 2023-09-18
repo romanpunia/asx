@@ -33,8 +33,8 @@ Also note: -option and --option both have different syntax:
 Scripts support preprocessor that can be used just like C++ preprocessor for dependency management. Preprocessed script lines of code could get shuffled around, however if compile or runtime error happens you will get last N lines of source code where it happend (including column pointer).
 ```cpp
 // Global include search (built-in addons, can be disabled)
-#include <std/console.as> // Standard library include
-#include <std/console> // Shorter version
+#include <console.as> // Standard library include
+#include <console> // Shorter version
 
 // Local include search (any script file, can be disabled)
 #include "file" // Short include version
@@ -61,10 +61,22 @@ Scripts support preprocessor that can be used just like C++ preprocessor for dep
 #include "@romanpunia/test.as"
 ```
 
+Modern imports based on AngelScript function imports and TypeScript imports (mostly similar to C++ style includes)
+```py
+import from "console";
+import from "./file";
+import from {
+    "console",
+    "./file",
+    "https://raw.githubusercontent.com/romanpunia/mavi.as/main/bin/examples/utils/win32.as"
+};
+```
+
 Scripts are written using Angel Script syntax as usual. Standard library defers from default provided addons at angelcode. Entrypoint is defined by either _\<int main()\>_ or _\<int main(string[]@)\>_ function signatures.
 ```cpp
-#include <std/string.as> // By default string class is not exposed
+#include <string> // By default string class is not exposed
 
+void main() { }
 int main() { return 0; }
 int main(string[]@ args) { return 0; }
 ```
@@ -116,9 +128,9 @@ void ViUninitialize(Mavi::Scripting::VirtualMachine* VM) // Optional deinitializ
 You can create your own addon using _--init_ or _-init_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--name_ or _-n_ command.
 
 After that you will either have a ready to use git repository with CMake configuration for C++ project with example code above. Or you will get two files _addon.json_ and _addon.as_. Keep in mind that without having _addon.json_ repository won't be evaluated as addon. Generated repository can be pushed to github and used afterwards with:
-```cpp
+```ts
 /* Points to: https://github.com/repo_owner/repo_name */
-#include "@repo_owner/repo_name" // Must start with <@> symbol
+import from "@repo_owner/repo_name"; // Must start with <@> symbol
 ```
 
 Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory. First time builds (if native) are slow as it is required to download full Mavi framework beforehand and build the target addon using platform compiler, after shared library has been built loading times are submillisecond.
@@ -154,7 +166,7 @@ Mavi.as supports a feature that allows one to build the executable from AngelScr
     vi -n console -o . -f console
 ```
 
-This will produce a binary and shared libraries. Amount of shared libraries produced will depend on \<#include\> statements inside your script. For example, you won't be needing OpenAL shared library if you don't use **std/audio**. Project will have _.template_ files which are unmodified versions of original files near them.
+This will produce a binary and shared libraries. Amount of shared libraries produced will depend on \<#include\> statements inside your script. For example, you won't be needing OpenAL shared library if you don't use **audio**. Project will have _.template_ files which are unmodified versions of original files near them.
 
 AngelScript VM will be configured according to your Mavi.as setup. For example, if you use JIT then built binary will use it. Your AngelScript source code will be compiled to platform-independant bytecode. This bytecode will then be hex-encoded and embedded into your binary as executable text.
 

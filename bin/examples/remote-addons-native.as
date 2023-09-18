@@ -1,5 +1,5 @@
 /* Contains C++ code for printing hello world */
-#include "@avgpythonenjoyer/hello"
+import from "@avgpythonenjoyer/hello";
 
 int main()
 {

@@ -1,4 +1,4 @@
-#include <std/engine.as>
+import from "engine";
 
 class runtime
 {

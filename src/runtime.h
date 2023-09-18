@@ -86,6 +86,7 @@ struct ProgramConfig
 	Vector<std::pair<String, bool>> Libraries;
 	Vector<std::pair<String, int32_t>> Settings;
 	Vector<String> SystemAddons;
+	bool TsImports = true;
 	bool Addons = true;
 	bool CLibraries = true;
 	bool CFunctions = true;
@@ -140,6 +141,7 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 	if (Config.Remotes)
 		ImportOptions |= (uint32_t)Imports::Remotes;
 
+	VM->SetTsImports(Config.TsImports);
 	VM->SetModuleDirectory(OS::Path::GetDirectory(Contextual.Path.c_str()));
 	VM->SetPreserveSourceCode(Config.SaveSourceCode);
 	VM->SetImports(ImportOptions);
@@ -180,7 +182,7 @@ int ConfigureEngine(ProgramConfig& Config, ProgramContext& Contextual, VirtualMa
 	Contextual.ThisCompiler = ThisCompiler;
 	ProgramContext::Get(&Contextual);
 
-	VM->ImportSystemAddon("std/ctypes");
+	VM->ImportSystemAddon("ctypes");
 	VM->BeginNamespace("this_process");
 	VM->SetFunctionDef("void exit_event(int)");
 	VM->SetFunction("void before_exit(exit_event@)", &AtExitContext);

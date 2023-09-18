@@ -1,6 +1,9 @@
-#include <std/console.as>
-#include <std/buffers.as>
-#include "utils/win32.as"
+import from
+{
+    "console",
+    "buffers",
+    "./utils/win32.as"
+};
 
 /*
     I recommend running following commands:

@@ -1,9 +1,12 @@
-#include <std/schedule.as>
-#include <std/http.as>
-#include <std/console.as>
-#include <std/crypto.as>
-#include <std/codec.as>
-#include <std/dictionary.as>
+import from
+{
+    "schedule",
+    "http",
+    "console",
+    "crypto",
+    "codec",
+    "dictionary"
+};
 
 class ws_client
 {

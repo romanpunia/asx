@@ -1,8 +1,11 @@
-#include <std/schedule.as>
-#include <std/postgresql.as>
-#include <std/console.as>
-#include <std/os.as>
-#include <std/timestamp.as>
+import from
+{
+    "schedule",
+    "postgresql",
+    "console",
+    "os",
+    "timestamp"
+};
 
 int main(string[]@ args)
 {

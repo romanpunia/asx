@@ -1,7 +1,4 @@
-#include <std/schedule.as>
-#include <std/http.as>
-#include <std/console.as>
-#include <std/os.as>
+import from { "schedule", "http", "console", "os" };
 
 http::server@ server = null;
 

@@ -1,10 +1,13 @@
-#include <std/engine.as>
-#include <std/components.as>
-#include <std/renderers.as>
-#include <std/random.as>
-#include <std/thread.as>
-#include <std/console.as>
-#include <std/math.as>
+import from
+{
+    "engine",
+    "components",
+    "renderers",
+    "random",
+    "thread",
+    "console",
+    "math"
+};
 
 class runtime
 {

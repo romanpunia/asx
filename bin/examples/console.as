@@ -1,8 +1,11 @@
-#include <std/console.as>
-#include <std/schedule.as>
-#include <std/random.as>
-#include <std/vectors.as>
-#include <std/math.as>
+import from
+{
+    "console",
+    "schedule",
+    "random",
+    "vectors",
+    "math"
+};
 
 class image_point
 {

@@ -1,6 +1,4 @@
-#include <std/exception.as>
-#include <std/thread.as>
-#include <std/console.as>
+import from { "exception", "thread", "console" };
 
 class thread_routine
 {

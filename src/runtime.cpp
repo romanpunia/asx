@@ -143,7 +143,7 @@ public:
 		{
 			String Data, Multidata;
 			Data.reserve(1024 * 1024);
-			VM->ImportSystemAddon("std");
+			VM->ImportSystemAddon("*");
 			PrintIntroduction("interactive mode");
 
 			auto* Debugger = new DebuggerContext(DebugType::Detach);
@@ -732,6 +732,11 @@ private:
 		AddCommand("--deps", "install and show dependencies message", [this](const String&)
 		{
 			Config.Dependencies = true;
+			return JUMP_CODE + EXIT_CONTINUE;
+		});
+		AddCommand("--no-ts-imports", "disable ts addon imports", [this](const String&)
+		{
+			Config.TsImports = false;
 			return JUMP_CODE + EXIT_CONTINUE;
 		});
 		AddCommand("--no-addons", "disable system addon imports", [this](const String&)
@@ -1487,6 +1492,7 @@ private:
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_LIBRARIES}}", ConfigLibrariesArray);
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_FUNCTIONS}}", ConfigFunctionsArray);
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_ADDONS}}", ConfigSystemAddonsArray);
+		Stringify::Replace(Data, "{{BUILDER_CONFIG_TS_IMPORTS}}", Config.TsImports ? "true" : "false");
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_SYSTEM_ADDONS}}", Config.Addons ? "true" : "false");
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_CLIBRARIES}}", Config.CLibraries ? "true" : "false");
 		Stringify::Replace(Data, "{{BUILDER_CONFIG_CFUNCTIONS}}", Config.CFunctions ? "true" : "false");

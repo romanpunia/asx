@@ -1,7 +1,10 @@
-#include <std/thread.as>
-#include <std/mutex.as>
-#include <std/console.as>
-#include <std/crypto.as>
+import from
+{
+    "thread",
+    "mutex",
+    "console",
+    "crypto"
+};
 
 string[] ids = string[]();
 mutex@ mut = mutex();

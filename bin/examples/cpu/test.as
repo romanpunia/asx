@@ -12,7 +12,7 @@
     > vi -j -f examples/cpu/test 120000000
       ~526ms
 */
-#include <std/console.as>
+import from "console";
 
 int32 test(int32 value, int32 index)
 {

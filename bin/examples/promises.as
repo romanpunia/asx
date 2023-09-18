@@ -1,8 +1,11 @@
-#include <std/schedule.as>
-#include <std/promise.as>
-#include <std/timestamp.as>
-#include <std/console.as>
-#include <std/schema.as>
+import from
+{
+    "schedule",
+    "promise",
+    "timestamp",
+    "console",
+    "schema"
+};
 
 class timeout_task
 {

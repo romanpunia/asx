@@ -1,6 +1,9 @@
-#include <std/schedule.as>
-#include <std/http.as>
-#include <std/console.as>
+import from
+{
+    "schedule",
+    "http",
+    "console"
+};
 
 /*
     Essentially like an http::client but easier though having less control overall,

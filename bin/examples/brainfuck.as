@@ -1,6 +1,4 @@
-#include <std/array.as>
-#include <std/console.as>
-#include <std/os.as>
+import from { "array", "console", "os" };
 
 /* From https://github.com/kgabis/brainfuck-c/blob/master/brainfuck.c */
 enum opcode

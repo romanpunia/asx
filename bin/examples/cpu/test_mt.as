@@ -1,6 +1,4 @@
-#include <std/console.as>
-#include <std/os.as>
-#include <std/thread.as>
+import from { "console", "os", "thread" };
 
 class test_worker
 {

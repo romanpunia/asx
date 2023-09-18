@@ -1,7 +1,9 @@
-#include <std/console.as>
-
-/* Contains a simple script with [atob, btoa, from_hex, to_hex] functions */
-#include "@avgpythonenjoyer/atob"
+import from
+{
+    "console",
+    /* Contains a simple script with [atob, btoa, from_hex, to_hex] functions */
+    "@avgpythonenjoyer/atob"
+};
 
 int main()
 {

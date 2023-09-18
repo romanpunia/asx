@@ -1,8 +1,11 @@
-#include <std/timestamp.as>
-#include <std/activity.as>
-#include <std/graphics.as>
-#include <std/math.as>
-#include <std/console.as>
+import from
+{
+    "timestamp",
+    "activity",
+    "graphics",
+    "math",
+    "console"
+};
 
 activity@ window = null;
 graphics_device@ device = null;
