@@ -333,10 +333,7 @@ public:
 		VM->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
-			{
-				VI_ERR("program has failed to catch an exception; killed");
 				std::exit(JUMP_CODE + EXIT_RUNTIME_FAILURE);
-			}
 		});
 
 		Main.AddRef();
@@ -400,7 +397,7 @@ public:
 	void Abort(const char* Signal)
 	{
 		VI_PANIC(false, "%s which is a critical runtime error", Signal);
-}
+	}
 	size_t GetInitFlags()
 	{
 		if (Config.Install)

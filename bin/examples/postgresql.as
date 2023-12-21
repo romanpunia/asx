@@ -4,7 +4,8 @@ import from
     "postgresql",
     "console",
     "os",
-    "timestamp"
+    "timestamp",
+    "exception"
 };
 
 int main(string[]@ args)
@@ -20,45 +21,41 @@ int main(string[]@ args)
     
     pdb::host_address address("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + table + "?connect_timeout=5");
     pdb::cluster@ connection = pdb::cluster();
-    if (!(co_await connection.connect(address, 1)))
+    try
     {
-        output.write_line("cannot connect to database");
-        queue.stop();
-        return 1;
-    }
+        if (!(co_await connection.connect(address, 1)))
+            throw exception_ptr("connect", "cannot connect to a database (url = " + address.get_address() + ")");
 
-    uint64 time = timestamp().milliseconds();
-    pdb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
-    if (cursor.error_or_empty())
-    {
-        output.write_line("cannot query database");
-        co_await connection.disconnect();
-        queue.stop();
-        return 2;
-    }
+        uint64 time = timestamp().milliseconds();
+        pdb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
+        if (cursor.error_or_empty())
+            throw exception_ptr("query", "cannot execute a query on a database");
 
-    pdb::response response = cursor.first();
-    usize rows = response.size();
+        pdb::response response = cursor.first();
+        usize rows = response.size();
 
-    string content = "response:\n";
-    for (usize i = 0; i < rows; i++)
-    {
-        pdb::row row = response[i];
-        usize columns = row.size();
-
-        content += "  row(" + to_string(i) + "):\n";
-        for (usize j = 0; j < columns; j++)
+        output.write_line("response:");
+        for (usize i = 0; i < rows; i++)
         {
-            pdb::column column = row[j];
-            string name = column.get_name();
-            schema@ value = column.get_inline();
-            string text = (value is null ? "NULL" : value.to_json());
-            content += "    " + name + ": " + text + "\n";
-        }
-    }
+            pdb::row row = response[i];
+            usize columns = row.size();
 
-    content += "\nreturned " + to_string(rows) + " rows in " + to_string(timestamp().milliseconds() - time) + "ms";
-    output.write_line(content);
+            output.write_line("  row(" + to_string(i) + "):");
+            for (usize j = 0; j < columns; j++)
+            {
+                pdb::column column = row[j];
+                string name = column.get_name();
+                schema@ value = column.get_inline();
+                string text = (value is null ? "NULL" : value.to_json());
+                output.write_line("    " + name + ": " + text);
+            }
+        }
+        output.write_line("\nreturned " + to_string(rows) + " rows in " + to_string(timestamp().milliseconds() - time) + "ms");
+    }
+    catch
+    {
+        output.write_line(exception::unwrap().what());
+    }
 
     co_await connection.disconnect(); // If forgotten then connection will be hard reset
     queue.stop();

@@ -32,18 +32,20 @@ int main()
 
         /* Generate directory name using macro */
         string directory = __DIRECTORY__ + "/web/";
-
-        /* Create a "web" directory in directory of this file */
-        os::directory::patch(directory);
-
-        for (usize i = 0; i < resources.size(); i++)
+        try
         {
-            http::resource_info next = resources[i];
+            /* Create a "web" directory in directory of this file */
+            os::directory::patch(directory);
 
-            /* Move from "temp" to "web" directory */
-            os::file::move(next.path, directory + next.name);
+            for (usize i = 0; i < resources.size(); i++)
+            {
+                http::resource_info next = resources[i];
+
+                /* Move from "temp" to "web" directory */
+                os::file::move(next.path, directory + next.name);
+            }
         }
-
+        catch { }
         /* Finish with success */
         base.finish(204);
     });

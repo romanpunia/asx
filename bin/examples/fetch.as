@@ -2,7 +2,8 @@ import from
 {
     "schedule",
     "http",
-    "console"
+    "console",
+    "exception"
 };
 
 /*
@@ -19,18 +20,20 @@ int main()
     options.set_header("user-agent", "John Roth (The Hangman)");
     options.max_size = 1024 * 1024; // Up to 1 megabyte of response will be stored in memory
 
-    http::response_frame response = co_await http::fetch("https://jsonplaceholder.typicode.com/posts/1", "GET", options);
-    queue.stop();
-
-    if (!response.is_ok())
+    try
     {
+        /* Will throw on network error */
+        http::response_frame response = co_await http::fetch("https://jsonplaceholder.typicode.com/posts/1", "GET", options);
         if (response.is_undefined())
-            output.write_line("cannot connect to remote server");
-        else
-            output.write_line("response from remote server was not successful");
-        return 1;
+            throw exception_ptr("fetch", "cannot receive a valid response from remote server");
+        
+        output.write_line(response.content.get_text());
     }
-
-    output.write_line(response.content.get_text());
+    catch
+    {
+        output.write_line(exception::unwrap().what());
+    }
+    
+    queue.stop();
     return 0;
 }

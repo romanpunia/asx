@@ -1,4 +1,4 @@
-import from { "schedule", "http", "console" };
+import from { "schedule", "http", "console", "exception" };
 
 int main()
 {
@@ -6,37 +6,35 @@ int main()
     schedule@ queue = schedule::get();
     queue.start(schedule_policy(2));
     
-    remote_host address;
-    address.hostname = "jsonplaceholder.typicode.com";
-    address.port = 443;
-    address.secure = true;
-
-    http::client@ client = http::client(5000);
-    if ((co_await client.connect(address)) < 0)
+    http::client@ client = http::client(5000); // timeout = 5 seconds
+    try
     {
-        output.write_line("cannot connect to remote server");
-        queue.stop();
-        return 1;
+        /* connect to server */
+        remote_host address;
+        address.hostname = "jsonplaceholder.typicode.com";
+        address.port = 443;
+        address.secure = true;
+        if (!(co_await client.connect(address)))
+            throw exception_ptr("connect", "cannot connect to remote server");
+
+        /* send request data */
+        http::request_frame request;
+        request.uri = "/posts/1";
+        if (!(co_await client.send(request)) || !client.response.is_ok())
+            throw exception_ptr("send", "response was not successful (code = " + to_string(client.response.status_code) + ")");
+
+        /* fetch response content */
+        if (!(co_await client.consume()))
+            throw exception_ptr("consume", "cannot fetch data from response");
+
+        output.write_line(client.response.content.get_text());
     }
-
-    http::request_frame request;
-    request.uri = "/posts/1";
-
-    if (!(co_await client.send(request)))
+    catch
     {
-        output.write_line("cannot receive response from remote server");
-        queue.stop();
-        return 2;
+        auto error = exception::unwrap();
+        output.write_line(error.what());
     }
-
-    if (!client.response.is_ok() || !(co_await client.consume()))
-    {
-        output.write_line("response from remote server was not successful");
-        queue.stop();
-        return 3;
-    }
-
-    output.write_line(client.response.content.get_text());
+    
     co_await client.disconnect(); // If forgotten then connection will be hard reset
     queue.stop();
     return 0;

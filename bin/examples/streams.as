@@ -1,4 +1,4 @@
-import from { "console", "schema", "os" };
+import from { "console", "schema", "os", "exception" };
 
 int main(string[]@ args)
 {
@@ -11,30 +11,14 @@ int main(string[]@ args)
         return 1;
     }
 
-    string text = os::file::read_as_string(args[1]);
-    if (args.size() < 3)
+    try
     {
-        output.write_line(text);
+        output.write_line(os::file::read_as_string(args[1]));
         return 0;
     }
-    
-    schema@ data = schema::from_json(text);
-    if (data is null)
-        @data = schema::from_xml(text);
-    
-    if (data is null)
+    catch
     {
-        output.write_line("data is not a JSON or XML");
+        output.write_line(exception::unwrap().what());
         return 2;
     }
-
-    schema@ target = data.get(args[2]);
-    if (target is null)
-    {
-        output.write_line("data does not contain \"" + args[2] + "\" path");
-        return 3;
-    }
-
-    output.write_line(target.to_string());
-    return 0;
 }

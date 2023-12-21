@@ -19,7 +19,7 @@ class thread_routine
         }
         catch
         {
-            auto error = exception::unwrap(); // get catched exception
+            auto error = exception::unwrap(); // get caught exception
             if (error.type != "emotional damage" || wants_crash)
                 exception::rethrow(); // will rethrow, this thread will die here
             
