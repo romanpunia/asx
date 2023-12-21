@@ -76,7 +76,7 @@ int main()
     // channel
     for (usize i = 0; i < 8; i++)
     {
-        string value = crypto::hash(digests::md5(), crypto::random_bytes(8));
+        string value = crypto::hash_hex(digests::md5(), crypto::random_bytes(8));
         output.write_line("cdt: push " + value);
         channel_data.push(value);
     }
