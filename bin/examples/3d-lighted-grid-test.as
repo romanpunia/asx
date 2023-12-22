@@ -25,7 +25,7 @@ class runtime
         if (radius > 0.0f)
             grid_radius = radius;
         
-        @self = application(init);
+        @self = application(init, @this);
         self.set_on_initialize(initialize_callback(this.initialize));
         self.set_on_dispatch(dispatch_callback(this.dispatch));
         self.set_on_publish(publish_callback(this.publish));

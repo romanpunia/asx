@@ -110,7 +110,10 @@ Compiler* GetThisCompiler()
 }
 void AtExitContext(asIScriptFunction* Callback)
 {
-	ProgramContext::Get().AtExit = FunctionDelegate(Callback, nullptr);
+	auto& Contextual = ProgramContext::Get();
+	ImmediateContext* Context = Callback ? Contextual.ThisCompiler->GetVM()->RequestContext() : nullptr;
+	Contextual.AtExit = FunctionDelegate(Callback, Context);
+	VI_RELEASE(Context);
 }
 void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
 {
@@ -123,7 +126,7 @@ void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, Immediat
 
 	Queue->Stop();
 	EventLoop::Set(nullptr);
-	Context->Unprepare();
+	Context->Reset();
 	VM->PerformFullGarbageCollection();
 	AtExitContext(nullptr);
 }

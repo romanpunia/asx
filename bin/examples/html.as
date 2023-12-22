@@ -1,13 +1,19 @@
 import from "engine";
 
-class runtime
+/*
+    We will use standard entity sharing
+    system that exists in AngelScript to
+    expose this class to our HTML application
+    scripts.
+ */
+shared class runtime
 {
     application@ self;
     gui_context@ context;
 
     runtime(application_desc&in init)
     {
-        @self = application(init);
+        @self = application(init, @this);
         self.set_on_initialize(initialize_callback(this.initialize));
         self.set_on_dispatch(dispatch_callback(this.dispatch));
         self.set_on_publish(publish_callback(this.publish));
@@ -57,11 +63,23 @@ class runtime
     }
 }
 
-shared void close_app()
+/*
+    Then we expose a very specific function
+    that will fetch currently running application
+    and retrieve an initiator instance from it
+    which we will cast to our target class
+*/
+shared runtime@ get_app()
 {
-    application@ app = application::get();
-    if (app !is null)
-        app.stop();
+    application@ self = application::get();
+    if (self is null)
+        return null;
+    
+    runtime@ app = null;
+    if (!self.retrieve_initiator(@app))
+        return null;
+    
+    return @app;
 }
 
 int main()

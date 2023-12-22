@@ -14,28 +14,28 @@ int main()
         address.hostname = "jsonplaceholder.typicode.com";
         address.port = 443;
         address.secure = true;
-        if (!(co_await client.connect(address)))
-            throw exception_ptr("connect", "cannot connect to remote server");
+        co_await client.connect(address);
 
         /* send request data */
         http::request_frame request;
         request.uri = "/posts/1";
-        if (!(co_await client.send(request)) || !client.response.is_ok())
-            throw exception_ptr("send", "response was not successful (code = " + to_string(client.response.status_code) + ")");
-
+        co_await client.send(request);
+        
         /* fetch response content */
-        if (!(co_await client.consume()))
-            throw exception_ptr("consume", "cannot fetch data from response");
-
+        co_await client.consume();
         output.write_line(client.response.content.get_text());
     }
     catch
     {
-        auto error = exception::unwrap();
-        output.write_line(error.what());
+        output.write_line(exception::unwrap().what());
     }
     
-    co_await client.disconnect(); // If forgotten then connection will be hard reset
+    try
+    {
+        co_await client.disconnect(); // If forgotten then connection will be hard reset, throws if already disconnected
+    }
+    catch { }
+
     queue.stop();
     return 0;
 }

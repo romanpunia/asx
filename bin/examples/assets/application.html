@@ -46,23 +46,40 @@
         <script type="">
             import from "math";
 
-            external shared void close_app();
-            void randomize(ui_element&in element)
+            /* This way we can first expose runtime instance */
+            external shared class runtime;
+
+            /* And second expose getter that will allow us to use it */
+            external shared runtime@ get_app();
+
+            void randomize_element(ui_element&in element)
             {
                 float r = random_rangef(0, 255);
                 float g = random_rangef(0, 255);
                 float b = random_rangef(0, 255);
                 element.set_property("color", "rgb(" + to_string(r) + ", " + to_string(g) + ", " + to_string(b) + ")");
             }
+            void close_application()
+            {
+                /*
+                    This could be done easier but in
+                    case you would need to access main
+                    runtime and not just the generic
+                    application class, we exposed this class
+                */
+                runtime@ app = get_app();
+                if (app !is null)
+                    app.self.stop();
+            }
         </script>
     </head>
     <body>
         <div class="info">
             <p>Hello, i am a simple dumb HTML page.</p>
-            <button class="clickable" onclick="close_app()">Click here to close me.</button>
+            <button class="clickable" onclick="close_application()">Click here to close me.</button>
         </div>
         <div class="center">
-            <p class="clickable animated" onclick="randomize(event.get_target_element())">Change my color!</p>
+            <p class="clickable animated" onclick="randomize_element(event.get_target_element())">Change my color!</p>
         </div>
     </body>
 </html>

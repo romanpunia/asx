@@ -17,16 +17,13 @@ int main()
     queue.start(schedule_policy(2));
     
     http::fetch_frame options;
-    options.set_header("user-agent", "John Roth (The Hangman)");
+    options.set_header("user-agent", "I'm a tester");
     options.max_size = 1024 * 1024; // Up to 1 megabyte of response will be stored in memory
 
     try
     {
         /* Will throw on network error */
         http::response_frame response = co_await http::fetch("https://jsonplaceholder.typicode.com/posts/1", "GET", options);
-        if (response.is_undefined())
-            throw exception_ptr("fetch", "cannot receive a valid response from remote server");
-        
         output.write_line(response.content.get_text());
     }
     catch

@@ -14,3 +14,4 @@ bin/examples/test_addon
 bin/examples/addons
 bin/examples/temp
 bin/examples/web
+bin/examples/assets/shaders/*.*

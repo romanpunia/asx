@@ -17,7 +17,15 @@ class runtime
 
     runtime(application_desc&in init)
     {
-        @self = application(init);
+        /*
+            Application constructor requires a reference to
+            unspecified context. This context can be, for example,
+            this class. Null can also be passed. Application sets
+            a singleton that can be use to retrieve this context
+            by casting it to target class:
+                see html.as as reference
+        */
+        @self = application(init, @this);
         self.set_on_initialize(initialize_callback(this.initialize));
         self.set_on_dispatch(dispatch_callback(this.dispatch));
         self.set_on_publish(publish_callback(this.publish));

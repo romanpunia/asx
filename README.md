@@ -51,7 +51,7 @@ Scripts support preprocessor that can be used just like C++ preprocessor for dep
 
 // Remote includes (local only syntax, can be disabled)
 // A file from remote server
-#include "https://raw.githubusercontent.com/romanpunia/mavi.as/main/bin/examples/utils/win32.as"
+#include "https://raw.githubusercontent.com/romanpunia/mavi.as/main/bin/examples/processes.as"
 
 // Remote addon includes (local only syntax, can be disabled)
 // This will clone a git repo and if it is a native repo build it then link with runtime as shared library
@@ -67,8 +67,7 @@ import from "console";
 import from "./file";
 import from {
     "console",
-    "./file",
-    "https://raw.githubusercontent.com/romanpunia/mavi.as/main/bin/examples/utils/win32.as"
+    "./file"
 };
 ```
 
@@ -95,7 +94,7 @@ int main()
 }
 ```
 
-Preprocessor also supports shared object imports. They are not considered addons or plugins in any way. They can be used to implement some low level functionality without accessing C++ code. More on that in **bin/examples/utils/win32.as**.
+Preprocessor also supports shared object imports. They are not considered addons or plugins in any way. They can be used to implement some low level functionality without accessing C++ code. More on that in **bin/examples/processes.as**.
 ```cpp
 #pragma cimport("kernel32.dll", "GetCurrentProcessId", "uint32 win32_get_pid()") // SO filename or path, function name to find in SO, function definition to expose to Angel Script.
 
