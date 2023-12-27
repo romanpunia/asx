@@ -133,6 +133,7 @@ int main()
     server.configure(@router);
     server.listen();
 
+    /* Graceful shutdown */
     this_process::before_exit(function(signal)
     {
         server.unlisten(1);
