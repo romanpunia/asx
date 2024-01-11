@@ -13,7 +13,8 @@
         "glew",
         "openssl",
         "mongo-c-driver",
-        "libpq"
+        "libpq",
+        "sqlite3"
     ]
 }
   
