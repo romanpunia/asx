@@ -1,0 +1,7 @@
+{
+    "name": "{{BUILDER_OUTPUT}}",
+    "type": "{{BUILDER_MODE}}",
+    "runtime": "{{BUILDER_VERSION}}",
+    "version": "1.0.0",
+    "index": {{BUILDER_INDEX}}
+}

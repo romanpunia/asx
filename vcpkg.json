@@ -1,6 +1,6 @@
 {
-    "name": "mavi-as",
-    "description": "AngelScript Runtime",
+    "name": "asx",
+    "description": "AngelScript Runtime Environment",
     "version": "1.0.0",
     "dependencies": [
         "zlib",

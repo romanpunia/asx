@@ -10,7 +10,7 @@ bin/*.pdb
 bin/*.exe
 bin/*.ilk
 bin/*.exp
-bin/examples/test_addon
+bin/*.cache
 bin/examples/addons
 bin/examples/temp
 bin/examples/web

@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.6)
 
 #Setup toolchain file if needed
-set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/mavi CACHE STRING "Mavi directory")
+set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/vitex CACHE STRING "Vitex directory")
 set(VI_JIT ON CACHE BOOL "JIT can be used")
 set(VI_SIMD ON CACHE BOOL "SIMD is preferred")
 include(${VI_DIRECTORY}/deps/toolchain.cmake)
 
 #Project's metadata
-project(mavias)
+project(asx)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 
 #Build directory if not defined
@@ -18,12 +18,63 @@ if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
+# Append shaders into the sources list
+set(BUFFER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/etc")
+set(BUFFER_DATA "#ifndef HAS_CODE_BUNDLE\n#define HAS_CODE_BUNDLE\n#include <string>\n\nnamespace code_bundle\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.hpp DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/etc/executable)
+file(GLOB_RECURSE BINARIES ${BUFFER_DIR}/*)
+foreach(BINARY ${BINARIES})
+    string(REPLACE "${BUFFER_DIR}" "" FILENAME ${BINARY})
+    string(REPLACE "${BUFFER_DIR}/" "" FILENAME ${BINARY})
+    string(REGEX REPLACE "\\.| |-" "_" VARNAME ${FILENAME})
+    string(REPLACE "/" "_" VARNAME ${VARNAME})
+    string(TOLOWER ${VARNAME} VARNAME)
+    file(READ ${BINARY} FILEDATA)
+    if (NOT FILEDATA STREQUAL "")
+        string(LENGTH "${FILEDATA}" FILESIZE)
+        if (FILESIZE GREATER 4096)
+            set(FILEOFFSET 0)
+            string(APPEND BUFFER_DATA "\n\t\tstd::string dc_${VARNAME};\n\t\tdc_${VARNAME}.reserve(${FILESIZE});")
+            while (FILEOFFSET LESS FILESIZE)
+                math(EXPR CHUNKSIZE "${FILESIZE}-${FILEOFFSET}")
+                if (CHUNKSIZE GREATER 4096)
+                    set(CHUNKSIZE 4096)
+                    string(SUBSTRING "${FILEDATA}" "${FILEOFFSET}" "${CHUNKSIZE}" CHUNKDATA)
+                else()
+                    string(SUBSTRING "${FILEDATA}" "${FILEOFFSET}" "-1" CHUNKDATA)
+                endif()
+                string(REGEX REPLACE "\\\\" "\\\\\\\\" CHUNKDATA "${CHUNKDATA}")
+                string(REGEX REPLACE "\t" "\\\\t" CHUNKDATA "${CHUNKDATA}")
+                string(REGEX REPLACE "\r" "\\\\r" CHUNKDATA "${CHUNKDATA}")
+                string(REGEX REPLACE "\n" "\\\\n" CHUNKDATA "${CHUNKDATA}")
+                string(REGEX REPLACE "\"" "\\\\\"" CHUNKDATA "${CHUNKDATA}")
+                string(APPEND BUFFER_DATA "\n\t\tdc_${VARNAME} += \"${CHUNKDATA}\";")
+                math(EXPR FILEOFFSET "${FILEOFFSET}+${CHUNKSIZE}")
+            endwhile()
+            string(APPEND BUFFER_DATA "\n\t\tcallback(context, \"${FILENAME}\", dc_${VARNAME}.c_str(), (unsigned int)dc_${VARNAME}.size());\n")
+        else()
+            string(REGEX REPLACE "\\\\" "\\\\\\\\" FILEDATA "${FILEDATA}")
+            string(REGEX REPLACE "\t" "\\\\t" FILEDATA "${FILEDATA}")
+            string(REGEX REPLACE "\r" "\\\\r" FILEDATA "${FILEDATA}")
+            string(REGEX REPLACE "\n" "\\\\n" FILEDATA "${FILEDATA}")
+            string(REGEX REPLACE "\"" "\\\\\"" FILEDATA "${FILEDATA}")
+            string(APPEND BUFFER_DATA "\n\t\tconst char* sc_${VARNAME} = \"${FILEDATA}\";\n\t\tcallback(context, \"${FILENAME}\", sc_${VARNAME}, ${FILESIZE});\n")
+        endif()    
+    endif()
+endforeach()
+string(APPEND BUFFER_DATA "\t}\n}\n#endif")
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/src/code.hpp "${BUFFER_DATA}")
+
 #Project's compile options
-add_executable(mavias
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.cpp)
-set_target_properties(mavias PROPERTIES
-		OUTPUT_NAME "vi"
+add_executable(asx
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/builder.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/builder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/code.hpp)
+set_target_properties(asx PROPERTIES
+		OUTPUT_NAME "asx"
 		CXX_STANDARD ${VI_CXX}
         CXX_STANDARD_REQUIRED ON
 		CXX_EXTENSIONS OFF
@@ -33,8 +84,8 @@ if (MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup /SUBSYSTEM:CONSOLE")
 endif()
 
-#Add Mavi as dependency
-add_subdirectory(${VI_DIRECTORY} mavi)
+#Add Vitex as dependency
+add_subdirectory(${VI_DIRECTORY} vitex)
 link_directories(${VI_DIRECTORY})
-target_include_directories(mavias PRIVATE ${VI_DIRECTORY})
-target_link_libraries(mavias PRIVATE mavi)
+target_include_directories(asx PRIVATE ${VI_DIRECTORY})
+target_link_libraries(asx PRIVATE vitex)

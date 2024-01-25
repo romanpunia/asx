@@ -1,0 +1,56 @@
+cmake_minimum_required(VERSION 3.6)
+set(VI_DIRECTORY {{BUILDER_VITEX_PATH}} CACHE STRING "-")
+{{BUILDER_FEATURES}}
+include(${VI_DIRECTORY}/deps/toolchain.cmake)
+project({{BUILDER_OUTPUT}})
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
+set(BUFFER_DATA "#ifndef HAS_PROGRAM_BYTECODE\n#define HAS_PROGRAM_BYTECODE\n#include <string>\n\nnamespace program_bytecode\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
+set(BUFFER_OUT "${CMAKE_SOURCE_DIR}/program")
+set(FILENAME "program_bytecode")
+file(READ "${CMAKE_SOURCE_DIR}/program.b64" FILEDATA)
+if (NOT FILEDATA STREQUAL "")
+    string(LENGTH "${FILEDATA}" FILESIZE)
+    if (FILESIZE GREATER 4096)
+        set(FILEOFFSET 0)
+        string(APPEND BUFFER_DATA "\n\t\tstd::string dc_${FILENAME};\n\t\tdc_${FILENAME}.reserve(${FILESIZE});")
+        while (FILEOFFSET LESS FILESIZE)
+            math(EXPR CHUNKSIZE "${FILESIZE}-${FILEOFFSET}")
+            if (CHUNKSIZE GREATER 4096)
+                set(CHUNKSIZE 4096)
+                string(SUBSTRING "${FILEDATA}" "${FILEOFFSET}" "${CHUNKSIZE}" CHUNKDATA)
+            else()
+                string(SUBSTRING "${FILEDATA}" "${FILEOFFSET}" "-1" CHUNKDATA)
+            endif()
+            string(APPEND BUFFER_DATA "\n\t\tdc_${FILENAME} += \"${CHUNKDATA}\";")
+            math(EXPR FILEOFFSET "${FILEOFFSET}+${CHUNKSIZE}")
+        endwhile()
+        string(APPEND BUFFER_DATA "\n\t\tcallback(context, dc_${FILENAME}.c_str(), (unsigned int)dc_${FILENAME}.size());\n")
+    else()
+        string(APPEND BUFFER_DATA "\n\t\tconst char* sc_${FILENAME} = \"${FILEDATA}\";\n\t\tcallback(context, sc_${FILENAME}, ${FILESIZE});\n")
+    endif()    
+endif()
+string(APPEND BUFFER_DATA "\t}\n}\n#endif")
+file(WRITE ${BUFFER_OUT}.hpp "${BUFFER_DATA}")	
+list(APPEND SOURCE "${BUFFER_OUT}.hpp")
+add_executable({{BUILDER_OUTPUT}}
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/program.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/program.cpp)
+set_target_properties({{BUILDER_OUTPUT}} PROPERTIES
+    OUTPUT_NAME "{{BUILDER_OUTPUT}}"
+    CXX_STANDARD ${VI_CXX}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION})
+if (MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup /SUBSYSTEM:WINDOWS")
+endif()
+add_subdirectory(${VI_DIRECTORY} vitex)
+link_directories(${VI_DIRECTORY})
+target_include_directories({{BUILDER_OUTPUT}} PRIVATE ${VI_DIRECTORY})
+target_link_libraries({{BUILDER_OUTPUT}} PRIVATE vitex)
