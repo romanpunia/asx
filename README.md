@@ -1,7 +1,7 @@
 <br/>
 <div align="center">
     <br />
-    <img src="https://github.com/romanpunia/asx/blob/master/var/logo.png?raw=true" alt="ASX Logo" width="300" />
+    <img src="https://github.com/romanpunia/asx/blob/main/var/logo.png?raw=true" alt="ASX Logo" width="300" />
     <h3>AngelScript Runtime Environment</h3>
 </div>
 
