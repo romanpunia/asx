@@ -15,8 +15,8 @@ namespace code_bundle
 		const char* sc_addon_addon_as = "import from \"console\";\n\nvoid print_hello_world()\n{\n    console@ log = console::get();\n    log.write_line(\"Hello, World\");\n}";
 		callback(context, "addon/addon.as", sc_addon_addon_as, 123);
 
-		const char* sc_addon_addon_cpp = "#include <mavi/core/scripting.h>\n#include <iostream>\n\nvoid PrintHelloWorld()\n{\n    std::cout << \"Hello, World!\" << std::endl;\n}\n\nextern \"C\" { VI_EXPOSE int ViInitialize(Mavi::Scripting::VirtualMachine*); }\nint ViInitialize(Mavi::Scripting::VirtualMachine* VM)\n{\n    VM->SetFunction(\"void print_hello_world()\", &PrintHelloWorld);\n    return 0;\n}\n\nextern \"C\" { VI_EXPOSE void ViUninitialize(Mavi::Scripting::VirtualMachine*); }\nvoid ViUninitialize(Mavi::Scripting::VirtualMachine* VM)\n{\n}";
-		callback(context, "addon/addon.cpp", sc_addon_addon_cpp, 486);
+		const char* sc_addon_addon_cpp = "#include <vitex/core/scripting.h>\n#include <iostream>\n\nvoid PrintHelloWorld()\n{\n    std::cout << \"Hello, World!\" << std::endl;\n}\n\nextern \"C\" { VI_EXPOSE int ViInitialize(Vitex::Scripting::VirtualMachine*); }\nint ViInitialize(Vitex::Scripting::VirtualMachine* VM)\n{\n    VM->SetFunction(\"void print_hello_world()\", &PrintHelloWorld);\n    return 0;\n}\n\nextern \"C\" { VI_EXPOSE void ViUninitialize(Vitex::Scripting::VirtualMachine*); }\nvoid ViUninitialize(Vitex::Scripting::VirtualMachine* VM)\n{\n}";
+		callback(context, "addon/addon.cpp", sc_addon_addon_cpp, 491);
 
 		const char* sc_addon_addon_json = "{\n    \"name\": \"{{BUILDER_OUTPUT}}\",\n    \"type\": \"{{BUILDER_MODE}}\",\n    \"runtime\": \"{{BUILDER_VERSION}}\",\n    \"version\": \"1.0.0\",\n    \"index\": {{BUILDER_INDEX}}\n}";
 		callback(context, "addon/addon.json", sc_addon_addon_json, 162);

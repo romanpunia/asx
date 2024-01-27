@@ -48,7 +48,7 @@ namespace ASX
 		void PrintProperties();
 		void PrintDependencies();
 		void ListenForSignals();
-		IncludeType ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output);
+		ExpectsPreprocessor<IncludeType> ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output);
 	};
 }
 #endif

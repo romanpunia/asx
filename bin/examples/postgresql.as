@@ -19,12 +19,12 @@ int main(string[]@ args)
     string password = os::process::get_env("DB_PASSWORD");
     string database = "application";
     
-    pdb::host_address address("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
+    pdb::host_address address = pdb::host_address::from_uri("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
     pdb::cluster@ connection = pdb::cluster();
     try
     {
-        if (!(co_await connection.connect(address, 1)))
-            throw exception_ptr("connect", "cannot connect to a database (url = " + address.get_address() + ")");
+        /* Throws on connection error */
+        co_await connection.connect(address, 1);
 
         uint64 time = timestamp().milliseconds();
         pdb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
@@ -57,7 +57,12 @@ int main(string[]@ args)
         output.write_line(exception::unwrap().what());
     }
 
-    co_await connection.disconnect(); // If forgotten then connection will be hard reset
+    try
+    {
+        co_await connection.disconnect(); // If forgotten then connection will be hard reset, throws if already disconnected
+    }
+    catch { }
+
     queue.stop();
     return 0;
 }

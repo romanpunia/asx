@@ -22,7 +22,7 @@ int main()
         co_await client.send(request);
         
         /* fetch response content */
-        co_await client.consume();
+        co_await client.download();
         output.write_line(client.response.content.get_text());
     }
     catch

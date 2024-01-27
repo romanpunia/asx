@@ -126,9 +126,10 @@ namespace ASX
 		}
 
 		Unit->SetIncludeCallback(std::bind(&Environment::ImportAddon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-		if (!Unit->Prepare(Env.Module))
+		auto Status = Unit->Prepare(Env.Module);
+		if (!Status)
 		{
-			VI_ERR("cannot prepare <%s> module scope", Env.Module);
+			VI_ERR("cannot prepare <%s> module scope\n  %s", Env.Module, Status.Error().what());
 			return (int)ExitStatus::PrepareError;
 		}
 
@@ -148,16 +149,18 @@ namespace ASX
 			Env.Path += Env.Module;
 			Debugger->SetEngine(VM);
 
-			if (!Unit->LoadCode(Env.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1))
+			Status = Unit->LoadCode(Env.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1);
+			if (!Status)
 			{
-				VI_ERR("cannot load default entrypoint for interactive mode");
+				VI_ERR("cannot load default entrypoint for interactive mode\n  %s", Status.Error().what());
 				VI_RELEASE(Debugger);
 				return (int)ExitStatus::LoadingError;
 			}
 
-			if (!Unit->Compile().Get())
+			Status = Unit->Compile().Get();
+			if (!Status)
 			{
-				VI_ERR("cannot compile default module for interactive mode");
+				VI_ERR("cannot compile default module for interactive mode\n  %s", Status.Error().what());
 				VI_RELEASE(Debugger);
 				return (int)ExitStatus::CompilerError;
 			}
@@ -234,7 +237,7 @@ namespace ASX
 				if (!Env.Inline)
 				{
 					String Index = ":" + ToString(++Section);
-					if (!Unit->LoadCode(Env.Path + Index, Data.c_str(), Data.size()) || !Unit->Compile().Get())
+					if (!Unit->LoadCode(Env.Path + Index, Data.c_str(), Data.size()) || Unit->Compile().Get())
 						continue;
 				}
 
@@ -242,11 +245,12 @@ namespace ASX
 				if (!Inline)
 					continue;
 
-				auto Status = Context->ExecuteCall(*Inline, nullptr).Get();
-				if (Status && *Status == Execution::Finished)
+				Bindings::Any* Value = nullptr;
+				auto Execution = Context->ExecuteCall(*Inline, nullptr).Get();
+				if (Execution && *Execution == Execution::Finished)
 				{
 					String Indent = "  ";
-					auto* Value = Context->GetReturnObject<Bindings::Any>();
+					Value = Context->GetReturnObject<Bindings::Any>();
 					std::cout << Indent << Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()) << std::endl;
 				}
 				else
@@ -255,19 +259,22 @@ namespace ASX
 			}
 
 			VI_RELEASE(Debugger);
+			std::exit((int)ExitStatus::Kill);
 			return (int)ExitStatus::OK;
 		}
 		else if (!Config.LoadByteCode)
 		{
-			if (!Unit->LoadCode(Env.Path, Env.Program.c_str(), Env.Program.size()))
+			Status = Unit->LoadCode(Env.Path, Env.Program.c_str(), Env.Program.size());
+			if (!Status)
 			{
-				VI_ERR("cannot load <%s> module script code", Env.Module);
+				VI_ERR("cannot load <%s> module script code\n  %s", Env.Module, Status.Error().what());
 				return (int)ExitStatus::LoadingError;
 			}
 
-			if (!Unit->Compile().Get())
+			Status = Unit->Compile().Get();
+			if (!Status)
 			{
-				VI_ERR("cannot compile <%s> module", Env.Module);
+				VI_ERR("cannot compile <%s> module\n  %s", Env.Module, Status.Error().what());
 				return (int)ExitStatus::CompilerError;
 			}
 		}
@@ -275,9 +282,11 @@ namespace ASX
 		{
 			ByteCodeInfo Info;
 			Info.Data.insert(Info.Data.begin(), Env.Program.begin(), Env.Program.end());
-			if (!Unit->LoadByteCode(&Info).Get())
+
+			Status = Unit->LoadByteCode(&Info).Get();
+			if (!Status)
 			{
-				VI_ERR("cannot load <%s> module bytecode", Env.Module);
+				VI_ERR("cannot load <%s> module bytecode\n  %s", Env.Module, Status.Error().what());
 				return (int)ExitStatus::LoadingError;
 			}
 		}
@@ -888,7 +897,7 @@ namespace ASX
 		signal(SIGCHLD, SIG_IGN);
 #endif
 	}
-	IncludeType Environment::ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
+	ExpectsPreprocessor<IncludeType> Environment::ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
 	{
 		if (File.Module.empty() || File.Module.front() != '@')
 			return IncludeType::Unchanged;
