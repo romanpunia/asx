@@ -675,7 +675,7 @@ namespace ASX
 			{ "OPENAL", Lib->HasOpenAL() && IsUsingAudio(VM) && !IsAddon },
 			{ "OPENGL", Lib->HasOpenGL() && IsUsingGraphics(VM) && !IsAddon },
 			{ "OPENSSL", Lib->HasOpenSSL() && IsUsingCrypto(VM) && !IsAddon },
-			{ "ZLIB", Lib->HasOpenSSL() && IsUsingCompression(VM) && !IsAddon },
+			{ "ZLIB", Lib->HasZLib() && IsUsingCompression(VM) && !IsAddon },
 			{ "SDL2", Lib->HasSDL2() && IsUsingGraphics(VM) && !IsAddon },
 			{ "SQLITE", Lib->HasSQLite() && IsUsingSQLite(VM) && !IsAddon },
 			{ "POSTGRESQL", Lib->HasPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon },
@@ -696,10 +696,36 @@ namespace ASX
 		if (!FeatureList.empty())
 			FeatureList.erase(FeatureList.end() - 1);
 
+		Schema* ConfigInstallArray = Var::Set::Array();
+		if (Lib->HasSPIRV() && IsUsingGraphics(VM) && !IsAddon)
+		{
+			ConfigInstallArray->Push(Var::String("spirv-cross"));
+			ConfigInstallArray->Push(Var::String("glslang"));
+		}
+		if (Lib->HasZLib() && IsUsingCompression(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("zlib"));
+		if (Lib->HasAssimp() && IsUsingEngine(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("assimp"));
+		if (Lib->HasFreeType() && IsUsingGUI(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("freetype"));
+		if (Lib->HasOpenAL() && IsUsingAudio(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("openal-soft"));
+		if (Lib->HasGLEW() && IsUsingGraphics(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("glew"));
+		if (Lib->HasOpenSSL() && IsUsingCrypto(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("openssl"));
+		if (Lib->HasMongoDB() && IsUsingMongoDB(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("mongo-c-driver"));
+		if (Lib->HasPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("libpq"));
+		if (Lib->HasSQLite() && IsUsingSQLite(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("sqlite3"));
+
 		String VitexPath = GetGlobalVitexPath();
 		Stringify::Replace(VitexPath, '\\', '/');
 
 		UnorderedMap<String, String> Keys;
+		Keys["BUILDER_CONFIG_INSTALL"] = Schema::ToJSON(ConfigInstallArray);
 		Keys["BUILDER_CONFIG_SETTINGS"] = ConfigSettingsArray;
 		Keys["BUILDER_CONFIG_LIBRARIES"] = ConfigLibrariesArray;
 		Keys["BUILDER_CONFIG_FUNCTIONS"] = ConfigFunctionsArray;

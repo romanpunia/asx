@@ -72,11 +72,16 @@ bool load_program(EnvironmentConfig& Env)
 }
 int main(int argc, char* argv[])
 {
-	EnvironmentConfig Env(argc, argv);
+	EnvironmentConfig Env;
 	Env.Path = *OS::Directory::GetModule();
 	Env.Module = argc > 0 ? argv[0] : "runtime";
     if (!load_program(Env))
         return 0;
+
+	Vector<String> Args;
+	Args.reserve((size_t)argc);
+	for (int i = 0; i < argc; i++)
+		Args.push_back(argv[i]);
 
 	SystemConfig Config;
 	Config.Libraries = { {{BUILDER_CONFIG_LIBRARIES}} };
@@ -135,7 +140,7 @@ int main(int argc, char* argv[])
 
 		int ExitCode = 0;
 		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
-		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Env.Args) : nullptr;
+		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Args) : nullptr;
 		VM->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())

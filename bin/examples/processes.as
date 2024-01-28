@@ -43,8 +43,8 @@ import from
 
 /*
     I recommend running following commands:
-        1. vi -d -f examples/processes
-        2. i c
+        1. asx -d examples/processes
+        2. info code
     to see what code has been generated
 */
 int main()

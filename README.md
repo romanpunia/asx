@@ -12,21 +12,21 @@ ASX is a memory efficient AngelScript environment implementation similar to Node
 Simplest examples:
 ```bash
 # Show all commands:
-    asx -h
-    asx --help
+  asx -h
+  asx --help
 # Execute a script file:
-    asx -f [path] [args]
+  asx [path] [args]
 # Debug a script file:
-    asx -d -f [path] [args]
+  asx -d [path] [args]
 # Install dependencies of a script file
-    asx -i -f [path]
+  asx -i [path]
 ```
 Also note: -option and --option both have different syntax:
 ```bash
 # Shorthand style
-    asx -option [value?]
+  asx -option [value?]
 # Normal style
-    asx --option=[value?]
+  asx --option=[value?]
 ```
 
 ## Preprocessor
@@ -104,8 +104,8 @@ int main()
 ## Addons (local and remote)
 There is support for addons. Addons must be compiled with Vitex as a shared object dependency or they must load Vitex symbols manually to work properly. To initialize a VM addon use following command:
 ```bash
-# Will create a directory named "example" in current working directory, directory will AngelScript files
-    asx --target=example --addon=vm:.
+# Will create a directory named "example" in current working directory, directory will contain AngelScript files
+  asx --target=example --addon=vm:.
 ```
 
 Addon can also be a C++ shared library that implements following methods:
@@ -133,7 +133,7 @@ import from "@repo_owner/repo_name"; // Must start with <@> symbol
 
 Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory. First time builds (if native) are slow as it is required to download full Vitex framework beforehand and build the target addon using platform compiler, after shared library has been built loading times are submillisecond.
 
-To install dependencies of a program run _--install_ and provide a _--file_ that should be scanned for dependencies. This will only download and build required addons. Afterwards you may run a program.
+To install dependencies of a program run _--install_ and provide a file that should be scanned for dependencies. This will only download and build required addons. Afterwards you may run a program.
 
 * Native addons are made using C++. Compilation is greedy.
 * VM addons are made using AngelScript. Compilation is on demand.
@@ -142,7 +142,7 @@ To install dependencies of a program run _--install_ and provide a _--file_ that
 You may just run vitex with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands:
 ```bash
 # Will execute input file with debugging interface attached and game engine mode enabled
-    asx -d -g -f examples/rendering
+  asx -d -g examples/rendering
 ```
 
 ## Binary generation and packaging
@@ -150,7 +150,7 @@ ASX supports a feature that allows one to build the executable from AngelScript 
 ```bash
 # Build an example program (cwd is asx/bin/examples), you may run it multiple times (minimal rebuilds are enabled)
 # Will create a directory named "quad" near "rendering.as" file, directory will contain CMake project named "quad" and built targets
-    asx --install --target=quad --output=. -g -f examples/rendering.as
+  asx --install --target=quad --output=. -g examples/rendering.as
 ```
 
 This will produce a binary and shared libraries. Amount of shared libraries produced will depend on import statements inside your script. For example, you won't be needing an OpenAL shared library if you don't use **audio**.

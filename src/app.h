@@ -22,6 +22,7 @@ namespace ASX
 	private:
 		UnorderedMap<String, UnorderedMap<String, EnvironmentCommand>> Commands;
 		UnorderedMap<String, uint32_t> Settings;
+		UnorderedSet<String> Flags;
 		EnvironmentConfig Env;
 		ProgramEntrypoint Entrypoint;
 		SystemConfig Config;
@@ -42,7 +43,7 @@ namespace ASX
 	private:
 		void AddDefaultCommands();
 		void AddDefaultSettings();
-		void AddCommand(const String& Category, const String& Name, const String& Description, const CommandCallback& Callback);
+		void AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback);
 		void PrintIntroduction(const char* Label);
 		void PrintHelp();
 		void PrintProperties();

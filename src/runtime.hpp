@@ -34,9 +34,8 @@ namespace ASX
 
 	struct EnvironmentConfig
 	{
-		OS::Process::ArgsContext Params;
+		InlineArgs Commandline;
 		UnorderedSet<String> Addons;
-		Vector<String> Args;
 		FunctionDelegate AtExit;
 		FileEntry File;
 		String Name;
@@ -50,11 +49,12 @@ namespace ASX
 		const char* Module;
 		bool Inline;
 
-		EnvironmentConfig(int ArgsCount, char** ArgsData) : Params(ArgsCount, ArgsData), ThisCompiler(nullptr), Module("__anonymous__"), Inline(true)
+		EnvironmentConfig() : ThisCompiler(nullptr), Module("__anonymous__"), Inline(true)
 		{
-			Args.reserve((size_t)ArgsCount);
-			for (int i = 0; i < ArgsCount; i++)
-				Args.push_back(ArgsData[i]);
+		}
+		void Parse(int ArgsCount, char** ArgsData, const UnorderedSet<String>& Flags = { })
+		{
+			Commandline = OS::Process::ParseArgs(ArgsCount, ArgsData, (size_t)ArgsFormat::KeyValue | (size_t)ArgsFormat::FlagValue | (size_t)ArgsFormat::StopIfNoMatch, Flags);
 		}
 		static EnvironmentConfig& Get(EnvironmentConfig* Other = nullptr)
 		{
