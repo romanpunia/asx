@@ -425,7 +425,7 @@ namespace ASX
 	}
 	void Environment::Interrupt(int Value)
 	{
-		if (Config.Debug && VM->GetDebugger()->Interrupt())
+		if (Config.Debug && VM->GetDebugger() && VM->GetDebugger()->Interrupt())
 			ListenForSignals();
 		else
 			Shutdown(Value);
