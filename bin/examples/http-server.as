@@ -53,12 +53,5 @@ int main()
     @server = http::server();
     server.configure(@router);
     server.listen();
-
-    /* Graceful shutdown */
-    this_process::before_exit(function(signal)
-    {
-        server.unlisten(1);
-        schedule::get().stop();
-    });
     return 0;
 }

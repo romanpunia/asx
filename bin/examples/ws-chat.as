@@ -133,10 +133,22 @@ int main()
     server.configure(@router);
     server.listen();
 
-    /* Graceful shutdown */
+    /*
+        Graceful shutdown: by default server
+        will be automatically destroyed by GC,
+        however in this case we might get null
+        pointer exception because while destroying
+        the server we might get "remove_client" callback
+        which will use "clients" global variable
+        which could be null because it might get GC'd
+        before the server instance.
+    */
     this_process::before_exit(function(signal)
     {
+        /* Wait at most 1 second for connections to shutdown */
         server.unlisten(1);
+
+        /* Explicitly state that we are done processing and runtime can safely exit */
         schedule::get().stop();
     });
     return 0;

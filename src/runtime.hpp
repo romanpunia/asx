@@ -184,6 +184,7 @@ namespace ASX
 				Queue->Dispatch();
 
 			Queue->Stop();
+			Queue->SetImmediate(true);
 			EventLoop::Set(nullptr);
 			Context->Reset();
 			VM->PerformFullGarbageCollection();
