@@ -49,6 +49,7 @@ namespace ASX
 		void PrintProperties();
 		void PrintDependencies();
 		void ListenForSignals();
+		static void ExitProcess(ExitStatus Code);
 		ExpectsPreprocessor<IncludeType> ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output);
 	};
 }

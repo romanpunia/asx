@@ -292,7 +292,7 @@ namespace ASX
 			}
 
 			VI_RELEASE(Debugger);
-			std::exit((int)ExitStatus::Kill);
+			ExitProcess(ExitStatus::OK);
 			return (int)ExitStatus::OK;
 		}
 		else if (!Config.LoadByteCode)
@@ -369,7 +369,7 @@ namespace ASX
 		VM->SetExceptionCallback([](ImmediateContext* Context)
 		{
 			if (!Context->WillExceptionBeCaught())
-				std::exit((int)ExitStatus::RuntimeError);
+				ExitProcess(ExitStatus::RuntimeError);
 		});
 
 		Main.AddRef();
@@ -418,7 +418,7 @@ namespace ASX
 			}
 
 			VI_DEBUG("forcing shutdown using [kill]");
-			return std::exit((int)ExitStatus::Kill);
+			return ExitProcess(ExitStatus::Kill);
 		}
 	GracefulShutdown:
 		ListenForSignals();
@@ -882,6 +882,13 @@ namespace ASX
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGCHLD, SIG_IGN);
 #endif
+	}
+	void Environment::ExitProcess(ExitStatus Code)
+	{
+		if (Code != ExitStatus::RuntimeError)
+			OS::Process::Exit((int)Code);
+		else
+			OS::Process::Abort();
 	}
 	ExpectsPreprocessor<IncludeType> Environment::ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
 	{

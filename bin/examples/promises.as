@@ -37,7 +37,7 @@ promise<string>@ set_exception_always()
 {
     co_await set_timeout(500);
     promise<string>@ result = promise<string>();
-    result.except(exception_ptr("fetch", "cannot receive a valid response"));
+    result.except(exception_ptr("fetch", "cannot receive a valid response (expected)"));
     return @result;
 }
 promise<string>@ get_prices_json()

@@ -65,8 +65,7 @@ void broadcast_client(http::websocket_frame@ base, const string&in data, http::w
             Dictionary has two index operators:
                 [string] = get by key,
                 [usize] = get by index
-            operator returns storable object that
-            should be casted to needed type
+            operator returns storable object that should be casted to needed type
         */
         ws_client@ next = cast<ws_client@>(clients[i]);
         if (next.socket !is base)
@@ -75,7 +74,14 @@ void broadcast_client(http::websocket_frame@ base, const string&in data, http::w
 
     /* We do that because while we await for promises other code might modify our clients container */
     for (usize i = 0; i < broadcasts.size(); i++)
-        co_await broadcasts[i];
+    {
+        /* Throws on network error */
+        try
+        {
+            co_await broadcasts[i];
+        }
+        catch { }
+    }
 }
 void remove_client(http::websocket_frame@ base)
 {
@@ -145,8 +151,8 @@ int main()
     */
     this_process::before_exit(function(signal)
     {
-        /* Wait at most 1 second for connections to shutdown */
-        server.unlisten(1);
+        /* Shutdown server gracefully waiting for all messages to pass */
+        server.unlisten(false);
 
         /* Explicitly state that we are done processing and runtime can safely exit */
         schedule::get().stop();

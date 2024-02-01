@@ -25,7 +25,18 @@ int main()
         /* Return result */
         base.finish(200);
     });
-    site.post("/upload", function(http::connection@ base)
+    site.post("/fetch", function(http::connection@ base)
+    {
+        /* Set content type of text */
+        base.response.set_header("content-type", base.request.get_header("content-type"));
+
+        /* Set content text message */
+        base.response.content.assign(co_await base.fetch());
+
+        /* Return result */
+        base.finish(200);
+    });
+    site.post("/store", function(http::connection@ base)
     {
         /* Prepare and store all possible files to local "temp" directory */
         http::resource_info[]@ resources = co_await base.store();

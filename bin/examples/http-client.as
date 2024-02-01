@@ -16,14 +16,18 @@ int main()
         address.secure = true;
         co_await client.connect(address);
 
-        /* send request data */
-        http::request_frame request;
-        request.uri = "/posts/1";
-        co_await client.send(request);
-        
-        /* fetch response content */
-        co_await client.download();
-        output.write_line(client.response.content.get_text());
+        for (usize i = 0; i < 3; i++)
+        {
+            /* send request data and fetch response body */
+            http::request_frame request;
+            request.uri = "/posts/" + to_string(i + 1);
+
+            /* before sending another request we must fetch response body */
+            co_await client.send_fetch(request);
+            
+            /* display response body */
+            output.write_line(client.response.content.get_text());
+        }
     }
     catch
     {

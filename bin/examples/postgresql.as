@@ -32,25 +32,30 @@ int main(string[]@ args)
             throw exception_ptr("query", "cannot execute a query on a database");
 
         pdb::response response = cursor.first();
-        usize rows = response.size();
+        string[]@ columns = response.get_columns();
+        for (usize i = 0; i < columns.size(); i++)
+        {
+            if (i + 1 < columns.size())
+                output.write(columns[i] + " | ");
+            else
+                output.write_line(columns[i]);
+        }
 
-        output.write_line("response:");
+        usize rows = response.size();
         for (usize i = 0; i < rows; i++)
         {
             pdb::row row = response[i];
-            usize columns = row.size();
-
-            output.write_line("  row(" + to_string(i) + "):");
-            for (usize j = 0; j < columns; j++)
+            output.write("  " + to_string(i + 1) + " (");
+            for (usize j = 0; j < columns.size(); j++)
             {
                 pdb::column column = row[j];
-                string name = column.get_name();
                 schema@ value = column.get_inline();
                 string text = (value is null ? "NULL" : value.to_json());
-                output.write_line("    " + name + ": " + text);
+                output.write(j + 1 < columns.size() ? text + ", " : text);
             }
+            output.write_line(")");
         }
-        output.write_line("\nreturned " + to_string(rows) + " rows in " + to_string(timestamp().milliseconds() - time) + "ms");
+        output.write_line("returned " + to_string(rows) + " rows in " + to_string(timestamp().milliseconds() - time) + "ms");
     }
     catch
     {
