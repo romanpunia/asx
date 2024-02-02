@@ -446,7 +446,6 @@ namespace ASX
 	}
 	void Environment::AddDefaultCommands()
 	{
-		/* Application */
 		AddCommand("application", "-h, --help", "show help message", true, [this](const String&)
 		{
 			PrintHelp();
@@ -472,8 +471,6 @@ namespace ASX
 			ErrorHandling::SetFlag(LogOption::Dated, true);
 			return (int)ExitStatus::Continue;
 		});
-
-		/* Execution */
 		AddCommand("execution", "-b, --bytecode", "load gz compressed compiled bytecode and execute it as normal", true, [this](const String&)
 		{
 			Config.LoadByteCode = true;
@@ -534,8 +531,6 @@ namespace ASX
 			Config.Remotes = false;
 			return (int)ExitStatus::Continue;
 		});
-
-		/* Building */
 		AddCommand("building", "--target", "set a CMake name for output target [expects: name]", false, [this](const String& Name)
 		{
 			Env.Name = Name;
@@ -676,8 +671,6 @@ namespace ASX
 			PrintProperties();
 			return (int)ExitStatus::OK;
 		});
-
-		/* Addons */
 		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:relpath]", false, [this](const String& Value)
 		{
 			if (Env.Name.empty())
