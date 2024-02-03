@@ -15,8 +15,8 @@ namespace ASX
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;
 #endif
-		Config.EssentialsOnly = !Env.Commandline.Has("graphics", "g");
-		Config.Install = Env.Commandline.Has("install") || Env.Commandline.Has("output", "o");
+		Config.EssentialsOnly = !Env.Commandline.Has("game", "g");
+		Config.Install = Env.Commandline.Has("install", "i") || Env.Commandline.Has("target");
 	}
 	Environment::~Environment()
 	{
@@ -110,7 +110,7 @@ namespace ASX
 			if (Builder::InitializeIntoAddon(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
 				return (int)ExitStatus::CommandError;
 
-			std::cout << "Initialized addon directory: " << Env.Addon << std::endl;
+			Terminal->WriteLine("Initialized addon directory: " + Env.Addon);
 			return (int)ExitStatus::OK;
 		}
 		else if (Config.Interactive)
@@ -201,7 +201,7 @@ namespace ASX
 			for (;;)
 			{
 				if (!Editor)
-					std::cout << "> ";
+					Terminal->Write("> ");
 
 				if (!Terminal->ReadLine(Data, Data.capacity()))
 				{
@@ -238,25 +238,25 @@ namespace ASX
 				}
 				else if (Data == ".help")
 				{
-					std::cout << "  .mode   - switch between registering and executing the code" << std::endl;
-					std::cout << "  .help   - show available commands" << std::endl;
-					std::cout << "  .editor - enter editor mode" << std::endl;
-					std::cout << "  .exit   - exit interactive mode" << std::endl;
-					std::cout << "  *       - anything else will be interpreted as script code" << std::endl;
+					Terminal->WriteLine("  .mode   - switch between registering and executing the code");
+					Terminal->WriteLine("  .help   - show available commands");
+					Terminal->WriteLine("  .editor - enter editor mode");
+					Terminal->WriteLine("  .exit   - exit interactive mode");
+					Terminal->WriteLine("  *       - anything else will be interpreted as script code");
 					continue;
 				}
 				else if (Data == ".mode")
 				{
 					Env.Inline = !Env.Inline;
 					if (Env.Inline)
-						std::cout << "  evaluation mode: you may now execute your code" << std::endl;
+						Terminal->WriteLine("  evaluation mode: you may now execute your code");
 					else
-						std::cout << "  register mode: you may now register script interfaces" << std::endl;
+						Terminal->WriteLine("  register mode: you may now register script interfaces");
 					continue;
 				}
 				else if (Data == ".editor")
 				{
-					std::cout << "  editor mode: you may write multiple lines of code (Ctrl+D to finish)\n" << std::endl;
+					Terminal->WriteLine("  editor mode: you may write multiple lines of code (Ctrl+D to finish)\n");
 					Editor = true;
 					continue;
 				}
@@ -284,7 +284,7 @@ namespace ASX
 				{
 					String Indent = "  ";
 					Value = Context->GetReturnObject<Bindings::Any>();
-					std::cout << Indent << Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()) << std::endl;
+					Terminal->WriteLine(Indent + Debugger->ToString(Indent, 3, Value, VM->GetTypeInfoByName("any").GetTypeId()));
 				}
 				else
 					Context->Abort();
@@ -343,7 +343,7 @@ namespace ASX
 		{
 			if (Config.Installed > 0)
 			{
-				std::cout << "Successfully installed " << Config.Installed << (Config.Installed > 1 ? " addons" : " addon") << std::endl;
+				Terminal->WriteLine("Successfully installed " + ToString(Config.Installed) + String(Config.Installed > 1 ? " addons" : " addon"));
 				return EXIT_SUCCESS;
 			}
 			else if (Env.Output.empty())
@@ -352,7 +352,7 @@ namespace ASX
 			if (Builder::CompileIntoExecutable(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
 				return (int)ExitStatus::CommandError;
 
-			std::cout << "Built binaries directory: " << Env.Output << "bin" << std::endl;
+			Terminal->WriteLine("Built binaries directory: " + Env.Output + "bin");
 			return (int)ExitStatus::OK;
 		}
 
@@ -538,9 +538,9 @@ namespace ASX
 		});
 		AddCommand("building", "--output", "directory where to build an executable from source code [expects: path]", false, [this](const String& Path)
 		{
-			if (Env.Name.empty())
+			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
 			{
-				VI_ERR("output directory is set but name was not specified: use --target before specifying output");
+				VI_ERR("output directory is set but name was not specified: use --target");
 				return (int)ExitStatus::InputError;
 			}
 
@@ -673,9 +673,9 @@ namespace ASX
 		});
 		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:relpath]", false, [this](const String& Value)
 		{
-			if (Env.Name.empty())
+			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
 			{
-				VI_ERR("init directory is set but name was not specified: use --target before specifying init");
+				VI_ERR("init directory is set but name was not specified: use --target");
 				return (int)ExitStatus::InputError;
 			}
 
@@ -789,14 +789,59 @@ namespace ASX
 				Flags.insert(Naming);
 		}
 	}
+	ExitStatus Environment::ExecuteArgument(const UnorderedSet<String>& Names)
+	{
+		for (auto& Next : Env.Commandline.Args)
+		{
+			if (Names.find(Next.first) == Names.end())
+				continue;
+
+			bool HasCommand = false;
+			for (auto& Category : Commands)
+			{
+				auto It = Category.second.find(Next.first);
+				if (It == Category.second.end() || !It->second.Callback)
+					continue;
+
+				int ExitCode = It->second.Callback(Next.second);
+				if (ExitCode != (int)ExitStatus::Continue)
+					return (ExitStatus)ExitCode;
+
+				HasCommand = true;
+				break;
+			}
+
+			if (!HasCommand)
+				return ExitStatus::InvalidCommand;
+		}
+
+		return ExitStatus::OK;
+	}
 	void Environment::PrintIntroduction(const char* Label)
 	{
+		auto* Terminal = Console::Get();
 		auto* Lib = Vitex::Runtime::Get();
-		std::cout << "Welcome to ASX " << Label << " v" << (uint32_t)Vitex::MAJOR_VERSION << "." << (uint32_t)Vitex::MINOR_VERSION << "." << (uint32_t)Vitex::PATCH_VERSION << "/" << (uint32_t)Vitex::BUILD_VERSION << " [" << Lib->GetCompiler() << " " << Lib->GetBuild() << " on " << Lib->GetPlatform() << "]" << std::endl;
-		std::cout << "Run \"" << (Config.Interactive ? ".help" : (Config.Debug ? "help" : "asx --help")) << "\" for more information";
+		Terminal->Write("Welcome to ASX ");
+		Terminal->WriteBuffer(Label);
+		Terminal->WriteBuffer(" v");
+		Terminal->Write(ToString((uint32_t)Vitex::MAJOR_VERSION));
+		Terminal->WriteBuffer(".");
+		Terminal->Write(ToString((uint32_t)Vitex::MINOR_VERSION));
+		Terminal->WriteBuffer(".");
+		Terminal->Write(ToString((uint32_t)Vitex::PATCH_VERSION));
+		Terminal->WriteBuffer("/");
+		Terminal->Write(ToString((uint32_t)Vitex::BUILD_VERSION));
+		Terminal->WriteBuffer(" [");
+		Terminal->WriteBuffer(Lib->GetCompiler());
+		Terminal->WriteBuffer(" ");
+		Terminal->WriteBuffer(Lib->GetBuild());
+		Terminal->WriteBuffer(" on ");
+		Terminal->WriteBuffer(Lib->GetPlatform());
+		Terminal->WriteBuffer("]\n");
+		Terminal->Write("Run \"" + String(Config.Interactive ? ".help" : (Config.Debug ? "help" : "asx --help")) + "\" for more information");
 		if (Config.Interactive)
-			std::cout << " (loaded " << VM->GetExposedAddons().size() << " addons)";
-		std::cout << std::endl;
+			Terminal->Write(" (loaded " + ToString(VM->GetExposedAddons().size()) + " addons)");
+		Terminal->Write("\n");
 	}
 	void Environment::PrintHelp()
 	{
@@ -810,57 +855,60 @@ namespace ASX
 			}
 		}
 
-		std::cout << "Usage: vi [options...]\n";
-		std::cout << "       vi [options...] -f [file.as] [args...]\n\n";
+		auto* Terminal = Console::Get();
+		Terminal->WriteLine("Usage: vi [options...]");
+		Terminal->WriteLine("       vi [options...] -f [file.as] [args...]\n");
 		for (auto& Category : Commands)
 		{
 			String Name = Category.first;
-			std::cout << "Category: " << Stringify::ToUpper(Name) << "\n";
+			Terminal->WriteLine("Category: " + Stringify::ToUpper(Name));
 			for (auto& Next : Category.second)
 			{
 				size_t Spaces = Max - Next.first.size();
-				std::cout << "    " << Next.first;
+				Terminal->Write("    " + Next.first);
 				for (size_t i = 0; i < Spaces; i++)
-					std::cout << " ";
-				std::cout << " - " << Next.second.Description << "\n";
+					Terminal->Write(" ");
+				Terminal->WriteLine(" - " + Next.second.Description);
 			}
-			std::cout << '\n';
+			Terminal->WriteChar('\n');
 		}
 	}
 	void Environment::PrintProperties()
 	{
+		auto* Terminal = Console::Get();
 		for (auto& Item : Settings)
 		{
 			size_t Value = VM->GetProperty((Features)Item.second);
-			std::cout << "  " << Item.first << ": ";
+			Terminal->Write("  " + Item.first + ": ");
 			if (Stringify::EndsWith(Item.first, "mode"))
-				std::cout << "mode " << Value;
+				Terminal->Write("mode " + Value);
 			else if (Stringify::EndsWith(Item.first, "size"))
-				std::cout << (Value > 0 ? ToString(Value) : "unlimited");
+				Terminal->Write((Value > 0 ? ToString(Value) : "unlimited"));
 			else if (Value == 0)
-				std::cout << "OFF";
+				Terminal->Write("OFF");
 			else if (Value == 1)
-				std::cout << "ON";
+				Terminal->Write("ON");
 			else
-				std::cout << Value;
-			std::cout << "\n";
+				Terminal->Write(ToString(Value));
+			Terminal->Write("\n");
 		}
 	}
 	void Environment::PrintDependencies()
 	{
+		auto* Terminal = Console::Get();
 		auto Exposes = VM->GetExposedAddons();
 		if (!Exposes.empty())
 		{
-			std::cout << "  local dependencies list:" << std::endl;
+			Terminal->WriteLine("  local dependencies list:");
 			for (auto& Item : Exposes)
-				std::cout << "    " << Stringify::Replace(Item, ":", ": ") << std::endl;
+				Terminal->WriteLine("    " + Stringify::Replace(Item, ":", ": "));
 		}
 
 		if (!Env.Addons.empty())
 		{
-			std::cout << "  remote dependencies list:" << std::endl;
+			Terminal->WriteLine("  remote dependencies list:");
 			for (auto& Item : Env.Addons)
-				std::cout << "    " << Item << ": " << Builder::GetAddonTargetLibrary(Env, VM, Item, nullptr) << std::endl;
+				Terminal->WriteLine("    " + Item + ": " + Builder::GetAddonTargetLibrary(Env, VM, Item, nullptr));
 		}
 	}
 	void Environment::ListenForSignals()

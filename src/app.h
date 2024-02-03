@@ -44,6 +44,7 @@ namespace ASX
 		void AddDefaultCommands();
 		void AddDefaultSettings();
 		void AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback);
+		ExitStatus ExecuteArgument(const UnorderedSet<String>& Names);
 		void PrintIntroduction(const char* Label);
 		void PrintHelp();
 		void PrintProperties();

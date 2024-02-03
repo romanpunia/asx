@@ -33,7 +33,7 @@ namespace ASX
 	private:
 		static StatusCode ExecuteGit(const String& Command);
 		static StatusCode ExecuteCMake(const String& Command);
-		static bool ExecuteCommand(const String& Command);
+		static bool ExecuteCommand(const String& Label, const String& Command, int SuccessExitCode);
 		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath);
 		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const String& Path);
 		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const String& TargetDirectory);
@@ -54,6 +54,8 @@ namespace ASX
 		static const char* GetBuildType(SystemConfig& Config);
 		static String GetGlobalVitexPath();
 		static String GetBuildingDirectory(EnvironmentConfig& Env, const String& LocalTarget);
+		static String GetGlobalTargetsDirectory(EnvironmentConfig& Env, const String& Name);
+		static String GetLocalTargetsDirectory(EnvironmentConfig& Env, const String& Name);
 		static String GetAddonTarget(EnvironmentConfig& Env, const String& Name);
 		static Schema* GetAddonInfo(EnvironmentConfig& Env, const String& Name);
 		static UnorderedMap<String, String> GetBuildKeys(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings, bool IsAddon);

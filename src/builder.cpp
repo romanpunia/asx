@@ -10,7 +10,7 @@ namespace ASX
 {
 	StatusCode Builder::CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output)
 	{
-		String LocalTarget = Env.Registry + Name + VI_SPLITTER, RemoteTarget = Name.substr(1);
+		String LocalTarget = Env.Registry + Name, RemoteTarget = Name.substr(1);
 		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit("git clone " REPOSITORY_SOURCE + RemoteTarget + " " + LocalTarget) != StatusCode::OK)
 		{
 			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
@@ -57,8 +57,24 @@ namespace ASX
 				return StatusCode::BuildError;
 			}
 
-			String Path = GetAddonTarget(Env, Name);
-			return VM->ImportAddon(Path) ? StatusCode::OK : StatusCode::DependencyError;
+			String AddonName = OS::Path::GetFilename(Name.c_str());
+			String TargetPath = GetAddonTarget(Env, Name);
+			String NextPath = GetGlobalTargetsDirectory(Env, Name) + VI_SPLITTER;
+			OS::Directory::Patch(NextPath);
+
+			Vector<std::pair<String, FileEntry>> Files;
+			String PrevPath = GetLocalTargetsDirectory(Env, Name) + VI_SPLITTER;
+			OS::Directory::Scan(PrevPath, &Files);
+			for (auto& File : Files)
+			{
+				String NextFilePath = NextPath + File.first;
+				String PrevFilePath = PrevPath + File.first;
+				if (!File.second.IsDirectory && Stringify::StartsWith(File.first, AddonName))
+					OS::File::Move(PrevFilePath.c_str(), NextFilePath.c_str());
+			}
+
+			OS::Directory::Remove(PrevPath.c_str());
+			return VM->ImportAddon(TargetPath) ? StatusCode::OK : StatusCode::DependencyError;
 		}
 		else if (Type == "vm")
 		{
@@ -69,7 +85,7 @@ namespace ASX
 				return StatusCode::ConfigurationError;
 			}
 
-			String Path = LocalTarget + Index;
+			String Path = LocalTarget + VI_SPLITTER + Index;
 			if (!OS::File::IsExists(Path.c_str()))
 			{
 				VI_ERR("addon <%s> cannot be created: index file cannot be found", Name.c_str());
@@ -336,17 +352,10 @@ namespace ASX
 	}
 	StatusCode Builder::ExecuteGit(const String& Command)
 	{
-		int IsGitInstalled = -1;
+		static int IsGitInstalled = -1;
 		if (IsGitInstalled == -1)
 		{
-			std::cout << "> CHECK git:" << std::endl;
-			if (ErrorHandling::HasFlag(LogOption::Pretty))
-				Console::Get()->ColorBegin(StdColor::Gray);
-
-			IsGitInstalled = (int)(system("git") == 0x1);
-			if (ErrorHandling::HasFlag(LogOption::Pretty))
-				Console::Get()->ColorEnd();
-
+			IsGitInstalled = ExecuteCommand("FIND", "git", 0x1) ? 1 : 0;
 			if (!IsGitInstalled)
 			{
 				VI_ERR("cannot find <git> program, please make sure it is installed");
@@ -354,21 +363,14 @@ namespace ASX
 			}
 		}
 
-		return ExecuteCommand(Command) ? StatusCode::OK : StatusCode::CommandError;
+		return ExecuteCommand("RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
 	StatusCode Builder::ExecuteCMake(const String& Command)
 	{
-		int IsCMakeInstalled = -1;
+		static int IsCMakeInstalled = -1;
 		if (IsCMakeInstalled == -1)
 		{
-			std::cout << "> CHECK cmake:" << std::endl;
-			if (ErrorHandling::HasFlag(LogOption::Pretty))
-				Console::Get()->ColorBegin(StdColor::Gray);
-
-			IsCMakeInstalled = (int)(system("cmake") == 0x0);
-			if (ErrorHandling::HasFlag(LogOption::Pretty))
-				Console::Get()->ColorEnd();
-
+			IsCMakeInstalled = ExecuteCommand("FIND", "cmake", 0x0) ? 1 : 0;
 			if (!IsCMakeInstalled)
 			{
 				VI_ERR("cannot find <cmake> program, please make sure it is installed");
@@ -376,19 +378,65 @@ namespace ASX
 			}
 		}
 
-		return ExecuteCommand(Command) ? StatusCode::OK : StatusCode::CommandError;
+		return ExecuteCommand("RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
-	bool Builder::ExecuteCommand(const String& Command)
+	bool Builder::ExecuteCommand(const String& Label, const String& Command, int SuccessExitCode)
 	{
-		std::cout << "> " + Command << ":" << std::endl;
-		if (ErrorHandling::HasFlag(LogOption::Pretty))
-			Console::Get()->ColorBegin(StdColor::Gray);
+		const uint32_t WindowSize = 10;
+		uint32_t Height = 0, Y = 0;
+		auto* Terminal = Console::Get();
+		if (!Terminal->ReadScreen(nullptr, &Height, nullptr, &Y))
+			Height = WindowSize;
+		Height--;
 
-		int ExitCode = system(Command.c_str());
-		if (ErrorHandling::HasFlag(LogOption::Pretty))
-			Console::Get()->ColorEnd();
+		uint32_t Lines = std::min<uint32_t>(Y >= Height ? 0 : Y - Height, WindowSize);
+		bool Logging = Lines > 0 && Label != "FIND", Loading = true;
+		auto Time = Schedule::GetClock();
+		uint64_t Title = Terminal->CaptureElement();
+		uint64_t Window = Logging ? Terminal->CaptureWindow(Lines) : 0;
+		std::thread Loader([Terminal, Title, &Time, &Loading, &Label, &Command]()
+		{
+			while (Loading)
+			{
+				auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
+				Terminal->SpinningElement(Title, "> " + Label + " " + Command + " - " + ToString(Diff) + " seconds");
+				std::this_thread::sleep_for(std::chrono::milliseconds(60));
+			}
+		});
 
-		return ExitCode == 0;
+		SingleQueue<String> Messages;
+		auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, Window, Logging, &Messages](const char* Buffer, size_t Size)
+		{
+			size_t Index = Messages.size() + 1;
+			String Text = (Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size);
+			if (Logging)
+			{
+				Terminal->EmplaceWindow(Window, Text);
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			Messages.push(std::move(Text));
+			return true;
+		});
+
+		bool Success = ExitCode && *ExitCode == SuccessExitCode;
+		auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
+		Loading = false;
+		Loader.join();
+
+		Terminal->ReplaceElement(Title, "> " + Label + " " + Command + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
+		Terminal->FreeElement(Title);
+		if (Logging)
+			Terminal->FreeWindow(Window, true);
+		if (!ExitCode)
+			Messages.push(ExitCode.What() + "\n");
+
+		while (!Success && !Messages.empty())
+		{
+			Terminal->Write(Messages.front());
+			Messages.pop();
+		}
+
+		return Success;
 	}
 	bool Builder::AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath)
 	{
@@ -483,7 +531,7 @@ namespace ASX
 #else
 		String CopyCommand = Stringify::Text("cp -a \"%s%s.\" \"%s%s\"", SourcePath.c_str(), SourcePath.back() == '/' ? "" : "/", TargetPath.c_str(), TargetPath.back() == '/' ? "" : "/");
 #endif
-		return ExecuteCommand(CopyCommand);
+		return ExecuteCommand("RUN", CopyCommand, 0x0);
 	}
 	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested)
 	{
@@ -574,7 +622,9 @@ namespace ASX
 		String CacheDirectory = *OS::Directory::GetModule();
 		if (CacheDirectory.back() != '/' && CacheDirectory.back() != '\\')
 			CacheDirectory += VI_SPLITTER;
-		CacheDirectory += ".cache/vitex";
+		CacheDirectory += ".cache";
+		CacheDirectory += VI_SPLITTER;
+		CacheDirectory += "vitex";
 		return CacheDirectory;
 #else
 		return "/var/lib/asx/vitex";
@@ -585,9 +635,29 @@ namespace ASX
 	{
 		return Env.Registry + ".make";
 	}
+	String Builder::GetLocalTargetsDirectory(EnvironmentConfig& Env, const String& Name)
+	{
+		return Stringify::Text("%s%s%cbin", Env.Registry.c_str(), Name.c_str(), VI_SPLITTER);
+	}
+	String Builder::GetGlobalTargetsDirectory(EnvironmentConfig& Env, const String& Name)
+	{
+		String Owner = Name.substr(0, Name.find('/'));
+		String Repository = OS::Path::GetFilename(Name.c_str());
+		String Path = Env.Registry + ".bin";
+		Path += VI_SPLITTER;
+		Path += Owner;
+		return Path;
+	}
 	String Builder::GetAddonTarget(EnvironmentConfig& Env, const String& Name)
 	{
-		return Stringify::Text("%s%s%cbin%c%s", Env.Registry.c_str(), Name.c_str(), VI_SPLITTER, VI_SPLITTER, OS::Path::GetFilename(Name.c_str()));
+		String Owner = Name.substr(0, Name.find('/'));
+		String Repository = OS::Path::GetFilename(Name.c_str());
+		String Path = Env.Registry + ".bin";
+		Path += VI_SPLITTER;
+		Path += Owner;
+		Path += VI_SPLITTER;
+		Path += Repository;
+		return Path;
 	}
 	String Builder::GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool* IsVM)
 	{
@@ -708,6 +778,8 @@ namespace ASX
 			ConfigInstallArray->Push(Var::String("assimp"));
 		if (Lib->HasFreeType() && IsUsingGUI(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("freetype"));
+		if (Lib->HasSDL2() && IsUsingGraphics(VM) && !IsAddon)
+			ConfigInstallArray->Push(Var::String("sdl2"));
 		if (Lib->HasOpenAL() && IsUsingAudio(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("openal-soft"));
 		if (Lib->HasGLEW() && IsUsingGraphics(VM) && !IsAddon)
