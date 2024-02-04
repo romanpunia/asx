@@ -23,7 +23,7 @@ namespace ASX
 		static StatusCode CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output);
 		static StatusCode ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output);
 		static StatusCode InitializeIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
-		static StatusCode PullAddonRepository(EnvironmentConfig& Env);
+		static StatusCode PullAddonRepository(SystemConfig& Config, EnvironmentConfig& Env);
 		static StatusCode CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
 		static UnorderedMap<String, uint32_t> GetDefaultSettings();
 		static String GetSystemVersion();
@@ -31,13 +31,13 @@ namespace ASX
 		static bool IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested = false);
 
 	private:
-		static StatusCode ExecuteGit(const String& Command);
-		static StatusCode ExecuteCMake(const String& Command);
-		static bool ExecuteCommand(const String& Label, const String& Command, int SuccessExitCode);
+		static StatusCode ExecuteGit(SystemConfig& Config, const String& Command);
+		static StatusCode ExecuteCMake(SystemConfig& Config, const String& Command);
+		static bool ExecuteCommand(SystemConfig& Config, const String& Label, const String& Command, int SuccessExitCode);
 		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath);
 		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const String& Path);
 		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const String& TargetDirectory);
-		static bool AppendVitex(const String& TargetPath);
+		static bool AppendVitex(SystemConfig& Config, const String& TargetPath);
 		static bool IsUsingCompression(VirtualMachine* VM);
 		static bool IsUsingSchemas(VirtualMachine* VM);
 		static bool IsUsingCrypto(VirtualMachine* VM);
@@ -64,9 +64,6 @@ namespace ASX
 	class Control
 	{
 	public:
-		static Option<AccessOption> GetAsOption(const String& Option);
-		static const char* GetAsString(AccessOption Option);
-		static const char* GetOptions();
 		static bool Has(SystemConfig& Config, AccessOption Option);
 	};
 

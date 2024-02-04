@@ -20,7 +20,7 @@ namespace ASX
 	StatusCode Builder::CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output)
 	{
 		String LocalTarget = Env.Registry + Name, RemoteTarget = Name.substr(1);
-		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit("git clone " REPOSITORY_SOURCE + RemoteTarget + " \"" + LocalTarget + "\"") != StatusCode::OK)
+		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit(Config, "git clone " REPOSITORY_SOURCE + RemoteTarget + " \"" + LocalTarget + "\"") != StatusCode::OK)
 		{
 			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
 			return StatusCode::CommandError;
@@ -43,7 +43,7 @@ namespace ASX
 			}
 
 			String VitexDirectory = GetGlobalVitexPath();
-			if (!AppendVitex(String()))
+			if (!AppendVitex(Config, String()))
 			{
 				VI_ERR("addon <%s> cannot be created: global target cannot be built", Name.c_str());
 				return StatusCode::ConfigurationError;
@@ -59,7 +59,7 @@ namespace ASX
 #else
 			String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", ShLocalTarget.c_str(), ShBuildDirectory.c_str(), ShVitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
 #endif
-			if (ExecuteCMake(ConfigureCommand) != StatusCode::OK)
+			if (ExecuteCMake(Config, ConfigureCommand) != StatusCode::OK)
 			{
 				VI_ERR("addon <%s> cannot be created: final target cannot be configured", Name.c_str());
 				return StatusCode::ConfigurationError;
@@ -69,7 +69,7 @@ namespace ASX
 #else
 			String BuildCommand = Stringify::Text("cmake --build %s", ShBuildDirectory.c_str());
 #endif
-			if (ExecuteCMake(BuildCommand) != StatusCode::OK)
+			if (ExecuteCMake(Config, BuildCommand) != StatusCode::OK)
 			{
 				VI_ERR("addon <%s> cannot be created: final target cannot be built", Name.c_str());
 				return StatusCode::BuildError;
@@ -176,7 +176,7 @@ namespace ASX
 		}
 		else if (Env.Mode == "native")
 		{
-			if (!AppendVitex(Env.Addon + "deps/vitex"))
+			if (!AppendVitex(Config, Env.Addon + "deps/vitex"))
 			{
 				VI_ERR("cannot clone executable repository");
 				return StatusCode::CommandError;
@@ -211,7 +211,7 @@ namespace ASX
 
 		return StatusCode::ConfigurationError;
 	}
-	StatusCode Builder::PullAddonRepository(EnvironmentConfig& Env)
+	StatusCode Builder::PullAddonRepository(SystemConfig& Config, EnvironmentConfig& Env)
 	{
 		if (Env.Registry.empty())
 		{
@@ -223,7 +223,7 @@ namespace ASX
 		if (!OS::Directory::Scan(Env.Registry.c_str(), &Entries) || Entries.empty())
 			return StatusCode::OK;
 
-		auto Pull = [](const String& Path) { return ExecuteGit("cd \"" + Path + "\" && git pull") == StatusCode::OK; };
+		auto Pull = [&Config](const String& Path) { return ExecuteGit(Config, "cd \"" + Path + "\" && git pull") == StatusCode::OK; };
 		for (auto& File : Entries)
 		{
 			if (!File.second.IsDirectory || File.first.empty() || File.first.front() == '.')
@@ -264,7 +264,7 @@ namespace ASX
 	StatusCode Builder::CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings)
 	{
 		String VitexDirectory = GetGlobalVitexPath();
-		if (!AppendVitex(String()))
+		if (!AppendVitex(Config, String()))
 		{
 			VI_ERR("cannot clone executable repository");
 			return StatusCode::CommandError;
@@ -315,7 +315,7 @@ namespace ASX
 #else
 		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", ShOutputSource.c_str(), ShOutputBuild.c_str(), ShVitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
 #endif
-		if (ExecuteCMake(ConfigureCommand) != StatusCode::OK)
+		if (ExecuteCMake(Config, ConfigureCommand) != StatusCode::OK)
 		{
 #ifdef VI_MICROSOFT
 			VI_ERR("cannot configure an executable repository: make sure you vcpkg installed and VCPKG_ROOT env is set");
@@ -329,7 +329,7 @@ namespace ASX
 #else
 		String BuildCommand = Stringify::Text("cmake --build %s", ShOutputBuild.c_str());
 #endif
-		if (ExecuteCMake(BuildCommand) != StatusCode::OK)
+		if (ExecuteCMake(Config, BuildCommand) != StatusCode::OK)
 		{
 			VI_ERR("cannot build an executable repository");
 			return StatusCode::BuildError;
@@ -379,12 +379,12 @@ namespace ASX
 	{
 		return ToString((size_t)Vitex::MAJOR_VERSION) + '.' + ToString((size_t)Vitex::MINOR_VERSION) + '.' + ToString((size_t)Vitex::PATCH_VERSION) + '.' + ToString((size_t)Vitex::BUILD_VERSION);
 	}
-	StatusCode Builder::ExecuteGit(const String& Command)
+	StatusCode Builder::ExecuteGit(SystemConfig& Config, const String& Command)
 	{
 		static int IsGitInstalled = -1;
 		if (IsGitInstalled == -1)
 		{
-			IsGitInstalled = ExecuteCommand("FIND", "git", 0x1) ? 1 : 0;
+			IsGitInstalled = ExecuteCommand(Config, "FIND", "git", 0x1) ? 1 : 0;
 			if (!IsGitInstalled)
 			{
 				VI_ERR("cannot find <git> program, please make sure it is installed");
@@ -392,14 +392,14 @@ namespace ASX
 			}
 		}
 
-		return ExecuteCommand("RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
+		return ExecuteCommand(Config, "RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
-	StatusCode Builder::ExecuteCMake(const String& Command)
+	StatusCode Builder::ExecuteCMake(SystemConfig& Config, const String& Command)
 	{
 		static int IsCMakeInstalled = -1;
 		if (IsCMakeInstalled == -1)
 		{
-			IsCMakeInstalled = ExecuteCommand("FIND", "cmake", 0x0) ? 1 : 0;
+			IsCMakeInstalled = ExecuteCommand(Config, "FIND", "cmake", 0x0) ? 1 : 0;
 			if (!IsCMakeInstalled)
 			{
 				VI_ERR("cannot find <cmake> program, please make sure it is installed");
@@ -407,65 +407,90 @@ namespace ASX
 			}
 		}
 
-		return ExecuteCommand("RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
+		return ExecuteCommand(Config, "RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
-	bool Builder::ExecuteCommand(const String& Label, const String& Command, int SuccessExitCode)
+	bool Builder::ExecuteCommand(SystemConfig& Config, const String& Label, const String& Command, int SuccessExitCode)
 	{
-		const uint32_t WindowSize = 10;
-		uint32_t Height = 0, Y = 0;
-		auto* Terminal = Console::Get();
-		if (!Terminal->ReadScreen(nullptr, &Height, nullptr, &Y))
-			Height = WindowSize;
-		Height--;
-
-		uint32_t Lines = std::min<uint32_t>(Y >= Height ? 0 : Y - Height, WindowSize);
-		bool Logging = Lines > 0 && Label != "FIND", Loading = true;
 		auto Time = Schedule::GetClock();
-		uint64_t Title = Terminal->CaptureElement();
-		uint64_t Window = Logging ? Terminal->CaptureWindow(Lines) : 0;
-		std::thread Loader([Terminal, Title, &Time, &Loading, &Label, &Command]()
+		auto* Terminal = Console::Get();
+		if (Config.PrettyProgress)
 		{
-			while (Loading)
-			{
-				auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
-				Terminal->SpinningElement(Title, "> " + Label + " " + Command + " - " + ToString(Diff) + " seconds");
-				std::this_thread::sleep_for(std::chrono::milliseconds(60));
-			}
-		});
+			uint32_t WindowSize = 10, Height = 0, Y = 0;
+			if (!Terminal->ReadScreen(nullptr, &Height, nullptr, &Y))
+				Height = WindowSize;
 
-		SingleQueue<String> Messages;
-		auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, Window, Logging, &Messages](const char* Buffer, size_t Size)
-		{
-			size_t Index = Messages.size() + 1;
-			String Text = (Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size);
+			String Stage = Command;
+			Stringify::ReplaceInBetween(Stage, "\"", "\"", "<path>", false);
+			uint32_t Lines = std::min<uint32_t>(Y >= --Height ? 0 : Y - Height, WindowSize);
+			bool Logging = Lines > 0 && Label != "FIND", Loading = true;
+			uint64_t Title = Terminal->CaptureElement();
+			uint64_t Window = Logging ? Terminal->CaptureWindow(Lines) : 0;
+			std::thread Loader([Terminal, Title, &Time, &Loading, &Label, &Stage]()
+			{
+				while (Loading)
+				{
+					auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
+					Terminal->SpinningElement(Title, "> " + Label + " " + Stage + " - " + ToString(Diff) + " seconds");
+					std::this_thread::sleep_for(std::chrono::milliseconds(60));
+				}
+			});
+
+			SingleQueue<String> Messages;
+			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, Window, Logging, &Messages](const char* Buffer, size_t Size)
+			{
+				size_t Index = Messages.size() + 1;
+				String Text = (Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size);
+				if (Logging)
+				{
+					Terminal->EmplaceWindow(Window, Text);
+					std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				}
+				Messages.push(std::move(Text));
+				return true;
+			});
+
+			bool Success = ExitCode && *ExitCode == SuccessExitCode;
+			auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
+			Loading = false;
+			Loader.join();
+
+			Terminal->ReplaceElement(Title, "> " + Label + " " + Stage + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
+			Terminal->FreeElement(Title);
 			if (Logging)
+				Terminal->FreeWindow(Window, true);
+			if (!Success)
+				Terminal->WriteLine(">>> " + Label + " " + Command);
+			if (!ExitCode)
+				Messages.push(ExitCode.What() + "\n");
+
+			while (!Success && !Messages.empty())
 			{
-				Terminal->EmplaceWindow(Window, Text);
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				Terminal->Write(Messages.front());
+				Messages.pop();
 			}
-			Messages.push(std::move(Text));
-			return true;
-		});
 
-		bool Success = ExitCode && *ExitCode == SuccessExitCode;
-		auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
-		Loading = false;
-		Loader.join();
-
-		Terminal->ReplaceElement(Title, "> " + Label + " " + Command + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
-		Terminal->FreeElement(Title);
-		if (Logging)
-			Terminal->FreeWindow(Window, true);
-		if (!ExitCode)
-			Messages.push(ExitCode.What() + "\n");
-
-		while (!Success && !Messages.empty())
-		{
-			Terminal->Write(Messages.front());
-			Messages.pop();
+			return Success;
 		}
+		else
+		{
+			size_t Messages = 0;
+			Terminal->WriteLine("> " + Label + " " + Command + ": PENDING");
+			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, &Messages](const char* Buffer, size_t Size)
+			{
+				size_t Index = ++Messages;
+				Terminal->Write((Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size));
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				return true;
+			});
 
-		return Success;
+			bool Success = ExitCode && *ExitCode == SuccessExitCode;
+			auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
+			Terminal->WriteLine("> " + Label + " " + Command + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
+			if (!ExitCode)
+				Terminal->WriteLine(ExitCode.What());
+
+			return Success;
+		}
 	}
 	bool Builder::AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath)
 	{
@@ -543,13 +568,13 @@ namespace ASX
 
 		return true;
 	}
-	bool Builder::AppendVitex(const String& TargetPath)
+	bool Builder::AppendVitex(SystemConfig& Config, const String& TargetPath)
 	{
 		String SourcePath = GetGlobalVitexPath();
 		if (IsDirectoryEmpty(SourcePath))
 		{
 			OS::Directory::Patch(SourcePath);
-			if (ExecuteGit("git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") != StatusCode::OK)
+			if (ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") != StatusCode::OK)
 				return false;
 		}
 		
@@ -564,7 +589,7 @@ namespace ASX
 		String ShSourcePath = FormatDirectoryPath(SourcePath + (SourcePath.back() == '/' || SourcePath.back() == '\\' ? "." : "/."));
 		String CopyCommand = Stringify::Text("cp -a %s %s", ShSourcePath.c_str(), ShTargetPath.c_str());
 #endif
-		return ExecuteCommand("RUN", CopyCommand, 0x0);
+		return ExecuteCommand(Config, "RUN", CopyCommand, 0x0);
 	}
 	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested)
 	{
@@ -738,7 +763,7 @@ namespace ASX
 	{
 		String ConfigPermissionsArray;
 		for (auto& Item : Config.Permissions)
-			ConfigPermissionsArray += Stringify::Text("{ AccessOption::%s, %s }, ", Control::GetAsString(Item.first), Item.second ? "true" : "false");
+			ConfigPermissionsArray += Stringify::Text("{ AccessOption::%s, %s }, ", OS::Control::ToString(Item.first), Item.second ? "true" : "false");
 
 		String ConfigSettingsArray;
 		for (auto& Item : Settings)
@@ -852,66 +877,6 @@ namespace ASX
 		return Keys;
 	}
 
-	Option<AccessOption> Control::GetAsOption(const String& Option)
-	{
-		if (Option == "mem")
-			return AccessOption::Mem;
-		if (Option == "fs")
-			return AccessOption::Fs;
-		if (Option == "gz")
-			return AccessOption::Gz;
-		if (Option == "net")
-			return AccessOption::Net;
-		if (Option == "lib")
-			return AccessOption::Lib;
-		if (Option == "http")
-			return AccessOption::Http;
-		if (Option == "https")
-			return AccessOption::Https;
-		if (Option == "shell")
-			return AccessOption::Shell;
-		if (Option == "env")
-			return AccessOption::Env;
-		if (Option == "addons")
-			return AccessOption::Addons;
-		if (Option == "all")
-			return AccessOption::All;
-		return Optional::None;
-	}
-	const char* Control::GetAsString(AccessOption Option)
-	{
-		switch (Option)
-		{
-			case Vitex::Core::AccessOption::Mem:
-				return "mem";
-			case Vitex::Core::AccessOption::Fs:
-				return "fs";
-			case Vitex::Core::AccessOption::Gz:
-				return "gz";
-			case Vitex::Core::AccessOption::Net:
-				return "net";
-			case Vitex::Core::AccessOption::Lib:
-				return "lib";
-			case Vitex::Core::AccessOption::Http:
-				return "http";
-			case Vitex::Core::AccessOption::Https:
-				return "https";
-			case Vitex::Core::AccessOption::Shell:
-				return "shell";
-			case Vitex::Core::AccessOption::Env:
-				return "env";
-			case Vitex::Core::AccessOption::Addons:
-				return "addons";
-			case Vitex::Core::AccessOption::All:
-				return "all";
-			default:
-				return "";
-		}
-	}
-	const char* Control::GetOptions()
-	{
-		return "mem, fs, gz, net, lib, http, https, shell, env, addons, all";
-	}
 	bool Control::Has(SystemConfig& Config, AccessOption Option)
 	{
 		auto It = Config.Permissions.find(Option);

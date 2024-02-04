@@ -76,6 +76,7 @@ namespace ASX
 		bool Translator = false;
 		bool Interactive = false;
 		bool EssentialsOnly = true;
+		bool PrettyProgress = true;
 		bool LoadByteCode = false;
 		bool SaveByteCode = false;
 		bool SaveSourceCode = false;

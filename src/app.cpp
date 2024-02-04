@@ -350,7 +350,7 @@ namespace ASX
 				return EXIT_SUCCESS;
 			}
 			else if (Env.Output.empty())
-				return Builder::PullAddonRepository(Env) == StatusCode::OK ? (int)ExitStatus::OK : (int)ExitStatus::CommandError;
+				return Builder::PullAddonRepository(Config, Env) == StatusCode::OK ? (int)ExitStatus::OK : (int)ExitStatus::CommandError;
 
 			if (Builder::CompileIntoExecutable(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
 				return (int)ExitStatus::CommandError;
@@ -459,8 +459,9 @@ namespace ASX
 			PrintIntroduction("runtime");
 			return (int)ExitStatus::OK;
 		});
-		AddCommand("application", "--plain", "disable log colors", true, [](const String&)
+		AddCommand("application", "--plain", "show detailed log messages as is", true, [this](const String&)
 		{
+			Config.PrettyProgress = false;
 			ErrorHandling::SetFlag(LogOption::Pretty, false);
 			return (int)ExitStatus::Continue;
 		});
@@ -508,10 +509,10 @@ namespace ASX
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 			{
-				auto Option = Control::GetAsOption(Item);
+				auto Option = OS::Control::ToOption(Item);
 				if (!Option)
 				{
-					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), Control::GetOptions());
+					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), OS::Control::ToOptions());
 					return (int)ExitStatus::InputError;
 				}
 
@@ -523,10 +524,10 @@ namespace ASX
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 			{
-				auto Option = Control::GetAsOption(Item);
+				auto Option = OS::Control::ToOption(Item);
 				if (!Option)
 				{
-					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), Control::GetOptions());
+					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), OS::Control::ToOptions());
 					return (int)ExitStatus::InputError;
 				}
 
