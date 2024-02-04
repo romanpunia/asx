@@ -1,7 +1,21 @@
 <html>
     <head>
+        <!--
+            Comments written below are executable directives.
+            Directives can be executed as is or inside a comment block with additional '-' sign at both ends of block,
+            that is to not mess with syntax highlighters.
+            
+            Syntax is as follows (paths are relative to this file):
+            1. Load font face: #pragma fontface(path:string|"string"|'string', fallback:bool?, weight:string|number?)
+            2. Load file data: #include "string"|<string>
+
+            This only works when loading document is allowed to use code preprocessor.
+        -->
+        <!--- #pragma fontface(path:./sf-ui-display-regular.ttf) --->
+        <!--- #pragma fontface(path:./sf-ui-display-bold.ttf) --->
         <style>
             body {
+                /* Property @font-family is case insensitive, name should be known by user of font faces. */
                 font-family: "SF UI Display";
                 position: relative;
                 width: 100%;
@@ -43,6 +57,10 @@
                 opacity: 0.7;
             }
         </style>
+        <!--
+            Script block can be of any type but type="" works best
+            for VSCode when using AngelScript inside of block.
+        -->
         <script type="">
             import from "math";
 
@@ -74,8 +92,6 @@
         </script>
     </head>
     <body>
-		<font-face href="sf-ui-display-regular.ttf" />
-		<font-face href="sf-ui-display-regular.ttf" />
         <div class="info">
             <p>Hello, i am a simple dumb HTML page.</p>
             <button class="clickable" onclick="close_application()">Click here to close me.</button>

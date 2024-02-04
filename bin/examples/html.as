@@ -23,7 +23,7 @@ shared class runtime
     void initialize()
     {
         @context = ui_context(@self.renderer);
-        ui_document document = context.load_document("application.html");
+        ui_document document = context.load_document("application.html", true);
         if (document.is_valid())
             document.show();
         else
