@@ -853,21 +853,23 @@ namespace ASX
 			for (auto& Next : Category.second)
 			{
 				if (Next.first.size() > Max)
-					Max = Next.first.size();
+					Max = Next.first.size() + (Next.first.size() > 1 ? 2 : 1);
 			}
 		}
 
 		auto* Terminal = Console::Get();
-		Terminal->WriteLine("Usage: vi [options...]");
-		Terminal->WriteLine("       vi [options...] -f [file.as] [args...]\n");
+		Terminal->WriteLine("Usage: asx [options?...]");
+		Terminal->WriteLine("       asx [options?...] [file.as] [arguments?...]\n");
 		for (auto& Category : Commands)
 		{
 			String Name = Category.first;
 			Terminal->WriteLine("Category: " + Stringify::ToUpper(Name));
 			for (auto& Next : Category.second)
 			{
-				size_t Spaces = Max - Next.first.size();
-				Terminal->Write("    " + Next.first);
+				size_t Spaces = Max - (Next.first.size() + (Next.first.size() > 1 ? 2 : 1));
+				Terminal->Write("    ");
+				Terminal->Write(Next.first.size() > 1 ? "--" : "-");
+				Terminal->Write(Next.first);
 				for (size_t i = 0; i < Spaces; i++)
 					Terminal->Write(" ");
 				Terminal->WriteLine(" - " + Next.second.Description);
