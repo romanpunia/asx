@@ -8,10 +8,19 @@
 
 namespace ASX
 {
+	static String FormatDirectoryPath(const String& Value)
+	{
+		String NewValue = "\"" + Value;
+		if (NewValue.back() == '\\')
+			NewValue.back() = '/';
+		NewValue += '\"';
+		return NewValue;
+	}
+
 	StatusCode Builder::CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output)
 	{
 		String LocalTarget = Env.Registry + Name, RemoteTarget = Name.substr(1);
-		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit("git clone " REPOSITORY_SOURCE + RemoteTarget + " " + LocalTarget) != StatusCode::OK)
+		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit("git clone " REPOSITORY_SOURCE + RemoteTarget + " \"" + LocalTarget + "\"") != StatusCode::OK)
 		{
 			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
 			return StatusCode::CommandError;
@@ -27,6 +36,12 @@ namespace ASX
 		String Type = Info->GetVar("type").GetBlob();
 		if (Type == "native")
 		{
+			if (!Control::Has(Config, AccessOption::Lib))
+			{
+				VI_ERR("addon <%s> cannot be created: permission denied", Name.c_str());
+				return StatusCode::ConfigurationError;
+			}
+
 			String VitexDirectory = GetGlobalVitexPath();
 			if (!AppendVitex(String()))
 			{
@@ -35,11 +50,14 @@ namespace ASX
 			}
 
 			String BuildDirectory = GetBuildingDirectory(Env, LocalTarget);
+			String ShLocalTarget = FormatDirectoryPath(LocalTarget);
+			String ShBuildDirectory = FormatDirectoryPath(BuildDirectory);
+			String ShVitexDirectory = FormatDirectoryPath(VitexDirectory);
 			OS::Directory::Remove(BuildDirectory.c_str());
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-			String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i", LocalTarget.c_str(), BuildDirectory.c_str(), VitexDirectory.c_str(), VI_CXX);
+			String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i", ShLocalTarget.c_str(), ShBuildDirectory.c_str(), ShVitexDirectory.c_str(), VI_CXX);
 #else
-			String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", LocalTarget.c_str(), BuildDirectory.c_str(), VitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
+			String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", ShLocalTarget.c_str(), ShBuildDirectory.c_str(), ShVitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
 #endif
 			if (ExecuteCMake(ConfigureCommand) != StatusCode::OK)
 			{
@@ -47,9 +65,9 @@ namespace ASX
 				return StatusCode::ConfigurationError;
 			}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-			String BuildCommand = Stringify::Text("cmake --build %s --config %s", BuildDirectory.c_str(), GetBuildType(Config));
+			String BuildCommand = Stringify::Text("cmake --build %s --config %s", ShBuildDirectory.c_str(), GetBuildType(Config));
 #else
-			String BuildCommand = Stringify::Text("cmake --build %s", BuildDirectory.c_str());
+			String BuildCommand = Stringify::Text("cmake --build %s", ShBuildDirectory.c_str());
 #endif
 			if (ExecuteCMake(BuildCommand) != StatusCode::OK)
 			{
@@ -234,6 +252,13 @@ namespace ASX
 			}
 		}
 
+		auto SourcePath = GetGlobalVitexPath();
+		if (!IsDirectoryEmpty(SourcePath) && !Pull(SourcePath))
+		{
+			VI_ERR("cannot pull source repository: %s", SourcePath.c_str());
+			return StatusCode::CommandError;
+		}
+
 		return StatusCode::OK;
 	}
 	StatusCode Builder::CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings)
@@ -281,10 +306,14 @@ namespace ASX
 			VI_ERR("cannot embed the dependencies: make sure application has file read/write permissions");
 			return StatusCode::ConfigurationError;
 		}
+
+		String ShOutputSource = FormatDirectoryPath(Env.Output);
+		String ShOutputBuild = FormatDirectoryPath(Env.Output + "make");
+		String ShVitexDirectory = FormatDirectoryPath(VitexDirectory);
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DVI_DIRECTORY=%s -DVI_CXX=%i", Env.Output.c_str(), Env.Output.c_str(), VitexDirectory.c_str(), VI_CXX);
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i", ShOutputSource.c_str(), ShOutputBuild.c_str(), ShVitexDirectory.c_str(), VI_CXX);
 #else
-		String ConfigureCommand = Stringify::Text("cmake -S %s -B %smake -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", Env.Output.c_str(), Env.Output.c_str(), VitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
+		String ConfigureCommand = Stringify::Text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", ShOutputSource.c_str(), ShOutputBuild.c_str(), ShVitexDirectory.c_str(), VI_CXX, GetBuildType(Config));
 #endif
 		if (ExecuteCMake(ConfigureCommand) != StatusCode::OK)
 		{
@@ -296,9 +325,9 @@ namespace ASX
 			return StatusCode::ConfigurationError;
 		}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		String BuildCommand = Stringify::Text("cmake --build %smake --config %s", Env.Output.c_str(), GetBuildType(Config));
+		String BuildCommand = Stringify::Text("cmake --build %s --config %s", ShOutputBuild.c_str(), GetBuildType(Config));
 #else
-		String BuildCommand = Stringify::Text("cmake --build %smake", Env.Output.c_str());
+		String BuildCommand = Stringify::Text("cmake --build %s", ShOutputBuild.c_str());
 #endif
 		if (ExecuteCMake(BuildCommand) != StatusCode::OK)
 		{
@@ -520,16 +549,20 @@ namespace ASX
 		if (IsDirectoryEmpty(SourcePath))
 		{
 			OS::Directory::Patch(SourcePath);
-			if (ExecuteGit("git clone --recursive " REPOSITORY_TARGET_VITEX " " + SourcePath) != StatusCode::OK)
+			if (ExecuteGit("git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") != StatusCode::OK)
 				return false;
 		}
 		
 		if (TargetPath.empty() || TargetPath == SourcePath)
 			return true;
+
+		String ShTargetPath = FormatDirectoryPath(TargetPath + (TargetPath.back() == '/' || TargetPath.back() == '\\' ? "" : "/"));
 #ifdef VI_MICROSOFT
-		String CopyCommand = Stringify::Text("xcopy \"%s\" \"%s%s\" /s /h /e /k /f /c > nul", SourcePath.c_str(), TargetPath.c_str(), TargetPath.back() == '/' || TargetPath.back() == '\\' ? "" : "/");
+		String ShSourcePath = FormatDirectoryPath(SourcePath + (SourcePath.back() == '/' || SourcePath.back() == '\\' ? "" : "/"));
+		String CopyCommand = Stringify::Text("xcopy %s %s /s /h /e /k /f /c > nul", ShSourcePath.c_str(), ShTargetPath.c_str());
 #else
-		String CopyCommand = Stringify::Text("cp -a \"%s%s.\" \"%s%s\"", SourcePath.c_str(), SourcePath.back() == '/' ? "" : "/", TargetPath.c_str(), TargetPath.back() == '/' ? "" : "/");
+		String ShSourcePath = FormatDirectoryPath(SourcePath + (SourcePath.back() == '/' || SourcePath.back() == '\\' ? "." : "/."));
+		String CopyCommand = Stringify::Text("cp -a %s %s", ShSourcePath.c_str(), ShTargetPath.c_str());
 #endif
 		return ExecuteCommand("RUN", CopyCommand, 0x0);
 	}
@@ -703,6 +736,10 @@ namespace ASX
 	}
 	UnorderedMap<String, String> Builder::GetBuildKeys(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings, bool IsAddon)
 	{
+		String ConfigPermissionsArray;
+		for (auto& Item : Config.Permissions)
+			ConfigPermissionsArray += Stringify::Text("{ AccessOption::%s, %s }, ", Control::GetAsString(Item.first), Item.second ? "true" : "false");
+
 		String ConfigSettingsArray;
 		for (auto& Item : Settings)
 		{
@@ -798,16 +835,12 @@ namespace ASX
 
 		UnorderedMap<String, String> Keys;
 		Keys["BUILDER_CONFIG_INSTALL"] = Schema::ToJSON(ConfigInstallArray);
+		Keys["BUILDER_CONFIG_PERMISSIONS"] = ConfigPermissionsArray;
 		Keys["BUILDER_CONFIG_SETTINGS"] = ConfigSettingsArray;
 		Keys["BUILDER_CONFIG_LIBRARIES"] = ConfigLibrariesArray;
 		Keys["BUILDER_CONFIG_FUNCTIONS"] = ConfigFunctionsArray;
 		Keys["BUILDER_CONFIG_ADDONS"] = ConfigSystemAddonsArray;
 		Keys["BUILDER_CONFIG_TS_IMPORTS"] = Config.TsImports ? "true" : "false";
-		Keys["BUILDER_CONFIG_SYSTEM_ADDONS"] = Config.Addons ? "true" : "false";
-		Keys["BUILDER_CONFIG_CLIBRARIES"] = Config.CLibraries ? "true" : "false";
-		Keys["BUILDER_CONFIG_CFUNCTIONS"] = Config.CFunctions ? "true" : "false";
-		Keys["BUILDER_CONFIG_FILES"] = Config.Files ? "true" : "false";
-		Keys["BUILDER_CONFIG_REMOTES"] = Config.Remotes ? "true" : "false";
 		Keys["BUILDER_CONFIG_TRANSLATOR"] = Config.Translator ? "true" : "false";
 		Keys["BUILDER_CONFIG_ESSENTIALS_ONLY"] = Config.EssentialsOnly ? "true" : "false";
 		Keys["BUILDER_VITEX_URL"] = ConfigSystemAddonsArray;
@@ -817,6 +850,72 @@ namespace ASX
 		Keys["BUILDER_MODE"] = Env.Mode;
 		Keys["BUILDER_OUTPUT"] = Env.Name.empty() ? "build_target" : Env.Name;
 		return Keys;
+	}
+
+	Option<AccessOption> Control::GetAsOption(const String& Option)
+	{
+		if (Option == "mem")
+			return AccessOption::Mem;
+		if (Option == "fs")
+			return AccessOption::Fs;
+		if (Option == "gz")
+			return AccessOption::Gz;
+		if (Option == "net")
+			return AccessOption::Net;
+		if (Option == "lib")
+			return AccessOption::Lib;
+		if (Option == "http")
+			return AccessOption::Http;
+		if (Option == "https")
+			return AccessOption::Https;
+		if (Option == "shell")
+			return AccessOption::Shell;
+		if (Option == "env")
+			return AccessOption::Env;
+		if (Option == "addons")
+			return AccessOption::Addons;
+		if (Option == "all")
+			return AccessOption::All;
+		return Optional::None;
+	}
+	const char* Control::GetAsString(AccessOption Option)
+	{
+		switch (Option)
+		{
+			case Vitex::Core::AccessOption::Mem:
+				return "mem";
+			case Vitex::Core::AccessOption::Fs:
+				return "fs";
+			case Vitex::Core::AccessOption::Gz:
+				return "gz";
+			case Vitex::Core::AccessOption::Net:
+				return "net";
+			case Vitex::Core::AccessOption::Lib:
+				return "lib";
+			case Vitex::Core::AccessOption::Http:
+				return "http";
+			case Vitex::Core::AccessOption::Https:
+				return "https";
+			case Vitex::Core::AccessOption::Shell:
+				return "shell";
+			case Vitex::Core::AccessOption::Env:
+				return "env";
+			case Vitex::Core::AccessOption::Addons:
+				return "addons";
+			case Vitex::Core::AccessOption::All:
+				return "all";
+			default:
+				return "";
+		}
+	}
+	const char* Control::GetOptions()
+	{
+		return "mem, fs, gz, net, lib, http, https, shell, env, addons, all";
+	}
+	bool Control::Has(SystemConfig& Config, AccessOption Option)
+	{
+		auto It = Config.Permissions.find(Option);
+		return It != Config.Permissions.end() ? It->second : OS::Control::Has(Option);
 	}
 
 	Option<String> Templates::Fetch(const UnorderedMap<String, String>& Keys, const String& Path)

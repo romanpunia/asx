@@ -40,7 +40,12 @@ class runtime
 
         scene_entity@ camera = self.scene.get_camera_entity();
         camera.add_component(free_look_component(camera));
-        camera.add_component(fly_component(camera));
+
+        fly_component@ fly = fly_component(camera);
+        fly.moving.faster /= 4.0;
+        fly.moving.normal /= 4.0;
+        fly.moving.slower /= 4.0;
+        camera.add_component(@fly);
 
         render_system@ system = self.scene.get_renderer();
         system.add_renderer(skin_renderer(system));

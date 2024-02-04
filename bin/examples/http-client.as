@@ -20,7 +20,7 @@ int main()
         {
             /* send request data and fetch response body */
             http::request_frame request;
-            request.uri = "/posts/" + to_string(i + 1);
+            request.location = "/posts/" + to_string(i + 1);
 
             /* before sending another request we must fetch response body */
             co_await client.send_fetch(request);

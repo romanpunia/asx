@@ -190,6 +190,7 @@ namespace ASX
 				return (int)ExitStatus::LoadingError;
 			}
 
+			Runtime::ConfigureSystem(Config);
 			Status = Unit->Compile().Get();
 			if (!Status)
 			{
@@ -304,6 +305,7 @@ namespace ASX
 				return (int)ExitStatus::LoadingError;
 			}
 
+			Runtime::ConfigureSystem(Config);
 			Status = Unit->Compile().Get();
 			if (!Status)
 			{
@@ -316,6 +318,7 @@ namespace ASX
 			ByteCodeInfo Info;
 			Info.Data.insert(Info.Data.begin(), Env.Program.begin(), Env.Program.end());
 
+			Runtime::ConfigureSystem(Config);
 			Status = Unit->LoadByteCode(&Info).Get();
 			if (!Status)
 			{
@@ -501,34 +504,34 @@ namespace ASX
 			Config.SaveSourceCode = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "--oimports", "disable ts addon imports", true, [this](const String&)
+		AddCommand("execution", "-D, --deny", "deny permissions by name [expects: plus(+) separated list]", false, [this](const String& Value)
 		{
-			Config.TsImports = false;
+			for (auto& Item : Stringify::Split(Value, '+'))
+			{
+				auto Option = Control::GetAsOption(Item);
+				if (!Option)
+				{
+					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), Control::GetOptions());
+					return (int)ExitStatus::InputError;
+				}
+
+				Config.Permissions[*Option] = false;
+			}
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "--oaddons", "disable system addon imports", true, [this](const String&)
+		AddCommand("execution", "-A, --allow", "allow permissions by name [expects: plus(+) separated list]", false, [this](const String& Value)
 		{
-			Config.Addons = false;
-			return (int)ExitStatus::Continue;
-		});
-		AddCommand("execution", "--oclibraries", "disable clibrary and external addon imports", true, [this](const String&)
-		{
-			Config.CLibraries = false;
-			return (int)ExitStatus::Continue;
-		});
-		AddCommand("execution", "--ocfunctions", "disable clibrary cfunction imports", true, [this](const String&)
-		{
-			Config.CFunctions = false;
-			return (int)ExitStatus::Continue;
-		});
-		AddCommand("execution", "--ofiles", "disable file imports", true, [this](const String&)
-		{
-			Config.Files = false;
-			return (int)ExitStatus::Continue;
-		});
-		AddCommand("execution", "--oremotes", "disable remote imports", true, [this](const String&)
-		{
-			Config.Remotes = false;
+			for (auto& Item : Stringify::Split(Value, '+'))
+			{
+				auto Option = Control::GetAsOption(Item);
+				if (!Option)
+				{
+					VI_ERR("os access control option not found: %s (options = %s)", Item.c_str(), Control::GetOptions());
+					return (int)ExitStatus::InputError;
+				}
+
+				Config.Permissions[*Option] = true;
+			}
 			return (int)ExitStatus::Continue;
 		});
 		AddCommand("building", "--target", "set a CMake name for output target [expects: name]", false, [this](const String& Name)
@@ -934,9 +937,9 @@ namespace ASX
 		if (File.Module.empty() || File.Module.front() != '@')
 			return IncludeType::Unchanged;
 
-		if (!Config.CFunctions || !Config.Remotes)
+		if (!Control::Has(Config, AccessOption::Https))
 		{
-			VI_ERR("cannot import addon <%s> from remote repository: not allowed", File.Module.c_str());
+			VI_ERR("cannot import addon <%s> from remote repository: permission denied", File.Module.c_str());
 			return IncludeType::Error;
 		}
 

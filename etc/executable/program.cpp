@@ -84,15 +84,11 @@ int main(int argc, char* argv[])
 		Args.push_back(argv[i]);
 
 	SystemConfig Config;
+	Config.Permissions = { {{BUILDER_CONFIG_PERMISSIONS}} };
 	Config.Libraries = { {{BUILDER_CONFIG_LIBRARIES}} };
 	Config.Functions = { {{BUILDER_CONFIG_FUNCTIONS}} };
 	Config.SystemAddons = { {{BUILDER_CONFIG_ADDONS}} };
-	Config.CLibraries = {{BUILDER_CONFIG_CLIBRARIES}};
-	Config.CFunctions = {{BUILDER_CONFIG_CFUNCTIONS}};
 	Config.TsImports = {{BUILDER_CONFIG_TS_IMPORTS}};
-	Config.Addons = {{BUILDER_CONFIG_SYSTEM_ADDONS}};
-	Config.Files = {{BUILDER_CONFIG_FILES}};
-	Config.Remotes = {{BUILDER_CONFIG_REMOTES}};
 	Config.Translator = {{BUILDER_CONFIG_TRANSLATOR}};
 	Config.EssentialsOnly = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
     setup_program(Env);
@@ -114,6 +110,7 @@ int main(int argc, char* argv[])
 		if (ExitCode != (int)ExitStatus::OK)
 			goto FinishProgram;
 
+		Runtime::ConfigureSystem(Config);
 		if (!Unit->Prepare(Env.Module))
 		{
 			VI_ERR("cannot prepare <%s> module scope", Env.Module);

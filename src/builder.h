@@ -61,6 +61,15 @@ namespace ASX
 		static UnorderedMap<String, String> GetBuildKeys(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings, bool IsAddon);
 	};
 
+	class Control
+	{
+	public:
+		static Option<AccessOption> GetAsOption(const String& Option);
+		static const char* GetAsString(AccessOption Option);
+		static const char* GetOptions();
+		static bool Has(SystemConfig& Config, AccessOption Option);
+	};
+
 	class Templates
 	{
 	private:

@@ -67,15 +67,11 @@ namespace ASX
 	struct SystemConfig
 	{
 		UnorderedMap<String, std::pair<String, String>> Functions;
+		UnorderedMap<AccessOption, bool> Permissions;
 		Vector<std::pair<String, bool>> Libraries;
 		Vector<std::pair<String, int32_t>> Settings;
 		Vector<String> SystemAddons;
 		bool TsImports = true;
-		bool Addons = true;
-		bool CLibraries = true;
-		bool CFunctions = true;
-		bool Files = true;
-		bool Remotes = true;
 		bool Debug = false;
 		bool Translator = false;
 		bool Interactive = false;
@@ -91,25 +87,16 @@ namespace ASX
 	class Runtime
 	{
 	public:
+		static void ConfigureSystem(SystemConfig& Config)
+		{
+			for (auto& Option : Config.Permissions)
+				OS::Control::Set(Option.first, Option.second);
+		}
 		static bool ConfigureContext(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, Compiler* ThisCompiler)
 		{
-			uint32_t ImportOptions = 0;
-			if (Config.Addons)
-				ImportOptions |= (uint32_t)Imports::Addons;
-			if (Config.CLibraries)
-				ImportOptions |= (uint32_t)Imports::CLibraries;
-			if (Config.CFunctions)
-				ImportOptions |= (uint32_t)Imports::CFunctions;
-			if (Config.Files)
-				ImportOptions |= (uint32_t)Imports::Files;
-			if (Config.Remotes)
-				ImportOptions |= (uint32_t)Imports::Remotes;
-
 			VM->SetTsImports(Config.TsImports);
 			VM->SetModuleDirectory(OS::Path::GetDirectory(Env.Path.c_str()));
 			VM->SetPreserveSourceCode(Config.SaveSourceCode);
-			VM->SetImports(ImportOptions);
-
 			if (Config.Translator)
 				VM->SetByteCodeTranslator((uint32_t)TranslationOptions::Optimal);
 

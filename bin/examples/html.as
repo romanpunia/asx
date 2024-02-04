@@ -9,7 +9,7 @@ import from "engine";
 shared class runtime
 {
     application@ self;
-    gui_context@ context;
+    ui_context@ context;
 
     runtime(application_desc&in init)
     {
@@ -18,14 +18,11 @@ shared class runtime
         self.set_on_dispatch(dispatch_callback(this.dispatch));
         self.set_on_publish(publish_callback(this.publish));
         self.set_on_window_event(window_event_callback(this.window_event));
-        self.set_on_fetch_gui(fetch_gui_callback(this.get_gui));
+        self.set_on_fetch_ui(fetch_ui_callback(this.get_ui));
     }
     void initialize()
     {
-        @context = gui_context(@self.renderer);
-        context.load_font_face("sf-ui-display-regular.ttf");
-        context.load_font_face("sf-ui-display-bold.ttf");
-        
+        @context = ui_context(@self.renderer);
         ui_document document = context.load_document("application.html");
         if (document.is_valid())
             document.show();
@@ -57,7 +54,7 @@ shared class runtime
                 break;
         }
     }
-    gui_context@ get_gui()
+    ui_context@ get_ui()
     {
         return @context;
     }

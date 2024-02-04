@@ -19,7 +19,7 @@ int main(string[]@ args)
     string password = os::process::get_env("DB_PASSWORD");
     string database = "application";
     
-    pdb::host_address address = pdb::host_address::from_uri("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
+    pdb::host_address address = pdb::host_address::from_url("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
     pdb::cluster@ connection = pdb::cluster();
     try
     {
