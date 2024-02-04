@@ -485,7 +485,7 @@ namespace ASX
 		}
 
 		String Data = Codec::Base64Encode(Info.Data.data(), Info.Data.size());
-		if (TargetFile->Write(Data.data(), Data.size()) != Data.size())
+		if (TargetFile->Write(Data.data(), Data.size()).Or(0) != Data.size())
 		{
 			VI_ERR("cannot write the byte code file: %s", Path.c_str());
 			VI_RELEASE(TargetFile);

@@ -829,8 +829,6 @@ namespace ASX
 		Terminal->Write(ToString((uint32_t)Vitex::MINOR_VERSION));
 		Terminal->WriteBuffer(".");
 		Terminal->Write(ToString((uint32_t)Vitex::PATCH_VERSION));
-		Terminal->WriteBuffer("/");
-		Terminal->Write(ToString((uint32_t)Vitex::BUILD_VERSION));
 		Terminal->WriteBuffer(" [");
 		Terminal->WriteBuffer(Lib->GetCompiler());
 		Terminal->WriteBuffer(" ");
