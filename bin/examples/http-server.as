@@ -12,9 +12,7 @@ int main()
     
     http::map_router@ router = http::map_router();
     router.listen("0.0.0.0", 8080);
-    
-    http::site_entry@ site = router.site("*");
-    site.get("/", function(http::connection@ base)
+    router.get("/", function(http::connection@ base)
     {
         /* Set content type of text */
         base.response.set_header("content-type", "text/plain");
@@ -22,21 +20,43 @@ int main()
         /* Set content text message */
         base.response.content.assign("Hello, World!");
 
-        /* Return result */
-        base.finish(200);
+        /* Build, send and finalize result */
+        base.next(200);
     });
-    site.post("/fetch", function(http::connection@ base)
+    router.get("/chunked", function(http::connection@ base)
     {
         /* Set content type of text */
+        base.response.set_header("content-type", "text/plain");
+        
+        try
+        {
+            /* Send headers for 200 response, set chunked transfer encoding (if not specified not to do this) */
+            co_await base.send_headers(200);
+
+            /* Send next chunk */
+            for (usize i = 0; i < 1024; i++)
+                co_await base.send_chunk("chunk: " + to_string(i + 1) + "\n");
+            
+            /* Send last chunk */
+            co_await base.send_chunk(string());
+        }
+        catch { }
+        
+        /* Finalize result */
+        base.next();
+    });
+    router.post("/fetch", function(http::connection@ base)
+    {
+        /* Set content type from request */
         base.response.set_header("content-type", base.request.get_header("content-type"));
 
-        /* Set content text message */
+        /* Set content text from request */
         base.response.content.assign(co_await base.fetch());
 
-        /* Return result */
-        base.finish(200);
+        /* Build, send and finalize result */
+        base.next(200);
     });
-    site.post("/store", function(http::connection@ base)
+    router.post("/store", function(http::connection@ base)
     {
         /* Prepare and store all possible files to local "temp" directory */
         http::resource_info[]@ resources = co_await base.store();
@@ -57,8 +77,9 @@ int main()
             }
         }
         catch { }
-        /* Finish with success */
-        base.finish(204);
+
+        /* Build, send and finalize result */
+        base.next(204);
     });
 
     @server = http::server();

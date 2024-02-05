@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Minimlist chat App</title>
+    </head>
+    <body style="background-color: #101010; color: white">
+        <div class="container">
+            <p class="msg">Messages:</p>
+            <div id="messages" class="messages"></div>
+            <form id="formation" class="formation">
+                <input type="text" placeholder="Send message" id="input" />
+                <input type="button" value="Send" onclick="send()">
+            </form>
+        </div>
+        <script type="text/javascript">
+            function dconnect(count)
+            {
+                for (let i = 0; i < count; i++)
+                {
+                    const socket = new WebSocket(`ws://127.0.0.1:8080`);
+                    socket.addEventListener("open", event =>
+                    {
+                        console.log('#' + i + ' CONNECT OK');
+                        setTimeout(() => socket.close(), 300);
+                    });
+                    socket.addEventListener("close", event => console.log('#' + i + ' DISCONNECT OK'));
+                    socket.onmessage = (message) => console.log('#' + i + ' MESSAGE: "' + message.data + '"');
+                }
+            }
+            function toggle()
+            {
+                if (window.socket != null)
+                {
+                    window.socket.close();
+                    window.socket = null;
+                    return;
+                }
+
+                const socket = new WebSocket(`ws://127.0.0.1:8080`);
+                socket.addEventListener("open", event => window.socket = socket);
+                socket.onmessage = (message) =>
+                {
+                    const target = document.createElement('div');
+                    target.innerHTML = message.data;
+                    document.getElementById('messages').appendChild(target);
+                };
+            }
+            function send(event)
+            {
+                if (!window.socket)
+                    return;
+
+                const message = document.getElementById('input');
+                window.socket.send(message.value);
+
+                const target = document.createElement('div');
+                target.innerHTML = message.value;
+                document.getElementById('messages').appendChild(target);
+                message.value = '';
+            }
+            
+            window.socket = null;
+            toggle();
+        </script>
+    </body>
+</html>
