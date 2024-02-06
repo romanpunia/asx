@@ -178,7 +178,7 @@ namespace ASX
 			VM->PerformFullGarbageCollection();
 			ApplyContextExit(nullptr);
 		}
-		static Function GetEntrypoint(EnvironmentConfig& Env, ProgramEntrypoint& Entrypoint, Compiler* Unit)
+		static Function GetEntrypoint(EnvironmentConfig& Env, ProgramEntrypoint& Entrypoint, Compiler* Unit, bool Silent = false)
 		{
 			Function MainReturnsWithArgs = Unit->GetModule().GetFunctionByDecl(Entrypoint.ReturnsWithArgs);
 			Function MainReturns = Unit->GetModule().GetFunctionByDecl(Entrypoint.Returns);
@@ -186,7 +186,8 @@ namespace ASX
 			if (MainReturnsWithArgs.IsValid() || MainReturns.IsValid() || MainSimple.IsValid())
 				return MainReturnsWithArgs.IsValid() ? MainReturnsWithArgs : (MainReturns.IsValid() ? MainReturns : MainSimple);
 
-			VI_ERR("module %s must contain either: <%s>, <%s> or <%s>", Env.Module, Entrypoint.ReturnsWithArgs, Entrypoint.Returns, Entrypoint.Simple);
+			if (!Silent)
+				VI_ERR("module %s must contain either: <%s>, <%s> or <%s>", Env.Module, Entrypoint.ReturnsWithArgs, Entrypoint.Returns, Entrypoint.Simple);
 			return Function(nullptr);
 		}
 		static Compiler* GetCompiler()

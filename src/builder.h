@@ -37,7 +37,7 @@ namespace ASX
 		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath);
 		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const String& Path);
 		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const String& TargetDirectory);
-		static bool AppendVitex(SystemConfig& Config, const String& TargetPath);
+		static bool AppendVitex(SystemConfig& Config);
 		static bool IsUsingCompression(VirtualMachine* VM);
 		static bool IsUsingSchemas(VirtualMachine* VM);
 		static bool IsUsingCrypto(VirtualMachine* VM);

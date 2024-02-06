@@ -43,7 +43,7 @@ namespace ASX
 			}
 
 			String VitexDirectory = GetGlobalVitexPath();
-			if (!AppendVitex(Config, String()))
+			if (!AppendVitex(Config))
 			{
 				VI_ERR("addon <%s> cannot be created: global target cannot be built", Name.c_str());
 				return StatusCode::ConfigurationError;
@@ -176,7 +176,7 @@ namespace ASX
 		}
 		else if (Env.Mode == "native")
 		{
-			if (!AppendVitex(Config, Env.Addon + "deps/vitex"))
+			if (!AppendVitex(Config))
 			{
 				VI_ERR("cannot clone executable repository");
 				return StatusCode::CommandError;
@@ -264,7 +264,7 @@ namespace ASX
 	StatusCode Builder::CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings)
 	{
 		String VitexDirectory = GetGlobalVitexPath();
-		if (!AppendVitex(Config, String()))
+		if (!AppendVitex(Config))
 		{
 			VI_ERR("cannot clone executable repository");
 			return StatusCode::CommandError;
@@ -568,28 +568,14 @@ namespace ASX
 
 		return true;
 	}
-	bool Builder::AppendVitex(SystemConfig& Config, const String& TargetPath)
+	bool Builder::AppendVitex(SystemConfig& Config)
 	{
 		String SourcePath = GetGlobalVitexPath();
-		if (IsDirectoryEmpty(SourcePath))
-		{
-			OS::Directory::Patch(SourcePath);
-			if (ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") != StatusCode::OK)
-				return false;
-		}
-		
-		if (TargetPath.empty() || TargetPath == SourcePath)
+		if (!IsDirectoryEmpty(SourcePath))
 			return true;
 
-		String ShTargetPath = FormatDirectoryPath(TargetPath + (TargetPath.back() == '/' || TargetPath.back() == '\\' ? "" : "/"));
-#ifdef VI_MICROSOFT
-		String ShSourcePath = FormatDirectoryPath(SourcePath + (SourcePath.back() == '/' || SourcePath.back() == '\\' ? "" : "/"));
-		String CopyCommand = Stringify::Text("xcopy %s %s /s /h /e /k /f /c > nul", ShSourcePath.c_str(), ShTargetPath.c_str());
-#else
-		String ShSourcePath = FormatDirectoryPath(SourcePath + (SourcePath.back() == '/' || SourcePath.back() == '\\' ? "." : "/."));
-		String CopyCommand = Stringify::Text("cp -a %s %s", ShSourcePath.c_str(), ShTargetPath.c_str());
-#endif
-		return ExecuteCommand(Config, "RUN", CopyCommand, 0x0);
+		OS::Directory::Patch(SourcePath);
+		return ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") == StatusCode::OK;
 	}
 	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested)
 	{

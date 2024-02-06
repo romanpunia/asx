@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-set(VI_DIRECTORY {{BUILDER_VITEX_PATH}} CACHE STRING "-")
+set(VI_DIRECTORY "{{BUILDER_VITEX_PATH}}" CACHE STRING "-")
 {{BUILDER_FEATURES}}
 include(${VI_DIRECTORY}/deps/toolchain.cmake)
 project({{BUILDER_OUTPUT}})

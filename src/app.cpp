@@ -15,7 +15,7 @@ namespace ASX
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;
 #endif
-		Config.EssentialsOnly = !Env.Commandline.Has("game", "g");
+		Config.EssentialsOnly = !Env.Commandline.Has("game", "g") && !Env.Commandline.Has("interactive", "I");
 		Config.Install = Env.Commandline.Has("install", "i") || Env.Commandline.Has("target");
 	}
 	Environment::~Environment()
@@ -41,26 +41,16 @@ namespace ASX
 			if (Next.first == "__path__")
 				continue;
 
-			bool HasCommand = false;
-			for (auto& Category : Commands)
-			{
-				auto It = Category.second.find(Next.first);
-				if (It == Category.second.end() || !It->second.Callback)
-					continue;
-
-				int ExitCode = It->second.Callback(Next.second);
-				if (ExitCode != (int)ExitStatus::Continue)
-					return ExitCode;
-
-				HasCommand = true;
-				break;
-			}
-
-			if (!HasCommand)
+			auto* Command = FindArgument(Next.first);
+			if (!Command)
 			{
 				VI_ERR("command <%s> is not a valid operation", Next.first.c_str());
 				return (int)ExitStatus::InvalidCommand;
 			}
+
+			int ExitCode = Command->Callback(Next.second);
+			if (ExitCode != (int)ExitStatus::Continue)
+				return ExitCode;
 		}
 
 		if (!Env.Commandline.Params.empty())
@@ -104,37 +94,13 @@ namespace ASX
 				return (int)ExitStatus::InputError;
 			}
 		}
-
-		if (!Env.Addon.empty())
+		else if (!Env.Addon.empty())
 		{
 			if (Builder::InitializeIntoAddon(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
 				return (int)ExitStatus::CommandError;
 
-			Terminal->WriteLine("Initialized addon directory: " + Env.Addon);
+			Terminal->WriteLine("Initialized " + Env.Mode + " addon: " + Env.Addon);
 			return (int)ExitStatus::OK;
-		}
-		else if (Config.Interactive)
-		{
-			if (Env.Path.empty())
-				Env.Path = *OS::Directory::GetWorking();
-
-			if (Config.Debug)
-			{
-				VI_ERR("invalid option for interactive mode: --debug");
-				return (int)ExitStatus::InvalidCommand;
-			}
-
-			if (Config.SaveByteCode)
-			{
-				VI_ERR("invalid option for interactive mode: --save");
-				return (int)ExitStatus::InvalidCommand;
-			}
-
-			if (Config.LoadByteCode)
-			{
-				VI_ERR("invalid option for interactive mode: --bytecode");
-				return (int)ExitStatus::InvalidCommand;
-			}
 		}
 
 		Unit = VM->CreateCompiler();
@@ -167,8 +133,45 @@ namespace ASX
 		}
 
 		Context = VM->RequestContext();
+		if (!Env.Program.empty())
+		{
+			if (!Config.LoadByteCode)
+			{
+				Status = Unit->LoadCode(Env.Path, Env.Program.c_str(), Env.Program.size());
+				if (!Status)
+				{
+					VI_ERR("cannot load <%s> module script code\n  %s", Env.Module, Status.Error().what());
+					return (int)ExitStatus::LoadingError;
+				}
+
+				Runtime::ConfigureSystem(Config);
+				Status = Unit->Compile().Get();
+				if (!Status)
+				{
+					VI_ERR("cannot compile <%s> module\n  %s", Env.Module, Status.Error().what());
+					return (int)ExitStatus::CompilerError;
+				}
+			}
+			else
+			{
+				ByteCodeInfo Info;
+				Info.Data.insert(Info.Data.begin(), Env.Program.begin(), Env.Program.end());
+
+				Runtime::ConfigureSystem(Config);
+				Status = Unit->LoadByteCode(&Info).Get();
+				if (!Status)
+				{
+					VI_ERR("cannot load <%s> module bytecode\n  %s", Env.Module, Status.Error().what());
+					return (int)ExitStatus::LoadingError;
+				}
+			}
+		}
+
 		if (Config.Interactive)
 		{
+			if (Env.Path.empty())
+				Env.Path = *OS::Directory::GetWorking();
+
 			String Data, Multidata;
 			Data.reserve(1024 * 1024);
 			VM->ImportSystemAddon("*");
@@ -182,21 +185,25 @@ namespace ASX
 			Env.Path += Env.Module;
 			Debugger->SetEngine(VM);
 
-			Status = Unit->LoadCode(Env.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1);
-			if (!Status)
+			Function Main = Runtime::GetEntrypoint(Env, Entrypoint, Unit, true);
+			if (!Main.IsValid())
 			{
-				VI_ERR("cannot load default entrypoint for interactive mode\n  %s", Status.Error().what());
-				VI_RELEASE(Debugger);
-				return (int)ExitStatus::LoadingError;
-			}
+				Status = Unit->LoadCode(Env.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1);
+				if (!Status)
+				{
+					VI_ERR("cannot load default entrypoint for interactive mode\n  %s", Status.Error().what());
+					VI_RELEASE(Debugger);
+					return (int)ExitStatus::LoadingError;
+				}
 
-			Runtime::ConfigureSystem(Config);
-			Status = Unit->Compile().Get();
-			if (!Status)
-			{
-				VI_ERR("cannot compile default module for interactive mode\n  %s", Status.Error().what());
-				VI_RELEASE(Debugger);
-				return (int)ExitStatus::CompilerError;
+				Runtime::ConfigureSystem(Config);
+				Status = Unit->Compile().Get();
+				if (!Status)
+				{
+					VI_ERR("cannot compile default module for interactive mode\n  %s", Status.Error().what());
+					VI_RELEASE(Debugger);
+					return (int)ExitStatus::CompilerError;
+				}
 			}
 
 			for (;;)
@@ -296,38 +303,7 @@ namespace ASX
 			ExitProcess(ExitStatus::OK);
 			return (int)ExitStatus::OK;
 		}
-		else if (!Config.LoadByteCode)
-		{
-			Status = Unit->LoadCode(Env.Path, Env.Program.c_str(), Env.Program.size());
-			if (!Status)
-			{
-				VI_ERR("cannot load <%s> module script code\n  %s", Env.Module, Status.Error().what());
-				return (int)ExitStatus::LoadingError;
-			}
-
-			Runtime::ConfigureSystem(Config);
-			Status = Unit->Compile().Get();
-			if (!Status)
-			{
-				VI_ERR("cannot compile <%s> module\n  %s", Env.Module, Status.Error().what());
-				return (int)ExitStatus::CompilerError;
-			}
-		}
-		else
-		{
-			ByteCodeInfo Info;
-			Info.Data.insert(Info.Data.begin(), Env.Program.begin(), Env.Program.end());
-
-			Runtime::ConfigureSystem(Config);
-			Status = Unit->LoadByteCode(&Info).Get();
-			if (!Status)
-			{
-				VI_ERR("cannot load <%s> module bytecode\n  %s", Env.Module, Status.Error().what());
-				return (int)ExitStatus::LoadingError;
-			}
-		}
-
-		if (Config.SaveByteCode)
+		else if (Config.SaveByteCode)
 		{
 			ByteCodeInfo Info;
 			Info.Debug = Config.Debug;
@@ -485,6 +461,11 @@ namespace ASX
 			Config.SaveByteCode = true;
 			return (int)ExitStatus::Continue;
 		});
+		AddCommand("execution", "-I, --interactive", "run only in interactive mode", true, [this](const String&)
+		{
+			Config.Interactive = true;
+			return (int)ExitStatus::Continue;
+		});
 		AddCommand("execution", "-d, --debug", "enable debugger interface", true, [this](const String&)
 		{
 			Config.Debug = true;
@@ -542,12 +523,6 @@ namespace ASX
 		});
 		AddCommand("building", "--output", "directory where to build an executable from source code [expects: path]", false, [this](const String& Path)
 		{
-			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
-			{
-				VI_ERR("output directory is set but name was not specified: use --target");
-				return (int)ExitStatus::InputError;
-			}
-
 			FileEntry File;
 			if (Path != ".")
 			{
@@ -560,6 +535,16 @@ namespace ASX
 
 			if (!Env.Output.empty() && (Env.Output.back() == '/' || Env.Output.back() == '\\'))
 				Env.Output.erase(Env.Output.end() - 1);
+
+			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
+			{
+				Env.Name = OS::Path::GetFilename(Env.Output.c_str());
+				if (Env.Name.empty())
+				{
+					VI_ERR("init directory is set but name was not specified: use --target");
+					return (int)ExitStatus::InputError;
+				}
+			}
 
 			Env.Output += VI_SPLITTER + Env.Name + VI_SPLITTER;
 			if (!OS::File::GetState(Env.Output, &File))
@@ -675,34 +660,28 @@ namespace ASX
 			PrintProperties();
 			return (int)ExitStatus::OK;
 		});
-		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:relpath]", false, [this](const String& Value)
+		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:?relpath]", false, [this](const String& Value)
 		{
-			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
-			{
-				VI_ERR("init directory is set but name was not specified: use --target");
-				return (int)ExitStatus::InputError;
-			}
-
+			String Path = Value;
 			size_t Where = Value.find(':');
-			if (Where == std::string::npos)
+			if (Where != std::string::npos)
 			{
-				VI_ERR("addon initialization expects <mode:path> format: <%s> is invalid", Value.c_str());
-				return (int)ExitStatus::InputError;
-			}
+				Path = Path.substr(Where + 1);
+				if (Path.empty())
+				{
+					VI_ERR("addon initialization expects <mode:path> format: path must not be empty");
+					return (int)ExitStatus::InputError;
+				}
 
-			String Path = Value.substr(Where + 1);
-			if (Path.empty())
-			{
-				VI_ERR("addon initialization expects <mode:path> format: path must not be empty");
-				return (int)ExitStatus::InputError;
+				Env.Mode = Value.substr(0, Where);
+				if (Env.Mode != "native" && Env.Mode != "vm")
+				{
+					VI_ERR("addon initialization expects <mode:path> format: mode <%s> is invalid, [native|vm] expected", Env.Mode.c_str());
+					return (int)ExitStatus::InputError;
+				}
 			}
-
-			Env.Mode = Value.substr(0, Where);
-			if (Env.Mode != "native" && Env.Mode != "vm")
-			{
-				VI_ERR("addon initialization expects <mode:path> format: mode <%s> is invalid, [native|vm] expected", Env.Mode.c_str());
-				return (int)ExitStatus::InputError;
-			}
+			else
+				Env.Mode = "vm";
 
 			FileEntry File;
 			if (Path != ".")
@@ -716,6 +695,16 @@ namespace ASX
 
 			if (!Env.Addon.empty() && (Env.Addon.back() == '/' || Env.Addon.back() == '\\'))
 				Env.Addon.erase(Env.Addon.end() - 1);
+
+			if (ExecuteArgument({ "target" }) == ExitStatus::InvalidCommand || Env.Name.empty())
+			{
+				Env.Name = OS::Path::GetFilename(Env.Addon.c_str());
+				if (Env.Name.empty())
+				{
+					VI_ERR("init directory is set but name was not specified: use --target");
+					return (int)ExitStatus::InputError;
+				}
+			}
 
 			Env.Addon += VI_SPLITTER + Env.Name + VI_SPLITTER;
 			if (!OS::File::GetState(Env.Addon, &File))
@@ -779,19 +768,22 @@ namespace ASX
 	}
 	void Environment::AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback)
 	{
-		auto& Target = Commands[Category];
-		for (auto& Command : Stringify::Split(Name, ','))
-		{
-			auto& Naming = Stringify::Trim(Command);
-			while (!Naming.empty() && Naming.front() == '-')
-				Naming.erase(Naming.begin());
+		EnvironmentCommand Command;
+		Command.Arguments = Stringify::Split(Name, ',');
+		Command.Description = Description;
+		Command.Callback = Callback;
 
-			auto& Data = Target[Naming];
-			Data.Callback = Callback;
-			Data.Description = Description;
+		for (auto& Argument : Command.Arguments)
+		{
+			Stringify::Trim(Argument);
+			while (!Argument.empty() && Argument.front() == '-')
+				Argument.erase(Argument.begin());
 			if (IsFlagOnly)
-				Flags.insert(Naming);
+				Flags.insert(Argument);
 		}
+
+		auto& Target = Commands[Category];
+		Target.push_back(std::move(Command));
 	}
 	ExitStatus Environment::ExecuteArgument(const UnorderedSet<String>& Names)
 	{
@@ -800,26 +792,32 @@ namespace ASX
 			if (Names.find(Next.first) == Names.end())
 				continue;
 
-			bool HasCommand = false;
-			for (auto& Category : Commands)
-			{
-				auto It = Category.second.find(Next.first);
-				if (It == Category.second.end() || !It->second.Callback)
-					continue;
-
-				int ExitCode = It->second.Callback(Next.second);
-				if (ExitCode != (int)ExitStatus::Continue)
-					return (ExitStatus)ExitCode;
-
-				HasCommand = true;
-				break;
-			}
-
-			if (!HasCommand)
+			auto* Command = FindArgument(Next.first);
+			if (!Command)
 				return ExitStatus::InvalidCommand;
+
+			int ExitCode = Command->Callback(Next.second);
+			if (ExitCode != (int)ExitStatus::Continue)
+				return (ExitStatus)ExitCode;
 		}
 
 		return ExitStatus::OK;
+	}
+	EnvironmentCommand* Environment::FindArgument(const String& Name)
+	{
+		for (auto& Category : Commands)
+		{
+			for (auto& Command : Category.second)
+			{
+				for (auto& Argument : Command.Arguments)
+				{
+					if (Argument == Name)
+						return &Command;
+				}
+			}
+		}
+
+		return nullptr;
 	}
 	void Environment::PrintIntroduction(const char* Label)
 	{
@@ -852,8 +850,12 @@ namespace ASX
 		{
 			for (auto& Next : Category.second)
 			{
-				if (Next.first.size() > Max)
-					Max = Next.first.size() + (Next.first.size() > 1 ? 2 : 1);
+				size_t Size = 0;
+				for (auto& Argument : Next.Arguments)
+					Size += (Argument.size() > 1 ? 2 : 1) + Argument.size() + 2;
+				Size -= 2;
+				if (Size > Max)
+					Max = Size;
 			}
 		}
 
@@ -866,13 +868,17 @@ namespace ASX
 			Terminal->WriteLine("Category: " + Stringify::ToUpper(Name));
 			for (auto& Next : Category.second)
 			{
-				size_t Spaces = Max - (Next.first.size() + (Next.first.size() > 1 ? 2 : 1));
+				String Command;
+				for (auto& Argument : Next.Arguments)
+					Command += (Argument.size() > 1 ? "--" : "-") + Argument + ", ";
+
+				Command.erase(Command.size() - 2, 2);
+				size_t Spaces = Max - Command.size();
 				Terminal->Write("    ");
-				Terminal->Write(Next.first.size() > 1 ? "--" : "-");
-				Terminal->Write(Next.first);
+				Terminal->Write(Command);
 				for (size_t i = 0; i < Spaces; i++)
 					Terminal->Write(" ");
-				Terminal->WriteLine(" - " + Next.second.Description);
+				Terminal->WriteLine(" - " + Next.Description);
 			}
 			Terminal->WriteChar('\n');
 		}

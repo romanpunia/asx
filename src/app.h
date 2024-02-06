@@ -14,13 +14,14 @@ namespace ASX
 	struct EnvironmentCommand
 	{
 		CommandCallback Callback;
+		Vector<String> Arguments;
 		String Description;
 	};
 
 	class Environment
 	{
 	private:
-		UnorderedMap<String, UnorderedMap<String, EnvironmentCommand>> Commands;
+		UnorderedMap<String, Vector<EnvironmentCommand>> Commands;
 		UnorderedMap<String, uint32_t> Settings;
 		UnorderedSet<String> Flags;
 		EnvironmentConfig Env;
@@ -45,6 +46,7 @@ namespace ASX
 		void AddDefaultSettings();
 		void AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback);
 		ExitStatus ExecuteArgument(const UnorderedSet<String>& Names);
+		EnvironmentCommand* FindArgument(const String& Name);
 		void PrintIntroduction(const char* Label);
 		void PrintHelp();
 		void PrintProperties();

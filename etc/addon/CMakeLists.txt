@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/vitex CACHE STRING "Vitex directory")
+set(VI_DIRECTORY "{{BUILDER_VITEX_PATH}}" CACHE STRING "Vitex directory")
 {{BUILDER_FEATURES}}
 include(${VI_DIRECTORY}/lib/toolchain.cmake)
 project({{BUILDER_OUTPUT}})
