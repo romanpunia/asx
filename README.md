@@ -32,6 +32,7 @@ Also note: -option and --option both have different syntax:
 ## Preprocessor
 Scripts support preprocessor that can be used just like C++ preprocessor for dependency management. Preprocessed script lines of code could get shuffled around, however if compile or runtime error happens you will get last N lines of source code where it happend (including column pointer).
 ```cpp
+
 // Global include search
 #include <console.as> // Standard library include
 #include <console> // Shorter version
@@ -89,6 +90,7 @@ int main(string[]@ args)
 
 Preprocessor also supports shared object imports. They are not considered addons or plugins in any way. They can be used to implement some low level functionality without accessing C++ code. More on that in **bin/examples/processes.as**.
 ```cpp
+
 #pragma cimport("kernel32.dll", "GetCurrentProcessId", "uint32 win32_get_pid()") // SO filename or path, function name to find in SO, function definition to expose to AngelScript.
 
 int main()
@@ -110,7 +112,7 @@ There is support for addons. Addons must be compiled with Vitex as a shared obje
 
 Addon can also be a C++ shared library that implements following methods:
 ```cpp
-#include <vitex/core/scripting.h>
+#include <vitex/scripting.h>
 
 extern "C" { VI_EXPOSE int ViInitialize(Vitex::Scripting::VirtualMachine*); }
 int ViInitialize(Vitex::Scripting::VirtualMachine* VM) // Required initialization for requested virtual machine

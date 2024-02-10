@@ -18,10 +18,10 @@ class runtime
     runtime(application_desc&in init)
     {
         @self = application(init, @this);
-        self.set_on_initialize(initialize_callback(this.initialize));
-        self.set_on_dispatch(dispatch_callback(this.dispatch));
-        self.set_on_publish(publish_callback(this.publish));
-        self.set_on_window_event(window_event_callback(this.window_event));
+        self.set_on_initialize(initialize_sync(this.initialize));
+        self.set_on_dispatch(dispatch_sync(this.dispatch));
+        self.set_on_publish(publish_sync(this.publish));
+        self.set_on_window_event(window_event_sync(this.window_event));
     }
     void initialize()
     {
@@ -97,7 +97,7 @@ class runtime
             line.shadow.enabled = true;
             line.shadow.softness = 1.0f;
             line.shadow.iterations = 64;
-            line.shadow.bias = 0.00005f;
+            line.shadow.bias = -0.00001f;
             line.sky.rlh_height = 1000.0f;
             line.sky.mie_height = 1000.0f;
             line.sky.intensity = 12.0f;

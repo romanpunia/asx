@@ -8,18 +8,19 @@
 
 namespace ASX
 {
-	static String FormatDirectoryPath(const String& Value)
+	static String FormatDirectoryPath(const std::string_view& Value)
 	{
-		String NewValue = "\"" + Value;
+		String NewValue = "\"";
+		NewValue.append(Value);
 		if (NewValue.back() == '\\')
 			NewValue.back() = '/';
 		NewValue += '\"';
 		return NewValue;
 	}
 
-	StatusCode Builder::CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output)
+	StatusCode Builder::CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output)
 	{
-		String LocalTarget = Env.Registry + Name, RemoteTarget = Name.substr(1);
+		String LocalTarget = Env.Registry + String(Name), RemoteTarget = String(Name.substr(1));
 		if (IsDirectoryEmpty(LocalTarget) && ExecuteGit(Config, "git clone " REPOSITORY_SOURCE + RemoteTarget + " \"" + LocalTarget + "\"") != StatusCode::OK)
 		{
 			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", RemoteTarget.c_str());
@@ -29,7 +30,7 @@ namespace ASX
 		UPtr<Schema> Info = GetAddonInfo(Env, Name);
 		if (!Info)
 		{
-			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", Name.c_str());
+			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", Name.data());
 			return StatusCode::ConfigurationError;
 		}
 
@@ -38,14 +39,14 @@ namespace ASX
 		{
 			if (!Control::Has(Config, AccessOption::Lib))
 			{
-				VI_ERR("addon <%s> cannot be created: permission denied", Name.c_str());
+				VI_ERR("addon <%s> cannot be created: permission denied", Name.data());
 				return StatusCode::ConfigurationError;
 			}
 
 			String VitexDirectory = GetGlobalVitexPath();
 			if (!AppendVitex(Config))
 			{
-				VI_ERR("addon <%s> cannot be created: global target cannot be built", Name.c_str());
+				VI_ERR("addon <%s> cannot be created: global target cannot be built", Name.data());
 				return StatusCode::ConfigurationError;
 			}
 
@@ -61,7 +62,7 @@ namespace ASX
 #endif
 			if (ExecuteCMake(Config, ConfigureCommand) != StatusCode::OK)
 			{
-				VI_ERR("addon <%s> cannot be created: final target cannot be configured", Name.c_str());
+				VI_ERR("addon <%s> cannot be created: final target cannot be configured", Name.data());
 				return StatusCode::ConfigurationError;
 			}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
@@ -71,18 +72,18 @@ namespace ASX
 #endif
 			if (ExecuteCMake(Config, BuildCommand) != StatusCode::OK)
 			{
-				VI_ERR("addon <%s> cannot be created: final target cannot be built", Name.c_str());
+				VI_ERR("addon <%s> cannot be created: final target cannot be built", Name.data());
 				return StatusCode::BuildError;
 			}
 
-			String AddonName = OS::Path::GetFilename(Name.c_str());
+			String AddonName = String(OS::Path::GetFilename(Name));
 			String TargetPath = GetAddonTarget(Env, Name);
 			String NextPath = GetGlobalTargetsDirectory(Env, Name) + VI_SPLITTER;
 			OS::Directory::Patch(NextPath);
 
 			Vector<std::pair<String, FileEntry>> Files;
 			String PrevPath = GetLocalTargetsDirectory(Env, Name) + VI_SPLITTER;
-			OS::Directory::Scan(PrevPath, &Files);
+			OS::Directory::Scan(PrevPath, Files);
 			for (auto& File : Files)
 			{
 				String NextFilePath = NextPath + File.first;
@@ -99,14 +100,14 @@ namespace ASX
 			String Index(Info->GetVar("index").GetBlob());
 			if (Index.empty() || !Stringify::EndsWith(Index, ".as") || Stringify::FindOf(Index, "/\\").Found)
 			{
-				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", Name.c_str(), Index.c_str());
+				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", Name.data(), Index.c_str());
 				return StatusCode::ConfigurationError;
 			}
 
 			String Path = LocalTarget + VI_SPLITTER + Index;
 			if (!OS::File::IsExists(Path.c_str()))
 			{
-				VI_ERR("addon <%s> cannot be created: index file cannot be found", Name.c_str());
+				VI_ERR("addon <%s> cannot be created: index file cannot be found", Name.data());
 				return StatusCode::ConfigurationError;
 			}
 
@@ -114,15 +115,15 @@ namespace ASX
 			return StatusCode::OK;
 		}
 
-		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", Name.c_str(), Type.c_str());
+		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", Name.data(), Type.c_str());
 		return StatusCode::ConfigurationError;
 	}
-	StatusCode Builder::ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output)
+	StatusCode Builder::ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output)
 	{
 		UPtr<Schema> Info = GetAddonInfo(Env, Name);
 		if (!Info)
 		{
-			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", Name.c_str());
+			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", Name.data());
 			return StatusCode::ConfigurationError;
 		}
 
@@ -134,10 +135,10 @@ namespace ASX
 		}
 		else if (Type == "vm")
 		{
-			String Path = Env.Registry + Name + VI_SPLITTER + Info->GetVar("index").GetBlob();
+			String Path = Env.Registry + String(Name) + VI_SPLITTER + Info->GetVar("index").GetBlob();
 			if (!OS::File::IsExists(Path.c_str()))
 			{
-				VI_ERR("addon <%s> cannot be imported: index file cannot be found", Name.c_str());
+				VI_ERR("addon <%s> cannot be imported: index file cannot be found", Name.data());
 				return StatusCode::ConfigurationError;
 			}
 
@@ -145,7 +146,7 @@ namespace ASX
 			return StatusCode::OK;
 		}
 
-		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", Name.c_str(), Type.c_str());
+		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", Name.data(), Type.c_str());
 		return StatusCode::ConfigurationError;
 	}
 	StatusCode Builder::InitializeIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings)
@@ -220,10 +221,10 @@ namespace ASX
 		}
 
 		Vector<std::pair<String, FileEntry>> Entries;
-		if (!OS::Directory::Scan(Env.Registry.c_str(), &Entries) || Entries.empty())
+		if (!OS::Directory::Scan(Env.Registry.c_str(), Entries) || Entries.empty())
 			return StatusCode::OK;
 
-		auto Pull = [&Config](const String& Path) { return ExecuteGit(Config, "cd \"" + Path + "\" && git pull") == StatusCode::OK; };
+		auto Pull = [&Config](const std::string_view& Path) { return ExecuteGit(Config, "cd \"" + String(Path) + "\" && git pull") == StatusCode::OK; };
 		for (auto& File : Entries)
 		{
 			if (!File.second.IsDirectory || File.first.empty() || File.first.front() == '.')
@@ -233,7 +234,7 @@ namespace ASX
 			{
 				Vector<std::pair<String, FileEntry>> Addons;
 				String RepositoriesPath = Env.Registry + File.first + VI_SPLITTER;
-				if (!OS::Directory::Scan(RepositoriesPath.c_str(), &Addons) || Addons.empty())
+				if (!OS::Directory::Scan(RepositoriesPath.c_str(), Addons) || Addons.empty())
 					continue;
 
 				for (auto& Addon : Addons)
@@ -318,7 +319,7 @@ namespace ASX
 		if (ExecuteCMake(Config, ConfigureCommand) != StatusCode::OK)
 		{
 #ifdef VI_MICROSOFT
-			VI_ERR("cannot configure an executable repository: make sure you vcpkg installed and VCPKG_ROOT env is set");
+			VI_ERR("cannot configure an executable repository: make sure you have vcpkg installed");
 #else
 			VI_ERR("cannot configure an executable repository: make sure you have all dependencies installed");
 #endif
@@ -379,7 +380,7 @@ namespace ASX
 	{
 		return ToString((size_t)Vitex::MAJOR_VERSION) + '.' + ToString((size_t)Vitex::MINOR_VERSION) + '.' + ToString((size_t)Vitex::PATCH_VERSION) + '.' + ToString((size_t)Vitex::BUILD_VERSION);
 	}
-	StatusCode Builder::ExecuteGit(SystemConfig& Config, const String& Command)
+	StatusCode Builder::ExecuteGit(SystemConfig& Config, const std::string_view& Command)
 	{
 		static int IsGitInstalled = -1;
 		if (IsGitInstalled == -1)
@@ -394,7 +395,7 @@ namespace ASX
 
 		return ExecuteCommand(Config, "RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
-	StatusCode Builder::ExecuteCMake(SystemConfig& Config, const String& Command)
+	StatusCode Builder::ExecuteCMake(SystemConfig& Config, const std::string_view& Command)
 	{
 		static int IsCMakeInstalled = -1;
 		if (IsCMakeInstalled == -1)
@@ -409,7 +410,7 @@ namespace ASX
 
 		return ExecuteCommand(Config, "RUN", Command, 0x0) ? StatusCode::OK : StatusCode::CommandError;
 	}
-	bool Builder::ExecuteCommand(SystemConfig& Config, const String& Label, const String& Command, int SuccessExitCode)
+	bool Builder::ExecuteCommand(SystemConfig& Config, const std::string_view& Label, const std::string_view& Command, int SuccessExitCode)
 	{
 		auto Time = Schedule::GetClock();
 		auto* Terminal = Console::Get();
@@ -419,7 +420,7 @@ namespace ASX
 			if (!Terminal->ReadScreen(nullptr, &Height, nullptr, &Y))
 				Height = WindowSize;
 
-			String Stage = Command;
+			String Stage = String(Command);
 			Stringify::ReplaceInBetween(Stage, "\"", "\"", "<path>", false);
 			uint32_t Lines = std::min<uint32_t>(Y >= --Height ? 0 : Y - Height, WindowSize);
 			bool Logging = Lines > 0 && Label != "FIND", Loading = true;
@@ -430,16 +431,16 @@ namespace ASX
 				while (Loading)
 				{
 					auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
-					Terminal->SpinningElement(Title, "> " + Label + " " + Stage + " - " + ToString(Diff) + " seconds");
+					Terminal->SpinningElement(Title, "> " + String(Label) + " " + Stage + " - " + ToString(Diff) + " seconds");
 					std::this_thread::sleep_for(std::chrono::milliseconds(60));
 				}
 			});
 
 			SingleQueue<String> Messages;
-			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, Window, Logging, &Messages](const char* Buffer, size_t Size)
+			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, Window, Logging, &Messages](const std::string_view& Buffer)
 			{
 				size_t Index = Messages.size() + 1;
-				String Text = (Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size);
+				String Text = (Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer);
 				if (Logging)
 				{
 					Terminal->EmplaceWindow(Window, Text);
@@ -454,12 +455,12 @@ namespace ASX
 			Loading = false;
 			Loader.join();
 
-			Terminal->ReplaceElement(Title, "> " + Label + " " + Stage + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
+			Terminal->ReplaceElement(Title, "> " + String(Label) + " " + Stage + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
 			Terminal->FreeElement(Title);
 			if (Logging)
 				Terminal->FreeWindow(Window, true);
 			if (!Success)
-				Terminal->WriteLine(">>> " + Label + " " + Command);
+				Terminal->WriteLine(">>> " + String(Label) + " " + String(Command));
 			if (!ExitCode)
 				Messages.push(ExitCode.What() + "\n");
 
@@ -474,53 +475,53 @@ namespace ASX
 		else
 		{
 			size_t Messages = 0;
-			Terminal->WriteLine("> " + Label + " " + Command + ": PENDING");
-			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, &Messages](const char* Buffer, size_t Size)
+			Terminal->WriteLine("> " + String(Label) + " " + String(Command) + ": PENDING");
+			auto ExitCode = OS::Process::Execute(Command, FileMode::Read_Only, [Terminal, &Messages](const std::string_view& Buffer)
 			{
 				size_t Index = ++Messages;
-				Terminal->Write((Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer, Size));
+				Terminal->Write((Index < 100 ? (Index < 10 ? "[00" : "[0") : "[") + ToString(Index) + "]  " + String(Buffer));
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 				return true;
 			});
 
 			bool Success = ExitCode && *ExitCode == SuccessExitCode;
 			auto Diff = (Schedule::GetClock() - Time).count() / 1000000.0;
-			Terminal->WriteLine("> " + Label + " " + Command + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
+			Terminal->WriteLine("> " + String(Label) + " " + String(Command) + " - " + ToString(Diff) + " seconds: " + (Success ? String("OK") : (ExitCode ? "EXIT " + ToString(*ExitCode) : String("FAIL"))));
 			if (!ExitCode)
 				Terminal->WriteLine(ExitCode.What());
 
 			return Success;
 		}
 	}
-	bool Builder::AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath)
+	bool Builder::AppendTemplate(const UnorderedMap<String, String>& Keys, const std::string_view& TargetPath, const std::string_view& TemplatePath)
 	{
 		auto File = Templates::Fetch(Keys, TemplatePath);
 		if (!File)
 		{
-			VI_ERR("cannot find the template: %s", TemplatePath.c_str());
+			VI_ERR("cannot find the template: %s", TemplatePath.data());
 			return false;
 		}
 
 		if (!OS::Directory::Patch(TargetPath))
 		{
-			VI_ERR("cannot generate the template in path: %s", TargetPath.c_str());
+			VI_ERR("cannot generate the template in path: %s", TargetPath.data());
 			return false;
 		}
 
-		String Path = TargetPath;
-		String Filename = OS::Path::GetFilename(TemplatePath.c_str());
+		String Path = String(TargetPath);
+		String Filename = String(OS::Path::GetFilename(TemplatePath));
 		if (Path.back() != '/' && Path.back() != '\\')
 			Path += VI_SPLITTER;
 
-		if (!OS::File::Write(Path + Filename, *File))
+		if (!OS::File::Write(Path + Filename, (uint8_t*)File->data(), File->size()))
 		{
-			VI_ERR("cannot generate the template in path: %s - save failed", TargetPath.c_str());
+			VI_ERR("cannot generate the template in path: %s - save failed", TargetPath.data());
 			return false;
 		}
 
 		return true;
 	}
-	bool Builder::AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const String& Path)
+	bool Builder::AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const std::string_view& Path)
 	{
 		ByteCodeInfo Info;
 		Info.Debug = Config.Debug;
@@ -530,26 +531,24 @@ namespace ASX
 			return false;
 		}
 
-		OS::Directory::Patch(OS::Path::GetDirectory(Path.c_str()));
-		auto TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only);
+		OS::Directory::Patch(OS::Path::GetDirectory(Path));
+		UPtr<Stream> TargetFile = OS::File::Open(Path, FileMode::Binary_Write_Only).Or(nullptr);
 		if (!TargetFile)
 		{
-			VI_ERR("cannot create the byte code file: %s", Path.c_str());
+			VI_ERR("cannot create the byte code file: %s", Path.data());
 			return false;
 		}
 
-		String Data = Codec::Base64Encode(Info.Data.data(), Info.Data.size());
-		if (TargetFile->Write(Data.data(), Data.size()).Or(0) != Data.size())
+		String Data = Codec::Base64Encode(std::string_view((char*)Info.Data.data(), Info.Data.size()));
+		if (TargetFile->Write((uint8_t*)Data.data(), Data.size()).Or(0) != Data.size())
 		{
-			VI_ERR("cannot write the byte code file: %s", Path.c_str());
-			VI_RELEASE(TargetFile);
+			VI_ERR("cannot write the byte code file: %s", Path.data());
 			return false;
 		}
 
-		VI_RELEASE(TargetFile);
 		return true;
 	}
-	bool Builder::AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const String& TargetDirectory)
+	bool Builder::AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& TargetDirectory)
 	{
 		bool IsVM = false;
 		for (auto& Item : Env.Addons)
@@ -558,7 +557,7 @@ namespace ASX
 			if (IsVM)
 				continue;
 
-			String To = TargetDirectory + OS::Path::GetFilename(From.c_str());
+			String To = String(TargetDirectory) + String(OS::Path::GetFilename(From));
 			if (!OS::File::Copy(From.c_str(), To.c_str()))
 			{
 				VI_ERR("cannot copy dependant addon: from: %s to: %s", From.c_str(), To.c_str());
@@ -577,9 +576,9 @@ namespace ASX
 		OS::Directory::Patch(SourcePath);
 		return ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") == StatusCode::OK;
 	}
-	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested)
+	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool Nested)
 	{
-		String LocalTarget = (Nested ? Name : GetAddonTarget(Env, Name));
+		String LocalTarget = String(Nested ? Name : GetAddonTarget(Env, Name));
 		if (OS::File::IsExists(LocalTarget.c_str()))
 			return true;
 
@@ -595,14 +594,14 @@ namespace ASX
 
 		UPtr<Schema> Info = GetAddonInfo(Env, Name);
 		if (Info && Info->GetVar("type").GetBlob() == "vm")
-			return IsAddonTargetExists(Env, VM, Env.Registry + Name + VI_SPLITTER + Info->GetVar("index").GetBlob(), true);
+			return IsAddonTargetExists(Env, VM, Env.Registry + String(Name) + VI_SPLITTER + Info->GetVar("index").GetBlob(), true);
 
 		return false;
 	}
-	bool Builder::IsDirectoryEmpty(const String& Target)
+	bool Builder::IsDirectoryEmpty(const std::string_view& Target)
 	{
 		Vector<std::pair<String, FileEntry>> Entries;
-		return !OS::Directory::Scan(Target, &Entries) || Entries.empty();
+		return !OS::Directory::Scan(Target, Entries) || Entries.empty();
 	}
 	bool Builder::IsUsingCompression(VirtualMachine* VM)
 	{
@@ -675,27 +674,27 @@ namespace ASX
 #endif
 
 	}
-	String Builder::GetBuildingDirectory(EnvironmentConfig& Env, const String& LocalTarget)
+	String Builder::GetBuildingDirectory(EnvironmentConfig& Env, const std::string_view& LocalTarget)
 	{
 		return Env.Registry + ".make";
 	}
-	String Builder::GetLocalTargetsDirectory(EnvironmentConfig& Env, const String& Name)
+	String Builder::GetLocalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name)
 	{
-		return Stringify::Text("%s%s%cbin", Env.Registry.c_str(), Name.c_str(), VI_SPLITTER);
+		return Stringify::Text("%s%s%cbin", Env.Registry.c_str(), Name.data(), VI_SPLITTER);
 	}
-	String Builder::GetGlobalTargetsDirectory(EnvironmentConfig& Env, const String& Name)
+	String Builder::GetGlobalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name)
 	{
-		String Owner = Name.substr(0, Name.find('/'));
-		String Repository = OS::Path::GetFilename(Name.c_str());
+		String Owner = String(Name.substr(0, Name.find('/')));
+		String Repository = String(OS::Path::GetFilename(Name));
 		String Path = Env.Registry + ".bin";
 		Path += VI_SPLITTER;
 		Path += Owner;
 		return Path;
 	}
-	String Builder::GetAddonTarget(EnvironmentConfig& Env, const String& Name)
+	String Builder::GetAddonTarget(EnvironmentConfig& Env, const std::string_view& Name)
 	{
-		String Owner = Name.substr(0, Name.find('/'));
-		String Repository = OS::Path::GetFilename(Name.c_str());
+		String Owner = String(Name.substr(0, Name.find('/')));
+		String Repository = String(OS::Path::GetFilename(Name));
 		String Path = Env.Registry + ".bin";
 		Path += VI_SPLITTER;
 		Path += Owner;
@@ -703,7 +702,7 @@ namespace ASX
 		Path += Repository;
 		return Path;
 	}
-	String Builder::GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool* IsVM)
+	String Builder::GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool* IsVM)
 	{
 		if (IsVM)
 			*IsVM = false;
@@ -729,15 +728,15 @@ namespace ASX
 			*IsVM = true;
 
 		String Index = Info->GetVar("index").GetBlob();
-		Path1 = Env.Registry + Name + VI_SPLITTER + Index;
+		Path1 = Env.Registry + String(Name) + VI_SPLITTER + Index;
 		Result = OS::Path::Resolve(Path1.c_str());
 		if (Result)
 			Path1 = *Result;
 		return Path1;
 	}
-	Schema* Builder::GetAddonInfo(EnvironmentConfig& Env, const String& Name)
+	Schema* Builder::GetAddonInfo(EnvironmentConfig& Env, const std::string_view& Name)
 	{
-		String LocalTarget = Env.Registry + Name + VI_SPLITTER + REPOSITORY_FILE_ADDON;
+		String LocalTarget = Env.Registry + String(Name) + VI_SPLITTER + REPOSITORY_FILE_ADDON;
 		auto Data = OS::File::ReadAsString(LocalTarget);
 		if (!Data)
 			return nullptr;
@@ -780,32 +779,34 @@ namespace ASX
 		auto* Lib = Vitex::Runtime::Get();
 		Vector<std::pair<String, bool>> Features =
 		{
-			{ "ALLOCATOR", Lib->HasAllocator() },
-			{ "BINDINGS", Lib->HasBindings() && !IsAddon },
-			{ "BACKTRACE", Lib->HasBacktrace() && !IsAddon },
-			{ "WEPOLL", Lib->HasWindowsEpoll() && !IsAddon },
-			{ "FCTX", Lib->HasFContext() && !IsAddon },
-			{ "SIMD", Lib->HasSIMD() && !IsAddon },
-			{ "ANGELSCRIPT", Lib->HasAngelScript() && !IsAddon },
-			{ "ASSIMP", Lib->HasAssimp() && IsUsingEngine(VM) && !IsAddon },
-			{ "FREETYPE", Lib->HasFreeType() && IsUsingGUI(VM) && !IsAddon },
-			{ "GLEW", Lib->HasGLEW() && IsUsingGraphics(VM) && !IsAddon },
-			{ "OPENAL", Lib->HasOpenAL() && IsUsingAudio(VM) && !IsAddon },
-			{ "OPENGL", Lib->HasOpenGL() && IsUsingGraphics(VM) && !IsAddon },
-			{ "OPENSSL", Lib->HasOpenSSL() && IsUsingCrypto(VM) && !IsAddon },
-			{ "ZLIB", Lib->HasZLib() && IsUsingCompression(VM) && !IsAddon },
-			{ "SDL2", Lib->HasSDL2() && IsUsingGraphics(VM) && !IsAddon },
-			{ "SQLITE", Lib->HasSQLite() && IsUsingSQLite(VM) && !IsAddon },
-			{ "POSTGRESQL", Lib->HasPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon },
-			{ "MONGOC", Lib->HasMongoDB() && IsUsingMongoDB(VM) && !IsAddon },
-			{ "SPIRV", Lib->HasSPIRV() && IsUsingGraphics(VM) && !IsAddon },
-			{ "BULLET3", Lib->HasBullet3() && IsUsingPhysics(VM) && !IsAddon },
-			{ "RMLUI", Lib->HasRmlUI() && IsUsingGUI(VM) && !IsAddon },
-			{ "TINYFILEDIALOGS", Lib->HasTinyFileDialogs() && IsUsingOS(VM) && !IsAddon },
-			{ "STB", Lib->HasSTB() && IsUsingEngine(VM) && !IsAddon },
-			{ "PUGIXML", Lib->HasPugiXML() && IsUsingEngine(VM) && !IsAddon },
-			{ "RAPIDJSON", Lib->HasRapidJSON() && IsUsingEngine(VM) && !IsAddon },
-			{ "SHADERS", Lib->HasShaders() && IsUsingGraphics(VM) && !IsAddon }
+			{ "ALLOCATOR", Lib->HasFtAllocator() },
+			{ "PESSIMISTIC", Lib->HasFtPessimistic() },
+			{ "BINDINGS", Lib->HasFtBindings() && !IsAddon },
+			{ "SHADERS", Lib->HasFtShaders() && IsUsingGraphics(VM) && !IsAddon },
+			{ "OPENGL", Lib->HasSoOpenGL() && IsUsingGraphics(VM) && !IsAddon },
+			{ "OPENAL", Lib->HasSoOpenAL() && IsUsingAudio(VM) && !IsAddon },
+			{ "OPENSSL", Lib->HasSoOpenSSL() && IsUsingCrypto(VM) && !IsAddon },
+			{ "SDL2", Lib->HasSoSDL2() && IsUsingGraphics(VM) && !IsAddon },
+			{ "GLEW", Lib->HasSoGLEW() && IsUsingGraphics(VM) && !IsAddon },
+			{ "SPIRV", Lib->HasSoSpirv() && IsUsingGraphics(VM) && !IsAddon },
+			{ "ZLIB", Lib->HasSoZLib() && IsUsingCompression(VM) && !IsAddon },
+			{ "ASSIMP", Lib->HasSoAssimp() && IsUsingEngine(VM) && !IsAddon },
+			{ "MONGOC", Lib->HasSoMongoc() && IsUsingMongoDB(VM) && !IsAddon },
+			{ "POSTGRESQL", Lib->HasSoPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon },
+			{ "SQLITE", Lib->HasSoSQLite() && IsUsingSQLite(VM) && !IsAddon },
+			{ "FREETYPE", Lib->HasSoFreeType() && IsUsingGUI(VM) && !IsAddon },
+			{ "ANGELSCRIPT", Lib->HasMdAngelScript() && !IsAddon },
+			{ "BACKTRACE", Lib->HasMdBacktrace() && !IsAddon },
+			{ "RMLUI", Lib->HasMdRmlUI() && IsUsingGUI(VM) && !IsAddon },
+			{ "BULLET3", Lib->HasMdBullet3() && IsUsingPhysics(VM) && !IsAddon },
+			{ "TINYFILEDIALOGS", Lib->HasMdTinyFileDialogs() && IsUsingOS(VM) && !IsAddon },
+			{ "WEPOLL", Lib->HasMdWepoll() && !IsAddon },
+			{ "STB", Lib->HasMdStb() && IsUsingEngine(VM) && !IsAddon },
+			{ "PUGIXML", Lib->HasMdPugiXml() && IsUsingEngine(VM) && !IsAddon },
+			{ "RAPIDJSON", Lib->HasMdRapidJson() && IsUsingEngine(VM) && !IsAddon },
+			{ "SIMD", Lib->HasMdSimd() && !IsAddon },
+			{ "JIT", Lib->HasMdJit() && !IsAddon },
+			{ "FCTX", Lib->HasMdFContext() && !IsAddon },
 		};
 
 		for (auto& Item : Features)
@@ -815,30 +816,30 @@ namespace ASX
 			FeatureList.erase(FeatureList.end() - 1);
 
 		Schema* ConfigInstallArray = Var::Set::Array();
-		if (Lib->HasSPIRV() && IsUsingGraphics(VM) && !IsAddon)
+		if (Lib->HasSoSpirv() && IsUsingGraphics(VM) && !IsAddon)
 		{
 			ConfigInstallArray->Push(Var::String("spirv-cross"));
 			ConfigInstallArray->Push(Var::String("glslang"));
 		}
-		if (Lib->HasZLib() && IsUsingCompression(VM) && !IsAddon)
+		if (Lib->HasSoZLib() && IsUsingCompression(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("zlib"));
-		if (Lib->HasAssimp() && IsUsingEngine(VM) && !IsAddon)
+		if (Lib->HasSoAssimp() && IsUsingEngine(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("assimp"));
-		if (Lib->HasFreeType() && IsUsingGUI(VM) && !IsAddon)
+		if (Lib->HasSoFreeType() && IsUsingGUI(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("freetype"));
-		if (Lib->HasSDL2() && IsUsingGraphics(VM) && !IsAddon)
+		if (Lib->HasSoSDL2() && IsUsingGraphics(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("sdl2"));
-		if (Lib->HasOpenAL() && IsUsingAudio(VM) && !IsAddon)
+		if (Lib->HasSoOpenAL() && IsUsingAudio(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("openal-soft"));
-		if (Lib->HasGLEW() && IsUsingGraphics(VM) && !IsAddon)
+		if (Lib->HasSoGLEW() && IsUsingGraphics(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("glew"));
-		if (Lib->HasOpenSSL() && IsUsingCrypto(VM) && !IsAddon)
+		if (Lib->HasSoOpenSSL() && IsUsingCrypto(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("openssl"));
-		if (Lib->HasMongoDB() && IsUsingMongoDB(VM) && !IsAddon)
+		if (Lib->HasSoMongoc() && IsUsingMongoDB(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("mongo-c-driver"));
-		if (Lib->HasPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon)
+		if (Lib->HasSoPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("libpq"));
-		if (Lib->HasSQLite() && IsUsingSQLite(VM) && !IsAddon)
+		if (Lib->HasSoSQLite() && IsUsingSQLite(VM) && !IsAddon)
 			ConfigInstallArray->Push(Var::String("sqlite3"));
 
 		String VitexPath = GetGlobalVitexPath();
@@ -869,13 +870,12 @@ namespace ASX
 		return It != Config.Permissions.end() ? It->second : OS::Control::Has(Option);
 	}
 
-	Option<String> Templates::Fetch(const UnorderedMap<String, String>& Keys, const String& Path)
+	Option<String> Templates::Fetch(const UnorderedMap<String, String>& Keys, const std::string_view& Path)
 	{
 		if (!Files)
 		{
 #ifdef HAS_CODE_BUNDLE
-			using FilesType = UnorderedMap<String, String>;
-			Files = VI_NEW(FilesType);
+			Files = Memory::New<UnorderedMap<String, String>>();
 			code_bundle::foreach(nullptr, [](void*, const char* Path, const char* File, unsigned int FileSize)
 			{
 				Files->insert(std::make_pair(String(Path), String(File, FileSize)));
@@ -885,7 +885,7 @@ namespace ASX
 #endif
 		}
 
-		auto It = Files->find(Path);
+		auto It = Files->find(HglCast(Path));
 		if (It == Files->end())
 			return Optional::None;
 
@@ -896,8 +896,7 @@ namespace ASX
 	}
 	void Templates::Cleanup()
 	{
-		VI_DELETE(unordered_map, Files);
-		Files = nullptr;
+		Memory::Delete(Files);
 	}
 	UnorderedMap<String, String>* Templates::Files = nullptr;
 }

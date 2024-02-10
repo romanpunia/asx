@@ -38,7 +38,7 @@ int main()
     {
         /* Configure connected client connection */
         socket@ connection = socket(fd);
-        connection.timeout = 5000;
+        connection.set_io_timeout(5000);
         connection.set_blocking(false);
         connection.set_keep_alive(true);
 

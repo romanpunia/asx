@@ -20,23 +20,23 @@ namespace ASX
 	class Builder
 	{
 	public:
-		static StatusCode CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output);
-		static StatusCode ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, String& Output);
+		static StatusCode CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output);
+		static StatusCode ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output);
 		static StatusCode InitializeIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
 		static StatusCode PullAddonRepository(SystemConfig& Config, EnvironmentConfig& Env);
 		static StatusCode CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
 		static UnorderedMap<String, uint32_t> GetDefaultSettings();
 		static String GetSystemVersion();
-		static String GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool* IsVM);
-		static bool IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const String& Name, bool Nested = false);
+		static String GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool* IsVM);
+		static bool IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool Nested = false);
 
 	private:
-		static StatusCode ExecuteGit(SystemConfig& Config, const String& Command);
-		static StatusCode ExecuteCMake(SystemConfig& Config, const String& Command);
-		static bool ExecuteCommand(SystemConfig& Config, const String& Label, const String& Command, int SuccessExitCode);
-		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const String& TargetPath, const String& TemplatePath);
-		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const String& Path);
-		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const String& TargetDirectory);
+		static StatusCode ExecuteGit(SystemConfig& Config, const std::string_view& Command);
+		static StatusCode ExecuteCMake(SystemConfig& Config, const std::string_view& Command);
+		static bool ExecuteCommand(SystemConfig& Config, const std::string_view& Label, const std::string_view& Command, int SuccessExitCode);
+		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const std::string_view& TargetPath, const std::string_view& TemplatePath);
+		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const std::string_view& Path);
+		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& TargetDirectory);
 		static bool AppendVitex(SystemConfig& Config);
 		static bool IsUsingCompression(VirtualMachine* VM);
 		static bool IsUsingSchemas(VirtualMachine* VM);
@@ -50,14 +50,14 @@ namespace ASX
 		static bool IsUsingPhysics(VirtualMachine* VM);
 		static bool IsUsingGUI(VirtualMachine* VM);
 		static bool IsUsingOS(VirtualMachine* VM);
-		static bool IsDirectoryEmpty(const String& Target);
+		static bool IsDirectoryEmpty(const std::string_view& Target);
 		static const char* GetBuildType(SystemConfig& Config);
 		static String GetGlobalVitexPath();
-		static String GetBuildingDirectory(EnvironmentConfig& Env, const String& LocalTarget);
-		static String GetGlobalTargetsDirectory(EnvironmentConfig& Env, const String& Name);
-		static String GetLocalTargetsDirectory(EnvironmentConfig& Env, const String& Name);
-		static String GetAddonTarget(EnvironmentConfig& Env, const String& Name);
-		static Schema* GetAddonInfo(EnvironmentConfig& Env, const String& Name);
+		static String GetBuildingDirectory(EnvironmentConfig& Env, const std::string_view& LocalTarget);
+		static String GetGlobalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name);
+		static String GetLocalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name);
+		static String GetAddonTarget(EnvironmentConfig& Env, const std::string_view& Name);
+		static Schema* GetAddonInfo(EnvironmentConfig& Env, const std::string_view& Name);
 		static UnorderedMap<String, String> GetBuildKeys(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings, bool IsAddon);
 	};
 
@@ -73,7 +73,7 @@ namespace ASX
 		static UnorderedMap<String, String>* Files;
 
 	public:
-		static Option<String> Fetch(const UnorderedMap<String, String>& Keys, const String& Path);
+		static Option<String> Fetch(const UnorderedMap<String, String>& Keys, const std::string_view& Path);
 		static void Cleanup();
 	};
 }

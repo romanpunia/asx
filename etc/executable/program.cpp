@@ -1,8 +1,8 @@
 #include "program.hpp"
 #include "runtime.hpp"
 #include <vitex/vitex.h>
-#include <vitex/core/bindings.h>
-#include <vitex/core/engine.h>
+#include <vitex/bindings.h>
+#include <vitex/engine.h>
 #include <signal.h>
 
 using namespace Vitex::Engine;
@@ -12,7 +12,6 @@ EventLoop* Loop = nullptr;
 VirtualMachine* VM = nullptr;
 Compiler* Unit = nullptr;
 ImmediateContext* Context = nullptr;
-Schedule* Queue = nullptr;
 int ExitCode = 0;
 
 void exit_program(int sigv)
@@ -34,10 +33,9 @@ void exit_program(int sigv)
             goto GracefulShutdown;
         }
 
-        auto* Queue = Schedule::Get();
-        if (Queue->IsActive())
+        if (Schedule::IsAvailable())
         {
-            Queue->Stop();
+            Schedule::Get()->Stop();
 			Loop->Wakeup();
             goto GracefulShutdown;
         }
@@ -63,7 +61,7 @@ bool load_program(EnvironmentConfig& Env)
     program_bytecode::foreach(&Env, [](void* Context, const char* Buffer, unsigned Size)
     {
         EnvironmentConfig* Env = (EnvironmentConfig*)Context;
-	    Env->Program = Codec::Base64Decode((const unsigned char*)Buffer, (size_t)Size);
+	    Env->Program = Codec::Base64Decode(std::string_view(Buffer, (size_t)Size));
     });
     return true;
 #else
@@ -98,8 +96,6 @@ int main(int argc, char* argv[])
 		VM = new VirtualMachine();
 		Unit = VM->CreateCompiler();
         Context = VM->RequestContext();
-		Queue = Schedule::Get();
-		Queue->SetImmediate(true);
 		
         Vector<std::pair<uint32_t, size_t>> Settings = { {{BUILDER_CONFIG_SETTINGS}} };
         for (auto& Item : Settings)
@@ -158,13 +154,12 @@ int main(int argc, char* argv[])
 				Context->GetVM()->ReleaseObject(ArgsArray, Type);
 		});
         
-		Runtime::AwaitContext(Queue, Loop, VM, Context);
+		Runtime::AwaitContext(Loop, VM, Context);
 	}
 FinishProgram:
-	VI_RELEASE(Context);
-	VI_RELEASE(Unit);
-	VI_RELEASE(VM);
-    VI_RELEASE(Loop);
-	VI_RELEASE(Queue);
+	Memory::Release(Context);
+	Memory::Release(Unit);
+	Memory::Release(VM);
+    Memory::Release(Loop);
 	return ExitCode;
 }

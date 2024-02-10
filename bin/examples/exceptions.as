@@ -33,7 +33,7 @@ void start(bool wants_crash)
     thread_routine routine;
     routine.wants_crash = wants_crash;
 
-    thread@ basic = thread(thread_event(@routine.main));
+    thread@ basic = thread(thread_async(@routine.main));
     basic.invoke();
     
     this_thread::sleep(1000);

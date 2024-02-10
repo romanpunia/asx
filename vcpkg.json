@@ -1,20 +1,20 @@
 {
-    "name": "asx",
-    "description": "AngelScript Runtime Environment",
-    "version": "1.0.0",
-    "dependencies": [
-        "zlib",
-        "assimp",
-        "freetype",
-        "sdl2",
-        "spirv-cross",
-        "glslang",
-        "openal-soft",
-        "glew",
-        "openssl",
-        "mongo-c-driver",
-        "libpq",
-        "sqlite3"
-    ]
+  "name": "asx",
+  "description": "AngelScript Runtime Environment",
+  "version": "1.0.0",
+  "dependencies": [
+    "zlib",
+    "assimp",
+    "freetype",
+    "sdl2",
+    "spirv-cross",
+    "glslang",
+    "openal-soft",
+    "glew",
+    "openssl",
+    "mongo-c-driver",
+    "libpq",
+    "sqlite3"
+  ],
+  "builtin-baseline": "e038ef04796ee67814f36af7c235ae50bbdf4303"
 }
-  

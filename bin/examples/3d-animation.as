@@ -26,10 +26,10 @@ class runtime
                 see html.as as reference
         */
         @self = application(init, @this);
-        self.set_on_initialize(initialize_callback(this.initialize));
-        self.set_on_dispatch(dispatch_callback(this.dispatch));
-        self.set_on_publish(publish_callback(this.publish));
-        self.set_on_window_event(window_event_callback(this.window_event));
+        self.set_on_initialize(initialize_sync(this.initialize));
+        self.set_on_dispatch(dispatch_sync(this.dispatch));
+        self.set_on_publish(publish_sync(this.publish));
+        self.set_on_window_event(window_event_sync(this.window_event));
     }
     void initialize()
     {
@@ -82,7 +82,7 @@ class runtime
     {
         bool go_to_left = self.window.is_key_down_hit(key_code::q);
         bool go_to_right = self.window.is_key_down_hit(key_code::e);
-        if (self.window.is_key_down_hit(key_code::space))
+        if (self.window.is_key_down_hit(key_code::f))
         {
             skin_animator_component@ animation = cast<skin_animator_component@>(self.scene.get_component(component_id("skin_animator_component"), 0));
             if (animation !is null)
@@ -130,7 +130,7 @@ class runtime
 int main()
 {
     application_desc init;
-    init.graphics.vsync_mode = vsync::off;
+    init.graphics.vsync_mode = vsync::on;
     init.window.maximized = true;
     init.environment = "assets";
 

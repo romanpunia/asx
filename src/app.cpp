@@ -11,6 +11,7 @@ namespace ASX
 		Env.Parse(ArgsCount, Args, Flags);
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
 		ErrorHandling::SetFlag(LogOption::Active, true);
+		ErrorHandling::SetFlag(LogOption::Pretty, false);
 #ifndef NDEBUG
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;
@@ -21,19 +22,17 @@ namespace ASX
 	Environment::~Environment()
 	{
 		Templates::Cleanup();
-		Console::Get()->Detach();
-		VI_RELEASE(Context);
-		VI_RELEASE(Unit);
-		VI_RELEASE(VM);
-		VI_RELEASE(Loop);
+		if (Console::HasInstance())
+			Console::Get()->Detach();
+		Memory::Release(Context);
+		Memory::Release(Unit);
+		Memory::Release(VM);
+		Memory::Release(Loop);
 	}
 	int Environment::Dispatch()
 	{
 		auto* Terminal = Console::Get();
 		Terminal->Attach();
-
-		auto* Queue = Schedule::Get();
-		Queue->SetImmediate(true);
 
 		VM = new VirtualMachine();
 		for (auto& Next : Env.Commandline.Args)
@@ -72,15 +71,15 @@ namespace ASX
 				return (int)ExitStatus::InputError;
 			}
 
-			Env.Registry = OS::Path::GetDirectory(Env.Path.c_str());
+			Env.Registry = OS::Path::GetDirectory(Env.Path);
 			if (Env.Registry == Env.Path)
 			{
 				Env.Path = Directory + Env.Path;
-				Env.Registry = OS::Path::GetDirectory(Env.Path.c_str());
+				Env.Registry = OS::Path::GetDirectory(Env.Path);
 			}
 
-			Env.Module = OS::Path::GetFilename(Env.Path.c_str());
-			Env.Program = *OS::File::ReadAsString(Env.Path.c_str());
+			Env.Module = OS::Path::GetFilename(Env.Path).data();
+			Env.Program = *OS::File::ReadAsString(Env.Path);
 			Env.Registry += "addons";
 			Env.Registry += VI_SPLITTER;
 		}
@@ -111,15 +110,16 @@ namespace ASX
 		if (Config.Debug)
 		{
 			DebuggerContext* Debugger = new DebuggerContext();
-			Debugger->SetInterruptCallback([Queue](bool IsInterrupted)
+			Debugger->SetInterruptCallback([](bool IsInterrupted)
 			{
-				if (Queue->IsActive())
-				{
-					if (IsInterrupted)
-						Queue->Suspend();
-					else
-						Queue->Resume();
-				}
+				if (!Schedule::IsAvailable())
+					return;
+
+				auto* Queue = Schedule::Get();
+				if (IsInterrupted)
+					Queue->Suspend();
+				else
+					Queue->Resume();
 			});
 			VM->SetDebugger(Debugger);
 		}
@@ -137,7 +137,7 @@ namespace ASX
 		{
 			if (!Config.LoadByteCode)
 			{
-				Status = Unit->LoadCode(Env.Path, Env.Program.c_str(), Env.Program.size());
+				Status = Unit->LoadCode(Env.Path, Env.Program);
 				if (!Status)
 				{
 					VI_ERR("cannot load <%s> module script code\n  %s", Env.Module, Status.Error().what());
@@ -167,7 +167,38 @@ namespace ASX
 			}
 		}
 
-		if (Config.Interactive)
+		if (Config.Install)
+		{
+			if (Config.Installed > 0)
+			{
+				Terminal->WriteLine("Successfully installed " + ToString(Config.Installed) + String(Config.Installed > 1 ? " addons" : " addon"));
+				return EXIT_SUCCESS;
+			}
+			else if (Env.Output.empty())
+				return Builder::PullAddonRepository(Config, Env) == StatusCode::OK ? (int)ExitStatus::OK : (int)ExitStatus::CommandError;
+
+			if (Builder::CompileIntoExecutable(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
+				return (int)ExitStatus::CommandError;
+
+			Terminal->WriteLine("Built binaries directory: " + Env.Output + "bin");
+			return (int)ExitStatus::OK;
+		}
+		else if (Config.SaveByteCode)
+		{
+			ByteCodeInfo Info;
+			Info.Debug = Config.Debug;
+			if (Unit->SaveByteCode(&Info) && OS::File::Write(Env.Path + ".gz", (uint8_t*)Info.Data.data(), Info.Data.size()))
+				return (int)ExitStatus::OK;
+
+			VI_ERR("cannot save <%s> module bytecode", Env.Module);
+			return (int)ExitStatus::SavingError;
+		}
+		else if (Config.Dependencies)
+		{
+			PrintDependencies();
+			return (int)ExitStatus::OK;
+		}
+		else if (Config.Interactive)
 		{
 			if (Env.Path.empty())
 				Env.Path = *OS::Directory::GetWorking();
@@ -188,11 +219,11 @@ namespace ASX
 			Function Main = Runtime::GetEntrypoint(Env, Entrypoint, Unit, true);
 			if (!Main.IsValid())
 			{
-				Status = Unit->LoadCode(Env.Path + ":0", DefaultCode, sizeof(DefaultCode) - 1);
+				Status = Unit->LoadCode(Env.Path + ":0", DefaultCode);
 				if (!Status)
 				{
 					VI_ERR("cannot load default entrypoint for interactive mode\n  %s", Status.Error().what());
-					VI_RELEASE(Debugger);
+					Memory::Release(Debugger);
 					return (int)ExitStatus::LoadingError;
 				}
 
@@ -201,7 +232,7 @@ namespace ASX
 				if (!Status)
 				{
 					VI_ERR("cannot compile default module for interactive mode\n  %s", Status.Error().what());
-					VI_RELEASE(Debugger);
+					Memory::Release(Debugger);
 					return (int)ExitStatus::CompilerError;
 				}
 			}
@@ -278,7 +309,7 @@ namespace ASX
 				if (!Env.Inline)
 				{
 					String Index = ":" + ToString(++Section);
-					if (!Unit->LoadCode(Env.Path + Index, Data.c_str(), Data.size()) || Unit->Compile().Get())
+					if (!Unit->LoadCode(Env.Path + Index, Data) || Unit->Compile().Get())
 						continue;
 				}
 
@@ -299,39 +330,8 @@ namespace ASX
 				Context->Unprepare();
 			}
 
-			VI_RELEASE(Debugger);
+			Memory::Release(Debugger);
 			ExitProcess(ExitStatus::OK);
-			return (int)ExitStatus::OK;
-		}
-		else if (Config.SaveByteCode)
-		{
-			ByteCodeInfo Info;
-			Info.Debug = Config.Debug;
-			if (Unit->SaveByteCode(&Info) && OS::File::Write(Env.Path + ".gz", (const char*)Info.Data.data(), Info.Data.size()))
-				return (int)ExitStatus::OK;
-
-			VI_ERR("cannot save <%s> module bytecode", Env.Module);
-			return (int)ExitStatus::SavingError;
-		}
-		else if (Config.Dependencies)
-		{
-			PrintDependencies();
-			return (int)ExitStatus::OK;
-		}
-		else if (Config.Install)
-		{
-			if (Config.Installed > 0)
-			{
-				Terminal->WriteLine("Successfully installed " + ToString(Config.Installed) + String(Config.Installed > 1 ? " addons" : " addon"));
-				return EXIT_SUCCESS;
-			}
-			else if (Env.Output.empty())
-				return Builder::PullAddonRepository(Config, Env) == StatusCode::OK ? (int)ExitStatus::OK : (int)ExitStatus::CommandError;
-
-			if (Builder::CompileIntoExecutable(Config, Env, VM, Builder::GetDefaultSettings()) != StatusCode::OK)
-				return (int)ExitStatus::CommandError;
-
-			Terminal->WriteLine("Built binaries directory: " + Env.Output + "bin");
 			return (int)ExitStatus::OK;
 		}
 
@@ -365,7 +365,7 @@ namespace ASX
 				Context->GetVM()->ReleaseObject(ArgsArray, Type);
 		});
 
-		Runtime::AwaitContext(Queue, Loop, VM, Context);
+		Runtime::AwaitContext(Loop, VM, Context);
 		return ExitCode;
 	}
 	void Environment::Shutdown(int Value)
@@ -387,10 +387,9 @@ namespace ASX
 				goto GracefulShutdown;
 			}
 
-			auto* Queue = Schedule::Get();
-			if (Queue->IsActive())
+			if (Schedule::IsAvailable())
 			{
-				Queue->Stop();
+				Schedule::Get()->Stop();
 				Loop->Wakeup();
 				VI_DEBUG("graceful shutdown using [scheduler stop]");
 				goto GracefulShutdown;
@@ -425,68 +424,68 @@ namespace ASX
 	}
 	void Environment::AddDefaultCommands()
 	{
-		AddCommand("application", "-h, --help", "show help message", true, [this](const String&)
+		AddCommand("application", "-h, --help", "show help message", true, [this](const std::string_view&)
 		{
 			PrintHelp();
 			return (int)ExitStatus::OK;
 		});
-		AddCommand("application", "-v, --version", "show version message", true, [this](const String&)
+		AddCommand("application", "-v, --version", "show version message", true, [this](const std::string_view&)
 		{
 			PrintIntroduction("runtime");
 			return (int)ExitStatus::OK;
 		});
-		AddCommand("application", "--plain", "show detailed log messages as is", true, [this](const String&)
+		AddCommand("application", "--plain", "show detailed log messages as is", true, [this](const std::string_view&)
 		{
 			Config.PrettyProgress = false;
 			ErrorHandling::SetFlag(LogOption::Pretty, false);
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("application", "--quiet", "disable logging", true, [](const String&)
+		AddCommand("application", "--quiet", "disable logging", true, [](const std::string_view&)
 		{
 			ErrorHandling::SetFlag(LogOption::Active, false);
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("application", "--timings", "append date for each logging message", true, [](const String&)
+		AddCommand("application", "--timings", "append date for each logging message", true, [](const std::string_view&)
 		{
 			ErrorHandling::SetFlag(LogOption::Dated, true);
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-b, --bytecode", "load gz compressed compiled bytecode and execute it as normal", true, [this](const String&)
+		AddCommand("execution", "-b, --bytecode", "load gz compressed compiled bytecode and execute it as normal", true, [this](const std::string_view&)
 		{
 			Config.LoadByteCode = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-s, --save", "save gz compressed compiled bytecode to a file near script file", true, [this](const String&)
+		AddCommand("execution", "-s, --save", "save gz compressed compiled bytecode to a file near script file", true, [this](const std::string_view&)
 		{
 			Config.SaveByteCode = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-I, --interactive", "run only in interactive mode", true, [this](const String&)
+		AddCommand("execution", "-I, --interactive", "run only in interactive mode", true, [this](const std::string_view&)
 		{
 			Config.Interactive = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-d, --debug", "enable debugger interface", true, [this](const String&)
+		AddCommand("execution", "-d, --debug", "enable debugger interface", true, [this](const std::string_view&)
 		{
 			Config.Debug = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-j, --jit", "enable just in time compiler bytecode translation", true, [this](const String&)
+		AddCommand("execution", "-j, --jit", "enable just in time compiler bytecode translation", true, [this](const std::string_view&)
 		{
 			Config.Translator = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-g, --game", "enable game engine mode for graphics and audio support", true, [this](const String&)
+		AddCommand("execution", "-g, --game", "enable game engine mode for graphics and audio support", true, [this](const std::string_view&)
 		{
 			Config.EssentialsOnly = false;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-p, --preserve", "enable in memory source code preservation for better exception messages", true, [this](const String&)
+		AddCommand("execution", "-p, --preserve", "enable in memory source code preservation for better exception messages", true, [this](const std::string_view&)
 		{
 			Config.SaveSourceCode = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-D, --deny", "deny permissions by name [expects: plus(+) separated list]", false, [this](const String& Value)
+		AddCommand("execution", "-D, --deny", "deny permissions by name [expects: plus(+) separated list]", false, [this](const std::string_view& Value)
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 			{
@@ -501,7 +500,7 @@ namespace ASX
 			}
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-A, --allow", "allow permissions by name [expects: plus(+) separated list]", false, [this](const String& Value)
+		AddCommand("execution", "-A, --allow", "allow permissions by name [expects: plus(+) separated list]", false, [this](const std::string_view& Value)
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 			{
@@ -516,12 +515,12 @@ namespace ASX
 			}
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--target", "set a CMake name for output target [expects: name]", false, [this](const String& Name)
+		AddCommand("building", "--target", "set a CMake name for output target [expects: name]", false, [this](const std::string_view& Name)
 		{
 			Env.Name = Name;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--output", "directory where to build an executable from source code [expects: path]", false, [this](const String& Path)
+		AddCommand("building", "--output", "directory where to build an executable from source code [expects: path]", false, [this](const std::string_view& Path)
 		{
 			FileEntry File;
 			if (Path != ".")
@@ -556,58 +555,58 @@ namespace ASX
 			if (File.IsDirectory)
 				return (int)ExitStatus::Continue;
 
-			VI_ERR("output path <%s> must be a directory", Path.c_str());
+			VI_ERR("output path <%s> must be a directory", Path.data());
 			return (int)ExitStatus::InputError;
 		});
-		AddCommand("building", "--import-std", "import standard addon(s) by name [expects: plus(+) separated list]", false, [this](const String& Value)
+		AddCommand("building", "--import-std", "import standard addon(s) by name [expects: plus(+) separated list]", false, [this](const std::string_view& Value)
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.SystemAddons.push_back(Item);
 
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--import-user", "import user addon(s) by path [expects: plus(+) separated list]", false, [this](const String& Value)
+		AddCommand("building", "--import-user", "import user addon(s) by path [expects: plus(+) separated list]", false, [this](const std::string_view& Value)
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.Libraries.emplace_back(std::make_pair(Item, true));
 
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--import-lib", "import clibrary(ies) by path [expects: plus(+) separated list]", false, [this](const String& Value)
+		AddCommand("building", "--import-lib", "import clibrary(ies) by path [expects: plus(+) separated list]", false, [this](const std::string_view& Value)
 		{
 			for (auto& Item : Stringify::Split(Value, '+'))
 				Config.Libraries.emplace_back(std::make_pair(Item, false));
 
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--import-func", "import clibrary function by declaration [expects: clib_name:cfunc_name=asfunc_decl]", false, [this](const String& Value)
+		AddCommand("building", "--import-func", "import clibrary function by declaration [expects: clib_name:cfunc_name=asfunc_decl]", false, [this](const std::string_view& Value)
 		{
 			size_t Offset1 = Value.find(':');
 			if (Offset1 == std::string::npos)
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.data());
 				return (int)ExitStatus::InvalidDeclaration;
 			}
 
 			size_t Offset2 = Value.find('=', Offset1);
 			if (Offset2 == std::string::npos)
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.data());
 				return (int)ExitStatus::InvalidDeclaration;
 			}
 
-			auto CLibraryName = Value.substr(0, Offset1);
+			String CLibraryName = String(Value.substr(0, Offset1));
 			Stringify::Trim(CLibraryName);
 
-			auto CFunctionName = Value.substr(Offset1 + 1, Offset2 - Offset1 - 1);
+			String CFunctionName = String(Value.substr(Offset1 + 1, Offset2 - Offset1 - 1));
 			Stringify::Trim(CLibraryName);
 
-			auto Declaration = Value.substr(Offset2 + 1);
+			String Declaration = String(Value.substr(Offset2 + 1));
 			Stringify::Trim(CLibraryName);
 
 			if (CLibraryName.empty() || CFunctionName.empty() || Declaration.empty())
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.c_str());
+				VI_ERR("invalid clibrary cfunction declaration <%s>", Value.data());
 				return (int)ExitStatus::InvalidDeclaration;
 			}
 
@@ -616,12 +615,12 @@ namespace ASX
 			Data.second = Declaration;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--prop", "set virtual machine property [expects: prop_name:prop_value]", false, [this](const String& Value)
+		AddCommand("building", "--prop", "set virtual machine property [expects: prop_name:prop_value]", false, [this](const std::string_view& Value)
 		{
 			auto Args = Stringify::Split(Value, ':');
 			if (Args.size() != 2)
 			{
-				VI_ERR("invalid property declaration <%s>", Value.c_str());
+				VI_ERR("invalid property declaration <%s>", Value.data());
 				return (int)ExitStatus::InputError;
 			}
 
@@ -655,14 +654,14 @@ namespace ASX
 			VM->SetProperty((Features)It->second, (size_t)*FromString<uint64_t>(Data));
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("building", "--props", "show virtual machine properties message", true, [this](const String&)
+		AddCommand("building", "--props", "show virtual machine properties message", true, [this](const std::string_view&)
 		{
 			PrintProperties();
 			return (int)ExitStatus::OK;
 		});
-		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:?relpath]", false, [this](const String& Value)
+		AddCommand("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:?relpath]", false, [this](const std::string_view& Value)
 		{
-			String Path = Value;
+			String Path = String(Value);
 			size_t Where = Value.find(':');
 			if (Where != std::string::npos)
 			{
@@ -719,12 +718,12 @@ namespace ASX
 			VI_ERR("addon path <%s> must be a directory", Path.c_str());
 			return (int)ExitStatus::InputError;
 		});
-		AddCommand("addons", "-i, --install", "install or update script dependencies", true, [this](const String& Value)
+		AddCommand("addons", "-i, --install", "install or update script dependencies", true, [this](const std::string_view& Value)
 		{
 			Config.Install = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("addons", "--deps", "install and show dependencies message", true, [this](const String&)
+		AddCommand("addons", "--deps", "install and show dependencies message", true, [this](const std::string_view&)
 		{
 			Config.Dependencies = true;
 			return (int)ExitStatus::Continue;
@@ -766,7 +765,7 @@ namespace ASX
 		Settings["ignore_shared_interface_duplicates"] = (uint32_t)Features::IGNORE_DUPLICATE_SHARED_INTF;
 		Settings["ignore_debug_output"] = (uint32_t)Features::NO_DEBUG_OUTPUT;
 	}
-	void Environment::AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback)
+	void Environment::AddCommand(const std::string_view& Category, const std::string_view& Name, const std::string_view& Description, bool IsFlagOnly, const CommandCallback& Callback)
 	{
 		EnvironmentCommand Command;
 		Command.Arguments = Stringify::Split(Name, ',');
@@ -782,7 +781,7 @@ namespace ASX
 				Flags.insert(Argument);
 		}
 
-		auto& Target = Commands[Category];
+		auto& Target = Commands[String(Category)];
 		Target.push_back(std::move(Command));
 	}
 	ExitStatus Environment::ExecuteArgument(const UnorderedSet<String>& Names)
@@ -803,7 +802,7 @@ namespace ASX
 
 		return ExitStatus::OK;
 	}
-	EnvironmentCommand* Environment::FindArgument(const String& Name)
+	EnvironmentCommand* Environment::FindArgument(const std::string_view& Name)
 	{
 		for (auto& Category : Commands)
 		{
@@ -819,25 +818,59 @@ namespace ASX
 
 		return nullptr;
 	}
+	ExpectsPreprocessor<IncludeType> Environment::ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
+	{
+		if (File.Module.empty() || File.Module.front() != '@')
+			return IncludeType::Unchanged;
+
+		if (!Control::Has(Config, AccessOption::Https))
+		{
+			VI_ERR("cannot import addon <%s> from remote repository: permission denied", File.Module.c_str());
+			return IncludeType::Error;
+		}
+
+		IncludeType Status;
+		if (!Builder::IsAddonTargetExists(Env, VM, File.Module))
+		{
+			if (!Config.Install)
+			{
+				VI_ERR("program requires <%s> addon: run installation with --install flag", File.Module.c_str());
+				Status = IncludeType::Error;
+			}
+			else if (Builder::CompileIntoAddon(Config, Env, VM, File.Module, Output) == StatusCode::OK)
+			{
+				Status = Output.empty() ? IncludeType::Virtual : IncludeType::Preprocess;
+				++Config.Installed;
+			}
+			else
+				Status = IncludeType::Error;
+		}
+		else if (Builder::ImportIntoAddon(Env, VM, File.Module, Output) == StatusCode::OK)
+			Status = Output.empty() ? IncludeType::Virtual : IncludeType::Preprocess;
+		else
+			Status = IncludeType::Error;
+		Env.Addons.insert(File.Module);
+		return Status;
+	}
 	void Environment::PrintIntroduction(const char* Label)
 	{
 		auto* Terminal = Console::Get();
 		auto* Lib = Vitex::Runtime::Get();
 		Terminal->Write("Welcome to ASX ");
-		Terminal->WriteBuffer(Label);
-		Terminal->WriteBuffer(" v");
+		Terminal->Write(Label);
+		Terminal->Write(" v");
 		Terminal->Write(ToString((uint32_t)Vitex::MAJOR_VERSION));
-		Terminal->WriteBuffer(".");
+		Terminal->Write(".");
 		Terminal->Write(ToString((uint32_t)Vitex::MINOR_VERSION));
-		Terminal->WriteBuffer(".");
+		Terminal->Write(".");
 		Terminal->Write(ToString((uint32_t)Vitex::PATCH_VERSION));
-		Terminal->WriteBuffer(" [");
-		Terminal->WriteBuffer(Lib->GetCompiler());
-		Terminal->WriteBuffer(" ");
-		Terminal->WriteBuffer(Lib->GetBuild());
-		Terminal->WriteBuffer(" on ");
-		Terminal->WriteBuffer(Lib->GetPlatform());
-		Terminal->WriteBuffer("]\n");
+		Terminal->Write(" [");
+		Terminal->Write(Lib->GetCompiler());
+		Terminal->Write(" ");
+		Terminal->Write(Lib->GetBuild());
+		Terminal->Write(" on ");
+		Terminal->Write(Lib->GetPlatform());
+		Terminal->Write("]\n");
 		Terminal->Write("Run \"" + String(Config.Interactive ? ".help" : (Config.Debug ? "help" : "asx --help")) + "\" for more information");
 		if (Config.Interactive)
 			Terminal->Write(" (loaded " + ToString(VM->GetExposedAddons().size()) + " addons)");
@@ -940,40 +973,6 @@ namespace ASX
 			OS::Process::Exit((int)Code);
 		else
 			OS::Process::Abort();
-	}
-	ExpectsPreprocessor<IncludeType> Environment::ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output)
-	{
-		if (File.Module.empty() || File.Module.front() != '@')
-			return IncludeType::Unchanged;
-
-		if (!Control::Has(Config, AccessOption::Https))
-		{
-			VI_ERR("cannot import addon <%s> from remote repository: permission denied", File.Module.c_str());
-			return IncludeType::Error;
-		}
-
-		IncludeType Status;
-		if (!Builder::IsAddonTargetExists(Env, VM, File.Module))
-		{
-			if (!Config.Install)
-			{
-				VI_ERR("program requires <%s> addon: run installation with --install flag", File.Module.c_str());
-				Status = IncludeType::Error;
-			}
-			else if (Builder::CompileIntoAddon(Config, Env, VM, File.Module, Output) == StatusCode::OK)
-			{
-				Status = Output.empty() ? IncludeType::Virtual : IncludeType::Preprocess;
-				++Config.Installed;
-			}
-			else
-				Status = IncludeType::Error;
-		}
-		else if (Builder::ImportIntoAddon(Env, VM, File.Module, Output) == StatusCode::OK)
-			Status = Output.empty() ? IncludeType::Virtual : IncludeType::Preprocess;
-		else
-			Status = IncludeType::Error;
-		Env.Addons.insert(File.Module);
-		return Status;
 	}
 }
 

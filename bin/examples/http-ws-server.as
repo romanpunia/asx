@@ -138,6 +138,7 @@ int main()
     route.websocket_timeout = 0; // By default 30s of inactivity will result in disconnect (zero = no timeout)
     route.allow_websocket = true; // Disabled by default
 
+    /* See http-server.as */
     @server = http::server();
     server.configure(@router);
     server.listen();

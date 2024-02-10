@@ -43,14 +43,14 @@ class image_fill
     void resize()
     {
         console@ output = console::get();
-        uint32 new_x, new_y;
-        output.get_size(new_x, new_y);
+        uint32 new_w, new_h, new_x, new_y;
+        output.read_screen(new_w, new_h, new_x, new_y);
 
-        if (new_x == x && new_y == y)
+        if (new_w == x && new_h == y)
             return;
 
-        x = new_x;
-        y = new_y;
+        x = new_w;
+        y = new_h;
         size = x * y - 1;
 
         image.resize(size);
@@ -69,7 +69,7 @@ class image_fill
     void flush()
     {
         console@ output = console::get();
-        output.set_cursor(0, 0);
+        output.write_position(0, 0);
         output.write(image);
         output.flush_write();
     }
@@ -161,11 +161,11 @@ int main(string[]@ args)
     image_fill main;
     string type = (args.size() > 1 ? args[1] : "matrix");
     if (type == "matrix")
-        queue.set_interval(66, task_event(main.loop_matrix));
+        queue.set_interval(66, task_async(main.loop_matrix));
     else if (type == "noise")
-        queue.set_interval(66, task_event(main.loop_noise));
+        queue.set_interval(66, task_async(main.loop_noise));
     else if (type == "perlin_1d")
-        queue.set_interval(66, task_event(main.loop_perlin_1d));
+        queue.set_interval(66, task_async(main.loop_perlin_1d));
     else
         queue.stop();
     

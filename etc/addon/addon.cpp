@@ -1,4 +1,4 @@
-#include <vitex/core/scripting.h>
+#include <vitex/scripting.h>
 #include <iostream>
 
 void PrintHelloWorld()

@@ -27,7 +27,7 @@ promise<void>@ set_timeout(uint64 timeout_ms)
     task.time = timeout_ms;
 
     schedule@ queue = schedule::get();
-    queue.set_timeout(timeout_ms, task_event(task.settle));
+    queue.set_timeout(timeout_ms, task_async(task.settle));
     
     console@ output = console::get();
     output.write_line("[timeout] -> " + to_string(timeout_ms) + "ms");

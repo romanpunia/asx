@@ -82,6 +82,12 @@ int main()
         base.next(204);
     });
 
+    /*
+        Server is global to extend it's lifetime,
+        otherwise GC will destroy it at the end of
+        the main function. If we also specify some
+        "while true" statement then it can be local
+    */
     @server = http::server();
     server.configure(@router);
     server.listen();

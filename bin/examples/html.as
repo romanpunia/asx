@@ -9,21 +9,19 @@ import from "engine";
 shared class runtime
 {
     application@ self;
-    ui_context@ context;
 
     runtime(application_desc&in init)
     {
         @self = application(init, @this);
-        self.set_on_initialize(initialize_callback(this.initialize));
-        self.set_on_dispatch(dispatch_callback(this.dispatch));
-        self.set_on_publish(publish_callback(this.publish));
-        self.set_on_window_event(window_event_callback(this.window_event));
-        self.set_on_fetch_ui(fetch_ui_callback(this.get_ui));
+        self.set_on_initialize(initialize_sync(this.initialize));
+        self.set_on_dispatch(dispatch_sync(this.dispatch));
+        self.set_on_publish(publish_sync(this.publish));
+        self.set_on_window_event(window_event_sync(this.window_event));
     }
     void initialize()
     {
-        @context = ui_context(@self.renderer);
-        ui_document document = context.load_document("application.html", true);
+        ui_context@ ui = self.fetch_ui();
+        ui_document document = ui.load_document("application.html", true);
         if (document.is_valid())
             document.show();
         else
@@ -31,15 +29,17 @@ shared class runtime
     }
     void dispatch(clock_timer@ time)
     {
+        ui_context@ ui = self.try_get_ui();
         if (!self.has_processed_events())
-            self.window.dispatch_blocking(context.get_idle_timeout_ms(10000));
-        context.update_events(@self.window);
+            self.window.dispatch_blocking(ui.get_idle_timeout_ms(10000));
+        ui.update_events(@self.window);
     }
     void publish(clock_timer@ time)
     {
+        ui_context@ ui = self.try_get_ui();
         self.renderer.clear(0, 0, 0);
         self.renderer.clear_depth();
-        context.render_lists(null);
+        ui.render_lists(null);
         self.renderer.submit();
     }
     void window_event(window_state state, int x, int y)
@@ -53,10 +53,6 @@ shared class runtime
                 self.stop();
                 break;
         }
-    }
-    ui_context@ get_ui()
-    {
-        return @context;
     }
 }
 

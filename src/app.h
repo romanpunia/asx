@@ -1,15 +1,15 @@
 #ifndef APP_H
 #define APP_H
 #include "builder.h"
-#include <vitex/core/bindings.h>
-#include <vitex/core/network.h>
+#include <vitex/bindings.h>
+#include <vitex/network.h>
 
 using namespace Vitex::Engine;
 using namespace Vitex::Network;
 
 namespace ASX
 {
-	typedef std::function<int(const String&)> CommandCallback;
+	typedef std::function<int(const std::string_view&)> CommandCallback;
 
 	struct EnvironmentCommand
 	{
@@ -44,9 +44,9 @@ namespace ASX
 	private:
 		void AddDefaultCommands();
 		void AddDefaultSettings();
-		void AddCommand(const String& Category, const String& Name, const String& Description, bool IsFlagOnly, const CommandCallback& Callback);
+		void AddCommand(const std::string_view& Category, const std::string_view& Name, const std::string_view& Description, bool IsFlagOnly, const CommandCallback& Callback);
 		ExitStatus ExecuteArgument(const UnorderedSet<String>& Names);
-		EnvironmentCommand* FindArgument(const String& Name);
+		EnvironmentCommand* FindArgument(const std::string_view& Name);
 		void PrintIntroduction(const char* Label);
 		void PrintHelp();
 		void PrintProperties();

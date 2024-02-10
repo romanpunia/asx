@@ -26,10 +26,10 @@ class runtime
             grid_radius = radius;
         
         @self = application(init, @this);
-        self.set_on_initialize(initialize_callback(this.initialize));
-        self.set_on_dispatch(dispatch_callback(this.dispatch));
-        self.set_on_publish(publish_callback(this.publish));
-        self.set_on_window_event(window_event_callback(this.window_event));
+        self.set_on_initialize(initialize_sync(this.initialize));
+        self.set_on_dispatch(dispatch_sync(this.dispatch));
+        self.set_on_publish(publish_sync(this.publish));
+        self.set_on_window_event(window_event_sync(this.window_event));
     }
     void initialize()
     {

@@ -1,6 +1,6 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
-#include <vitex/core/scripting.h>
+#include <vitex/scripting.h>
 
 using namespace Vitex::Core;
 using namespace Vitex::Compute;
@@ -158,21 +158,23 @@ namespace ASX
 		static void ApplyContextExit(asIScriptFunction* Callback)
 		{
 			auto& Env = EnvironmentConfig::Get();
-			ImmediateContext* Context = Callback ? Env.ThisCompiler->GetVM()->RequestContext() : nullptr;
-			Env.AtExit = FunctionDelegate(Callback, Context);
-			VI_RELEASE(Context);
+			UPtr<ImmediateContext> Context = Callback ? Env.ThisCompiler->GetVM()->RequestContext() : nullptr;
+			Env.AtExit = FunctionDelegate(Callback, *Context);
 		}
-		static void AwaitContext(Schedule* Queue, EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
+		static void AwaitContext(EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
 		{
 			EventLoop::Set(Loop);
 			while (Loop->PollExtended(Context, 1000))
 				Loop->Dequeue(VM);
 
-			while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
-				Queue->Dispatch();
+			if (Schedule::HasInstance())
+			{
+				auto* Queue = Schedule::Get();
+				while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
+					Queue->Dispatch();
+				Queue->Stop();
+			}
 
-			Queue->Stop();
-			Queue->SetImmediate(true);
 			EventLoop::Set(nullptr);
 			Context->Reset();
 			VM->PerformFullGarbageCollection();
