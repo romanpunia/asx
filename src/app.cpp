@@ -924,7 +924,7 @@ namespace ASX
 			size_t Value = VM->GetProperty((Features)Item.second);
 			Terminal->Write("  " + Item.first + ": ");
 			if (Stringify::EndsWith(Item.first, "mode"))
-				Terminal->Write("mode " + Value);
+				Terminal->Write("mode " + ToString(Value));
 			else if (Stringify::EndsWith(Item.first, "size"))
 				Terminal->Write((Value > 0 ? ToString(Value) : "unlimited"));
 			else if (Value == 0)
