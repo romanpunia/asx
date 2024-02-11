@@ -58,6 +58,11 @@ class runtime
         render_system@ system = self.scene.get_renderer();
         system.add_renderer(model_renderer(system));
         system.add_renderer(lighting_renderer(system));
+        
+        ssgi_renderer@ ssgi = ssgi_renderer(system);
+        ssgi.indirection.distance = 8;
+        ssgi.indirection.swing = 0.5;
+        system.add_renderer(@ssgi);
 
         scene_entity@ light = self.scene.add_entity();
         {
@@ -81,7 +86,7 @@ class runtime
         {
             material@ next = self.scene.add_material();
             next.surface.diffuse = vector3::random_abs();
-            next.surface.roughness.x = 0.3;
+            next.surface.roughness.x = 0.3 * randomf();
         }
 
         for (float x = -grid_size.x; x < grid_size.x; x++)
