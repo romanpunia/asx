@@ -87,7 +87,6 @@ int main(int argc, char* argv[])
 	Config.Functions = { {{BUILDER_CONFIG_FUNCTIONS}} };
 	Config.SystemAddons = { {{BUILDER_CONFIG_ADDONS}} };
 	Config.TsImports = {{BUILDER_CONFIG_TS_IMPORTS}};
-	Config.Translator = {{BUILDER_CONFIG_TRANSLATOR}};
 	Config.EssentialsOnly = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
     setup_program(Env);
 

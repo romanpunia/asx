@@ -470,11 +470,6 @@ namespace ASX
 			Config.Debug = true;
 			return (int)ExitStatus::Continue;
 		});
-		AddCommand("execution", "-j, --jit", "enable just in time compiler bytecode translation", true, [this](const std::string_view&)
-		{
-			Config.Translator = true;
-			return (int)ExitStatus::Continue;
-		});
 		AddCommand("execution", "-g, --game", "enable game engine mode for graphics and audio support", true, [this](const std::string_view&)
 		{
 			Config.EssentialsOnly = false;

@@ -73,7 +73,6 @@ namespace ASX
 		Vector<String> SystemAddons;
 		bool TsImports = true;
 		bool Debug = false;
-		bool Translator = false;
 		bool Interactive = false;
 		bool EssentialsOnly = true;
 		bool PrettyProgress = true;
@@ -98,8 +97,6 @@ namespace ASX
 			VM->SetTsImports(Config.TsImports);
 			VM->SetModuleDirectory(OS::Path::GetDirectory(Env.Path.c_str()));
 			VM->SetPreserveSourceCode(Config.SaveSourceCode);
-			if (Config.Translator)
-				VM->SetByteCodeTranslator((uint32_t)TranslationOptions::Optimal);
 
 			for (auto& Name : Config.SystemAddons)
 			{

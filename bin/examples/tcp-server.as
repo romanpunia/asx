@@ -16,7 +16,7 @@ int main()
     /*
         Configure a listener socket and start accepting
         new connections. Functions open/bind/listen are
-        are the standard socket listener flow. Function
+        the standard socket listener flow. Function
         set_blocking enables non-blocking IO. Function
         accept_async triggers passed callback each time a
         connection was made.
@@ -26,7 +26,12 @@ int main()
         can throw exceptions.
 
         This is what happens under the hood of http::server
-        on the lowest level, basically.
+        on the lowest level, basically. Of course, it will be
+        slower than using http::server directly, there is an
+        overhead on native function calls which are used here
+        all over the place but most of the heavy stuff is in
+        event loop that does not allow parallel execution by
+        design.
     */
     socket_address@ address = resolver.from_service("0.0.0.0", "8080", dns_type::listen, socket_protocol::tcp, socket_type::stream);
     @listener = socket();
@@ -50,7 +55,8 @@ int main()
                 until scheduler becomes inactive.
 
                 This server will respond correctly only for
-                incoming HTTP GET requests without a body.
+                incoming HTTP GET requests without a body that
+                are under 4kb size.
             */
             schedule@ queue = schedule::get();
             while (queue.is_active())

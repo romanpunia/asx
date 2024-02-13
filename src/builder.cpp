@@ -783,6 +783,7 @@ namespace ASX
 			{ "PESSIMISTIC", Lib->HasFtPessimistic() },
 			{ "BINDINGS", Lib->HasFtBindings() && !IsAddon },
 			{ "SHADERS", Lib->HasFtShaders() && IsUsingGraphics(VM) && !IsAddon },
+			{ "FCONTEXT", Lib->HasFtFContext() && !IsAddon },
 			{ "OPENGL", Lib->HasSoOpenGL() && IsUsingGraphics(VM) && !IsAddon },
 			{ "OPENAL", Lib->HasSoOpenAL() && IsUsingAudio(VM) && !IsAddon },
 			{ "OPENSSL", Lib->HasSoOpenSSL() && IsUsingCrypto(VM) && !IsAddon },
@@ -796,7 +797,7 @@ namespace ASX
 			{ "SQLITE", Lib->HasSoSQLite() && IsUsingSQLite(VM) && !IsAddon },
 			{ "FREETYPE", Lib->HasSoFreeType() && IsUsingGUI(VM) && !IsAddon },
 			{ "ANGELSCRIPT", Lib->HasMdAngelScript() && !IsAddon },
-			{ "BACKTRACE", Lib->HasMdBacktrace() && !IsAddon },
+			{ "BACKWARDCPP", Lib->HasMdBackwardCpp() && !IsAddon },
 			{ "RMLUI", Lib->HasMdRmlUI() && IsUsingGUI(VM) && !IsAddon },
 			{ "BULLET3", Lib->HasMdBullet3() && IsUsingPhysics(VM) && !IsAddon },
 			{ "TINYFILEDIALOGS", Lib->HasMdTinyFileDialogs() && IsUsingOS(VM) && !IsAddon },
@@ -804,9 +805,7 @@ namespace ASX
 			{ "STB", Lib->HasMdStb() && IsUsingEngine(VM) && !IsAddon },
 			{ "PUGIXML", Lib->HasMdPugiXml() && IsUsingEngine(VM) && !IsAddon },
 			{ "RAPIDJSON", Lib->HasMdRapidJson() && IsUsingEngine(VM) && !IsAddon },
-			{ "SIMD", Lib->HasMdSimd() && !IsAddon },
-			{ "JIT", Lib->HasMdJit() && !IsAddon },
-			{ "FCTX", Lib->HasMdFContext() && !IsAddon },
+			{ "VECTORCLASS", Lib->HasMdVectorclass() && !IsAddon },
 		};
 
 		for (auto& Item : Features)
@@ -853,7 +852,6 @@ namespace ASX
 		Keys["BUILDER_CONFIG_FUNCTIONS"] = ConfigFunctionsArray;
 		Keys["BUILDER_CONFIG_ADDONS"] = ConfigSystemAddonsArray;
 		Keys["BUILDER_CONFIG_TS_IMPORTS"] = Config.TsImports ? "true" : "false";
-		Keys["BUILDER_CONFIG_TRANSLATOR"] = Config.Translator ? "true" : "false";
 		Keys["BUILDER_CONFIG_ESSENTIALS_ONLY"] = Config.EssentialsOnly ? "true" : "false";
 		Keys["BUILDER_VITEX_URL"] = ConfigSystemAddonsArray;
 		Keys["BUILDER_VITEX_PATH"] = VitexPath;

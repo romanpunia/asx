@@ -162,9 +162,9 @@ AngelScript VM will be configured according to your ASX setup. For example, if y
 Generated output will not embed any resources requested by runtime such as images, files, audio and other resources. You will have to add (and optionally pack) them manually as in usual C++ project. **Important note for Windows platform**: by default ASX is built as console application, so the console it self spawns automatically whenever intended by app or not, however output binary is built using subsystem windows, meaning no console without explicit request, this may cause unintended behaviour if you don't use **console::show()** method.
 
 ## Performance
-Although AngelScript is pretty fast out of the box, if code being executed is CPU intensive and lies within VM then it might be useful to run it using JIT compiler. JIT compiler does not support ARM platform, it's pretty powerful and can increase performance by 4 orders of magnitude. Add _--jit_ option to enable it.
-
 Currently, the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.
+
+The framework is set up in a pessimistic mode which leaves assertion statements in release mode to ensure valid panic state in case of misuse of APIs. This introduces performance penalty (in some cases severe) in return for program correctness.
 
 You may also check performance benchmarks in **bin/examples/stresstest\*.as**. First is singlethreaded mode, second is multithreaded mode. You may run these scripts with a single argument that will be a number higher than zero (usually pretty big number). This example will calculate some 64-bit integer hash based on input.
 

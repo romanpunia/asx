@@ -3,8 +3,7 @@ cmake_minimum_required(VERSION 3.6)
 #Setup toolchain file if needed
 set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/vitex CACHE STRING "Vitex directory")
 set(VI_PESSIMISTIC ON CACHE BOOL "+")
-set(VI_JIT ON CACHE BOOL "+")
-set(VI_SIMD ON CACHE BOOL "+")
+set(VI_VECTORCLASS ON CACHE BOOL "+")
 include(${VI_DIRECTORY}/deps/toolchain.cmake)
 
 #Project's metadata
