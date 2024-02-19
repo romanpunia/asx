@@ -3,8 +3,7 @@ import from
     "timestamp",
     "activity",
     "graphics",
-    "math",
-    "console"
+    "math"
 };
 
 activity@ window = null;

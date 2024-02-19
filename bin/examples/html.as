@@ -31,7 +31,7 @@ shared class runtime
     {
         ui_context@ ui = self.try_get_ui();
         if (!self.has_processed_events())
-            self.window.dispatch_blocking(ui.get_idle_timeout_ms(10000));
+            self.window.dispatch(ui.get_idle_timeout_ms(10000));
         ui.update_events(@self.window);
     }
     void publish(clock_timer@ time)
