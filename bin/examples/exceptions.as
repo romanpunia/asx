@@ -2,13 +2,6 @@ import from { "exception", "thread", "console" };
 
 class thread_routine
 {
-    /*
-        you may also want to try -j option
-        that will activate the JIT compiler,
-        you will see how much less information
-        you get because most of the code is
-        being translated to machine instructions.
-    */
     bool wants_crash = false;
 
     void main(thread@ self)
@@ -33,7 +26,7 @@ void start(bool wants_crash)
     thread_routine routine;
     routine.wants_crash = wants_crash;
 
-    thread@ basic = thread(thread_async(@routine.main));
+    thread@ basic = thread(thread_parallel(@routine.main));
     basic.invoke();
     
     this_thread::sleep(1000);

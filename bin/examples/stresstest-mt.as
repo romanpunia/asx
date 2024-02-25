@@ -50,7 +50,7 @@ int32[]@ test(int32 value)
         */
         @worker.hashes = hashes;
 
-        thread@ next = thread(thread_async(worker.execute));
+        thread@ next = thread(thread_parallel(worker.execute));
         next.invoke();
         threads.push(@next);
     }

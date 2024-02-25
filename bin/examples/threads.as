@@ -15,6 +15,21 @@ int main()
     output.show();
     output.write_line("main thread: " + this_thread::get_id());
 
+    /*
+        These thread objects are native OS threads,
+        they are heavy however fully detached from main
+        thread. Each thread has shared access to global
+        variables and singletons (meaning to all shared memory).
+        This gives great control and very much the easiest way
+        to get a segmentation fault. Rules are just like in C++:
+        use mutexes or other synchronization primitives.
+
+        There is another way to approach multithreading: use
+        schedule::spawn method. When scheduling runtime is active
+        this method will create a new execution context that will
+        be fully separate from main context. However it will not
+        create any new threads, it will only reuse existing ones.
+    */
     thread@ basic_parallel = thread(function(thread@ self)
     {
         console@ output = console::get();

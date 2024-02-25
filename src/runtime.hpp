@@ -162,7 +162,10 @@ namespace ASX
 		{
 			EventLoop::Set(Loop);
 			while (Loop->PollExtended(Context, 1000))
+			{
+				VM->PerformPeriodicGarbageCollection(60000);
 				Loop->Dequeue(VM);
+			}
 
 			if (Schedule::HasInstance())
 			{

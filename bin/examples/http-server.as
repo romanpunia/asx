@@ -11,7 +11,7 @@ int main()
     queue.start(schedule_policy()); // Creates up to "CPU threads count" threads
     
     http::map_router@ router = http::map_router();
-    router.listen("0.0.0.0", 8080);
+    router.listen("0.0.0.0", "8080");
     router.get("/", function(http::connection@ base)
     {
         /* Set content type of text */

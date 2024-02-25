@@ -101,7 +101,7 @@ int main()
     queue.start(policy);
     
     http::map_router@ router = http::map_router();
-    router.listen("0.0.0.0", 8080);
+    router.listen("0.0.0.0", "8080");
     router.websocket_connect("/", function(http::websocket_frame@ base)
     {
         /* Add client and notify others */

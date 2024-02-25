@@ -19,6 +19,6 @@ int main(string[]@ args)
     catch
     {
         output.write_line(exception::unwrap().what());
-        return 2;
+        return 1;
     }
 }

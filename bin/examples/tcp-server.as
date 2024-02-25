@@ -1,7 +1,51 @@
 import from { "schedule", "network" };
 
-/* For simplicity of listener capturing while being in shutdown event */
-socket@ listener = null;
+class socket_event
+{
+    socket@ connection;
+
+    socket_event(socket@ fd)
+    {
+        @connection = fd;
+    }
+    void dispatch()
+    {
+        try
+        {
+            /*
+                Process incoming requests until we get a
+                network error (e.g. reset, timeout, abort) or
+                until scheduler becomes inactive.
+
+                This server will respond correctly only for
+                incoming HTTP GET requests without a body that
+                are under 4kb size.
+            */
+            schedule@ queue = schedule::get();
+            while (queue.is_active())
+            {
+                /* Read incoming request until HTTP delimiter token (unused) */
+                string request_message = co_await connection.read_until_chunked_deferred("\r\n\r\n", 1024 * 4);
+
+                /* Generate a response for a client */
+                string response_content = "Hello, World!";
+                string response_message = "HTTP/1.1 200 OK\r\n";
+                response_message += "Connection: Keep-Alive\r\n";
+                response_message += "Keep-Alive: timeout=5\r\n";
+                response_message += "Content-Type: text/plain; charset=utf-8\r\n";
+                response_message += "Content-Length: " + to_string(response_content.size()) + "\r\n\r\n";
+                response_message += response_content;
+
+                /* Send generated response to client */
+                co_await connection.write_deferred(response_message);
+            }
+        }
+        catch { }
+
+        /* Close connection if possible */
+        try { co_await connection.close_deferred(); } catch { }
+    }
+}
 
 int main()
 {
@@ -18,7 +62,7 @@ int main()
         new connections. Functions open/bind/listen are
         the standard socket listener flow. Function
         set_blocking enables non-blocking IO. Function
-        accept_async triggers passed callback each time a
+        accept_deferred triggers passed callback each time a
         connection was made.
 
         We get the socket_address from DNS resolver. It's a
@@ -33,59 +77,12 @@ int main()
         event loop that does not allow parallel execution by
         design.
     */
-    socket_address@ address = resolver.from_service("0.0.0.0", "8080", dns_type::listen, socket_protocol::tcp, socket_type::stream);
-    @listener = socket();
-    listener.open(@address);
-    listener.bind(@address);
+    socket_address address = resolver.lookup("0.0.0.0", "8080", dns_type::listen);
+    socket@ listener = socket();
+    listener.open(address);
+    listener.bind(address);
     listener.listen(128);
     listener.set_blocking(false);
-    listener.accept_async(false, function(fd, address)
-    {
-        /* Configure connected client connection */
-        socket@ connection = socket(fd);
-        connection.set_io_timeout(5000);
-        connection.set_blocking(false);
-        connection.set_keep_alive(true);
-
-        try
-        {
-            /*
-                Process incoming requests until we get a
-                network error (e.g. reset, timeout, abort) or
-                until scheduler becomes inactive.
-
-                This server will respond correctly only for
-                incoming HTTP GET requests without a body that
-                are under 4kb size.
-            */
-            schedule@ queue = schedule::get();
-            while (queue.is_active())
-            {
-                /* Read incoming request until HTTP delimiter token (unused) */
-                string request_message = co_await connection.read_until_chunked(1024 * 4, "\r\n\r\n");
-
-                /* Generate a response for a client */
-                string response_content = "Hello, World!";
-                string response_message = "HTTP/1.1 200 OK\r\n";
-                response_message += "Connection: Keep-Alive\r\n";
-                response_message += "Keep-Alive: timeout=5\r\n";
-                response_message += "Content-Type: text/plain; charset=utf-8\r\n";
-                response_message += "Content-Length: " + to_string(response_content.size()) + "\r\n\r\n";
-                response_message += response_content;
-
-                /* Send generated response to client */
-                co_await connection.write(response_message);
-            }
-        }
-        catch { }
-
-        try
-        {
-            /* Close connection if possible */
-            co_await connection.close();
-        }
-        catch { }
-    });
 
     /*
         This way is the simplest for graceful shutdown,
@@ -95,21 +92,41 @@ int main()
     this_process::before_exit(function(signal)
     {
         /*
-            First we cancel all events on listener which
-            otherwise could not be released by GC because
-            it is captured by internal network system.
-
-            If for some reason listener socket had a timeout
-            value set then multiplexer shutdown would have the
-            same effect.
+            Reset all socket connections: multiplexer
+            keeps track of all sockets that are awaiting
+            IO operations to finish.
         */
-        listener.shutdown(true);
-
-        /* Then we reset all client connections with a timeout */
         multiplexer::get().shutdown();
-
-        /* Program can exit now */
-        schedule::get().stop();
     });
+    
+    /* Process incoming connections until we terminate */
+    while (queue.is_active())
+    {
+        try
+        {
+            /* Try to accept next incoming socket */
+            socket_accept incoming = co_await listener.accept_deferred();
+            
+            /* Configure connected client connection */
+            socket@ connection = socket(incoming.fd);
+            connection.set_io_timeout(5000);
+            connection.set_blocking(false);
+            connection.set_keep_alive(true);
+            
+            /*
+                Initiate an immediate task which can help us
+                run multiple "white true" loops simultaneously.
+            */
+            socket_event@ event = socket_event(@connection);
+            queue.set_immediate(task_parallel(event.dispatch));
+        }
+        catch
+        {
+            /* Program can exit now */
+            queue.stop();
+            break;
+        }
+    }
+
     return 0;
 }
