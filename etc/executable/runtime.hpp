@@ -98,7 +98,7 @@ namespace ASX
 				Schedule::Get()->Start(Env.AutoSchedule > 0 ? Schedule::Desc((size_t)Env.AutoSchedule) : Schedule::Desc());
 
 			if (Env.AutoConsole)
-				Console::Get()->Show();
+				Console::Get()->Attach();
 		}
 		static void ShutdownEnvironment(EnvironmentConfig& Env)
 		{
