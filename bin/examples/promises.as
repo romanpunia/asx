@@ -35,23 +35,31 @@ promise<void>@ set_timeout(uint64 timeout_ms)
 }
 promise<string>@ set_exception_always()
 {
+    /* Simulate some work */
     co_await set_timeout(500);
+    
+    /* Create a pending promise */
     promise<string>@ result = promise<string>();
+
+    /* Reject a pending promise */
     result.except(exception_ptr("fetch", "cannot receive a valid response (expected)"));
     return @result;
 }
 promise<string>@ get_prices_json()
 {
-    schema@ packages =
+    /* Simulate some work */
+    co_await set_timeout(500);
+
+    /* Create a pending promise */
+    promise<string>@ result = promise<string>();
+
+    /* Settle a pending promise */
+    result.wrap(schema(
     {
         { "week", "3.99" },
         { "month", "14.99" },
         { "year", "139.99" }
-    };
-    
-    co_await set_timeout(500);
-    promise<string>@ result = promise<string>();
-    result.wrap(packages.to_json());
+    }).to_json());
     return @result;
 }
 
@@ -72,14 +80,12 @@ promise<string>@ get_prices_json()
     function that will always call your callback inside this function then
     it will not support async (exception will be thrown).
 */
+[#console::main]
+[#schedule::main(threads = 1, stop = true)]
 int main()
 {
     console@ output = console::get();
-    output.show();
     output.write_line("test start");
-
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy(4));
 
     auto start = timestamp().milliseconds();
     {
@@ -96,14 +102,19 @@ int main()
             output.write_line("[response:second] -> ERR " + exception::unwrap().what());
         }
 
-        co_await set_timeout(1000);
-        co_await set_timeout(500);
-        co_await set_timeout(1000);
+        try
+        {
+            /* Create and unwrap a pending promise (not allowed when not ready) */
+            string invalid_result = promise<string>().unwrap();
+            output.write_line("[response:third] -> OK " + invalid_result);
+        }
+        catch
+        {
+            output.write_line("[response:third] -> ERR " + exception::unwrap().what());
+        }
     }
     auto end = timestamp().milliseconds();
     output.write_line("test time: " + to_string(end - start) + "ms");
     output.write_line("test end");
-    queue.stop();
-
     return 0;
 }

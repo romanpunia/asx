@@ -7,6 +7,10 @@ import from
     "math"
 };
 
+#define REFRESH_RATE 66
+#define MIN_CHAR 32
+#define MAX_CHAR 72
+
 class image_point
 {
     vector2 point;
@@ -15,15 +19,11 @@ class image_point
 
     image_point(uint32 width, uint32 height)
     {
+        character = uint8(random::betweeni(MIN_CHAR, MAX_CHAR));
         speed = random::getf();
         point = vector2::random_abs();
         point.x *= float(width);
         point.y = -point.y * float(height);
-        randomize_char();
-    }
-    void randomize_char()
-    {
-        character = uint8(random::betweeni(32, 72));
     }
 }
 
@@ -36,8 +36,6 @@ class image_fill
 
     image_fill()
     {
-        console@ output = console::get();
-        output.show();
         resize();
     }
     void resize()
@@ -102,11 +100,12 @@ class image_fill
             uint32 index = uint32(where.point.x) + uint32(height) * x;
             if (index < image.size())
                 image[index] = where.character;
-            where.randomize_char();
+            where.character = uint8(random::betweeni(MIN_CHAR, MAX_CHAR));
         }
 
         flush();
         resize();
+        schedule::get().set_timeout(REFRESH_RATE, task_async(this.loop_matrix));
     }
     void loop_noise()
     {
@@ -115,6 +114,7 @@ class image_fill
 
         flush();
         resize();
+        schedule::get().set_timeout(REFRESH_RATE, task_async(this.loop_noise));
     }
     void loop_perlin_1d()
     {
@@ -150,24 +150,21 @@ class image_fill
 
         flush();
         resize();
+        schedule::get().set_timeout(REFRESH_RATE, task_async(this.loop_perlin_1d));
     }
 }
 
+[#console::main]
+[#schedule::main(threads = 1)]
 int main(string[]@ args)
 {
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy(4));
-    
-    image_fill main;
     string type = (args.size() > 1 ? args[1] : "matrix");
+    image_fill filler;
     if (type == "matrix")
-        queue.set_interval(66, task_async(main.loop_matrix));
+        filler.loop_matrix();
     else if (type == "noise")
-        queue.set_interval(66, task_async(main.loop_noise));
+        filler.loop_noise();
     else if (type == "perlin_1d")
-        queue.set_interval(66, task_async(main.loop_perlin_1d));
-    else
-        queue.stop();
-    
+        filler.loop_perlin_1d();
     return 0;
 }

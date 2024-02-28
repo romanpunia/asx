@@ -845,16 +845,21 @@ namespace ASX
 		Stringify::Replace(VitexPath, '\\', '/');
 
 		UnorderedMap<String, String> Keys;
+		Keys["BUILDER_ENV_AUTO_SCHEDULE"] = ToString(Env.AutoSchedule);
+		Keys["BUILDER_ENV_AUTO_CONSOLE"] = Env.AutoConsole ? "true" : "false";
+		Keys["BUILDER_ENV_AUTO_STOP"] = Env.AutoStop ? "true" : "false";
 		Keys["BUILDER_CONFIG_INSTALL"] = Schema::ToJSON(ConfigInstallArray);
 		Keys["BUILDER_CONFIG_PERMISSIONS"] = ConfigPermissionsArray;
 		Keys["BUILDER_CONFIG_SETTINGS"] = ConfigSettingsArray;
 		Keys["BUILDER_CONFIG_LIBRARIES"] = ConfigLibrariesArray;
 		Keys["BUILDER_CONFIG_FUNCTIONS"] = ConfigFunctionsArray;
 		Keys["BUILDER_CONFIG_ADDONS"] = ConfigSystemAddonsArray;
+		Keys["BUILDER_CONFIG_TAGS"] = Config.Tags ? "true" : "false";
 		Keys["BUILDER_CONFIG_TS_IMPORTS"] = Config.TsImports ? "true" : "false";
 		Keys["BUILDER_CONFIG_ESSENTIALS_ONLY"] = Config.EssentialsOnly ? "true" : "false";
 		Keys["BUILDER_VITEX_URL"] = ConfigSystemAddonsArray;
 		Keys["BUILDER_VITEX_PATH"] = VitexPath;
+		Keys["BUILDER_APPLICATION"] = Env.AutoConsole ? "OFF" : "ON";
 		Keys["BUILDER_FEATURES"] = FeatureList;
 		Keys["BUILDER_VERSION"] = GetSystemVersion();
 		Keys["BUILDER_MODE"] = Env.Mode;

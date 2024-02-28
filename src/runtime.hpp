@@ -1,6 +1,7 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
-#include <vitex/scripting.h>
+#include <vitex/bindings.h>
+#include <vitex/vitex.h>
 
 using namespace Vitex::Core;
 using namespace Vitex::Compute;
@@ -47,9 +48,12 @@ namespace ASX
 		String Addon;
 		Compiler* ThisCompiler;
 		const char* Module;
+		int32_t AutoSchedule;
+		bool AutoConsole;
+		bool AutoStop;
 		bool Inline;
 
-		EnvironmentConfig() : ThisCompiler(nullptr), Module("__anonymous__"), Inline(true)
+		EnvironmentConfig() : ThisCompiler(nullptr), Module("__anonymous__"), AutoSchedule(-1), AutoConsole(false), AutoStop(false), Inline(true)
 		{
 		}
 		void Parse(int ArgsCount, char** ArgsData, const UnorderedSet<String>& Flags = { })
@@ -72,6 +76,7 @@ namespace ASX
 		Vector<std::pair<String, int32_t>> Settings;
 		Vector<String> SystemAddons;
 		bool TsImports = true;
+		bool Tags = true;
 		bool Debug = false;
 		bool Interactive = false;
 		bool EssentialsOnly = true;
@@ -87,6 +92,19 @@ namespace ASX
 	class Runtime
 	{
 	public:
+		static void StartupEnvironment(EnvironmentConfig& Env)
+		{
+			if (Env.AutoSchedule >= 0)
+				Schedule::Get()->Start(Env.AutoSchedule > 0 ? Schedule::Desc((size_t)Env.AutoSchedule) : Schedule::Desc());
+
+			if (Env.AutoConsole)
+				Console::Get()->Show();
+		}
+		static void ShutdownEnvironment(EnvironmentConfig& Env)
+		{
+			if (Env.AutoStop)
+				Schedule::Get()->Stop();
+		}
 		static void ConfigureSystem(SystemConfig& Config)
 		{
 			for (auto& Option : Config.Permissions)
@@ -129,6 +147,7 @@ namespace ASX
 			Macro->AddDefaultDefinitions();
 
 			Env.ThisCompiler = ThisCompiler;
+			Bindings::Tags::BindSyntax(VM, Config.Tags, &Runtime::ProcessTags);
 			EnvironmentConfig::Get(&Env);
 
 			VM->ImportSystemAddon("ctypes");
@@ -172,9 +191,9 @@ namespace ASX
 				auto* Queue = Schedule::Get();
 				while (!Queue->CanEnqueue() && Queue->HasAnyTasks())
 					Queue->Dispatch();
-				Queue->Stop();
 			}
 
+			Vitex::Runtime::CleanupInstances();
 			EventLoop::Set(nullptr);
 			Context->Reset();
 			VM->PerformFullGarbageCollection();
@@ -195,6 +214,42 @@ namespace ASX
 		static Compiler* GetCompiler()
 		{
 			return EnvironmentConfig::Get().ThisCompiler;
+		}
+
+	private:
+		static void ProcessTags(VirtualMachine* VM, Bindings::Tags::TagInfo&& Info)
+		{
+			auto& Env = EnvironmentConfig::Get();
+			for (auto& Tag : Info)
+			{
+				if (Tag.Name != "main")
+					continue;
+
+				for (auto& Directive : Tag.Directives)
+				{
+					if (Directive.Name == "#schedule::main")
+					{
+						auto Threads = Directive.Args.find("threads");
+						if (Threads != Directive.Args.end())
+							Env.AutoSchedule = FromString<uint8_t>(Threads->second).Or(0);
+						else
+							Env.AutoSchedule = 0;
+
+						auto Stop = Directive.Args.find("stop");
+						if (Stop != Directive.Args.end())
+						{
+							Stringify::ToLower(Threads->second);
+							auto Value = FromString<uint8_t>(Threads->second);
+							if (!Value)
+								Env.AutoStop = (Threads->second == "on" || Threads->second == "true" || Threads->second == "yes");
+							else
+								Env.AutoStop = *Value > 0;
+						}
+					}
+					else if (Directive.Name == "#console::main")
+						Env.AutoConsole = true;
+				}
+			}
 		}
 	};
 }

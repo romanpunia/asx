@@ -61,22 +61,24 @@ int32[]@ test(int32 value)
 
     return hashes;
 }
+
+[#console::main]
 int main(string[]@ args)
 {
-    auto@ term = console::get();
-    term.capture_time();
+    console@ output = console::get();
+    output.capture_time();
     if (args.empty())
     {
-        term.write_line("provide test sequence index");
-        term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+        output.write_line("provide test sequence index");
+        output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
         return 1;
     }
 
     int32 index = to_int32(args[args.size() - 1]);
     if (index <= 0)
     {
-        term.write_line("invalid test sequence index");
-        term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+        output.write_line("invalid test sequence index");
+        output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
         return 2;
     }
 
@@ -84,9 +86,9 @@ int main(string[]@ args)
     for (usize i = 0; i < hashes.size(); i++)
     {
         string value = to_string(hashes[i]);
-        term.write_line("worker result #" + to_string(i + 1) + ": " + value);
+        output.write_line("worker result #" + to_string(i + 1) + ": " + value);
     }
 
-    term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+    output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
     return 0;
 }

@@ -10,12 +10,11 @@ import from
     "exception"
 };
 
+[#console::main]
+[#schedule::main(threads = 1, stop = true)]
 int main(string[]@ args)
 {
     console@ output = console::get();
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy(2));
-    
     string address = "file:///" + __DIRECTORY__ + "/assets/database.db";
     ldb::cluster@ connection = ldb::cluster();
     try
@@ -65,7 +64,5 @@ int main(string[]@ args)
     {
         output.write_line(exception::unwrap().what());
     }
-
-    queue.stop();
     return 0;
 }

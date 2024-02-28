@@ -12,27 +12,29 @@ int32 test(int32 value, int32 index)
         hash = ((hash << 5) - hash + value--) % max;
     return hash;
 }
+
+[#console::main]
 int main(string[]@ args)
 {
-    auto@ term = console::get();
-    term.capture_time();
+    console@ output = console::get();
+    output.capture_time();
     if (args.empty())
     {
-        term.write_line("provide test sequence index");
-        term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+        output.write_line("provide test sequence index");
+        output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
         return 1;
     }
 
     int32 index = to_int32(args[args.size() - 1]);
     if (index <= 0)
     {
-        term.write_line("invalid test sequence index");
-        term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+        output.write_line("invalid test sequence index");
+        output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
         return 2;
     }
 
     string value = to_string(test(index, 0));
-    term.write_line("result: " + value);
-    term.write_line("time: " + to_string(term.get_captured_time()) + "ms");
+    output.write_line("result: " + value);
+    output.write_line("time: " + to_string(output.get_captured_time()) + "ms");
     return 0;
 }

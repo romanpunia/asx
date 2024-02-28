@@ -33,6 +33,8 @@ void start(bool wants_crash)
     console::get().write_line("O_O"); // We are still OK
     basic.join();
 }
+
+[#console::main]
 int main(string[]@ args)
 { 
     start(args.size() > 1 ? args[1] == "crash" : false);

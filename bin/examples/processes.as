@@ -47,6 +47,7 @@ import from
         2. info code
     to see what code has been generated
 */
+[#console::main]
 int main()
 {
     uptr@ handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPMODULE, 0); 

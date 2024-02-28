@@ -134,6 +134,7 @@ class runtime
     }
 }
 
+[#console::main]
 int main()
 {
     application_desc init;
@@ -142,8 +143,6 @@ int main()
     init.environment = "assets";
 
     console@ output = console::get();
-    output.show();
-    
     output.write("type in grid size (default 5): ");
     float size = to_float(output.read(16));
     if (size <= 0.0f)

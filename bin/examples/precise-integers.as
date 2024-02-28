@@ -7,6 +7,7 @@ import from
 /*
     An integer class popular in Ethereum blockchain.
 */
+[#console::main]
 int main()
 {
     uint8 max_value_8_manually = 2; // Range: 1 byte

@@ -73,6 +73,9 @@ int main(int argc, char* argv[])
 	EnvironmentConfig Env;
 	Env.Path = *OS::Directory::GetModule();
 	Env.Module = argc > 0 ? argv[0] : "runtime";
+	Env.AutoSchedule = {{BUILDER_ENV_AUTO_SCHEDULE}};
+	Env.AutoConsole = {{BUILDER_ENV_AUTO_CONSOLE}};
+	Env.AutoStop = {{BUILDER_ENV_AUTO_STOP}};
     if (!load_program(Env))
         return 0;
 
@@ -86,6 +89,7 @@ int main(int argc, char* argv[])
 	Config.Libraries = { {{BUILDER_CONFIG_LIBRARIES}} };
 	Config.Functions = { {{BUILDER_CONFIG_FUNCTIONS}} };
 	Config.SystemAddons = { {{BUILDER_CONFIG_ADDONS}} };
+	Config.Tags = {{BUILDER_CONFIG_TAGS}};
 	Config.TsImports = {{BUILDER_CONFIG_TS_IMPORTS}};
 	Config.EssentialsOnly = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
     setup_program(Env);
@@ -144,6 +148,7 @@ int main(int argc, char* argv[])
 		Loop->Listen(Context);
 		Loop->Enqueue(FunctionDelegate(Main, Context), [&Main, ArgsArray](ImmediateContext* Context)
 		{
+			Runtime::StartupEnvironment(EnvironmentConfig::Get());
 			if (Main.GetArgsCount() > 0)
 				Context->SetArgObject(0, ArgsArray);
 		}, [&ExitCode, &Type, &Main, ArgsArray](ImmediateContext* Context)
@@ -151,6 +156,8 @@ int main(int argc, char* argv[])
 			ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
 			if (ArgsArray != nullptr)
 				Context->GetVM()->ReleaseObject(ArgsArray, Type);
+			Runtime::ShutdownEnvironment(EnvironmentConfig::Get());
+			Loop->Wakeup();
 		});
         
 		Runtime::AwaitContext(Loop, VM, Context);

@@ -34,7 +34,6 @@ class ws_client
     it as a hash key for dictionary.
 */
 http::server@ server = null;
-console@ output = console::get();
 dictionary@ clients = dictionary();
 
 string client_id(http::websocket_frame@ base)
@@ -54,7 +53,7 @@ void add_client(http::websocket_frame@ base)
 void broadcast_client(http::websocket_frame@ base, const string&in data, http::websocket_op type)
 {
     /* Log the message */
-    output.write_line(data);
+    console::get().write_line(data);
 
     /* Send message to all the clients except one that sent it */
     promise<bool>@[] broadcasts;
@@ -93,13 +92,11 @@ void remove_client(http::websocket_frame@ base)
         clients.erase(client.id);
     }
 }
+
+[#console::main]
+[#schedule::main]
 int main()
 {
-    console@ output = console::get();
-    schedule_policy policy;
-    schedule@ queue = schedule::get();
-    queue.start(policy);
-    
     http::map_router@ router = http::map_router();
     router.listen("0.0.0.0", "8080");
     router.websocket_connect("/", function(http::websocket_frame@ base)

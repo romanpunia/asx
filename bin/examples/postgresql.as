@@ -8,12 +8,11 @@ import from
     "exception"
 };
 
+[#console::main]
+[#schedule::main(threads = 1, stop = true)]
 int main(string[]@ args)
 {
     console@ output = console::get();
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy(2));
-    
     string hostname = os::process::get_env("DB_ADDRESS");
     string username = os::process::get_env("DB_USERNAME");
     string password = os::process::get_env("DB_PASSWORD");
@@ -67,7 +66,5 @@ int main(string[]@ args)
         co_await connection.disconnect(); // If forgotten then connection will be hard reset, throws if already disconnected
     }
     catch { }
-
-    queue.stop();
     return 0;
 }

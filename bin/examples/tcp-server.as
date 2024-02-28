@@ -47,11 +47,10 @@ class socket_event
     }
 }
 
+[#console::main]
+[#schedule::main]
 int main()
 {
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy());
-
     /* Start resolving network events */
     dns@ resolver = dns::get();
     multiplexer@ dispatcher = multiplexer::get();
@@ -100,6 +99,7 @@ int main()
     });
     
     /* Process incoming connections until we terminate */
+    schedule@ queue = schedule::get();
     while (queue.is_active())
     {
         try

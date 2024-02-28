@@ -1,10 +1,9 @@
 import from { "console", "schema", "os", "exception" };
 
+[#console::main]
 int main(string[]@ args)
 {
     console@ output = console::get();
-    output.show();
-
     if (args.size() < 2)
     {
         output.write_line("provide a valid path or URL that should be fetched");

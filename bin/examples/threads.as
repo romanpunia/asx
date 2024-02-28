@@ -9,10 +9,10 @@ import from
 string[] ids = string[]();
 mutex@ mut = mutex();
 
+[#console::main]
 int main()
 {
     console@ output = console::get();
-    output.show();
     output.write_line("main thread: " + this_thread::get_id());
 
     /*
@@ -32,8 +32,7 @@ int main()
     */
     thread@ basic_parallel = thread(function(thread@ self)
     {
-        console@ output = console::get();
-        output.write_line("basic parallel thread: " + self.get_id());
+        console::get().write_line("basic parallel thread: " + self.get_id());
         this_thread::sleep(100);
     });
     thread@ shared_data = thread(function(thread@ self)

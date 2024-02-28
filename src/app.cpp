@@ -356,13 +356,16 @@ namespace ASX
 		Loop->Listen(Context);
 		Loop->Enqueue(FunctionDelegate(Main, Context), [&Main, ArgsArray](ImmediateContext* Context)
 		{
+			Runtime::StartupEnvironment(EnvironmentConfig::Get());
 			if (Main.GetArgsCount() > 0)
 				Context->SetArgObject(0, ArgsArray);
-		}, [&ExitCode, &Type, &Main, ArgsArray](ImmediateContext* Context)
+		}, [this, &ExitCode, &Type, &Main, ArgsArray](ImmediateContext* Context)
 		{
 			ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
 			if (ArgsArray != nullptr)
 				Context->GetVM()->ReleaseObject(ArgsArray, Type);
+			Runtime::ShutdownEnvironment(EnvironmentConfig::Get());
+			Loop->Wakeup();
 		});
 
 		Runtime::AwaitContext(Loop, VM, Context);

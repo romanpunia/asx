@@ -5,6 +5,7 @@ import from
     "@avgpythonenjoyer/atob"
 };
 
+[#console::main]
 int main()
 {
     console@ output = console::get();

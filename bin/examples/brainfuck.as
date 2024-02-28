@@ -102,6 +102,7 @@ class context
     }
 }
 
+[#console::main]
 int main(string[]@ args)
 {
     console@ output = console::get();

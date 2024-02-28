@@ -2,14 +2,10 @@ import from { "schedule", "http", "console", "os" };
 
 http::server@ server = null;
 
+[#console::main]
+[#schedule::main]
 int main()
 {
-    console@ output = console::get();
-    output.show();
-    
-    schedule@ queue = schedule::get();
-    queue.start(schedule_policy()); // Creates up to "CPU threads count" threads
-    
     http::map_router@ router = http::map_router();
     router.listen("0.0.0.0", "8080");
     router.get("/", function(http::connection@ base)
