@@ -31,6 +31,7 @@ namespace ASX
 		VirtualMachine* VM;
 		ImmediateContext* Context;
 		Compiler* Unit;
+		std::mutex Mutex;
 
 	public:
 		Environment(int ArgsCount, char** Args);

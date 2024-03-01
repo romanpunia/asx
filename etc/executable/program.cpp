@@ -12,12 +12,15 @@ EventLoop* Loop = nullptr;
 VirtualMachine* VM = nullptr;
 Compiler* Unit = nullptr;
 ImmediateContext* Context = nullptr;
+std::mutex Mutex;
 int ExitCode = 0;
 
 void exit_program(int sigv)
 {
 	if (sigv != SIGINT && sigv != SIGTERM)
         return;
+
+	UMutex<std::mutex> Unique(Mutex);
     {
         if (Runtime::TryContextExit(EnvironmentConfig::Get(), sigv))
         {
@@ -160,7 +163,7 @@ int main(int argc, char* argv[])
 			Loop->Wakeup();
 		});
         
-		Runtime::AwaitContext(Loop, VM, Context);
+		Runtime::AwaitContext(Mutex, Loop, VM, Context);
 	}
 FinishProgram:
 	Memory::Release(Context);

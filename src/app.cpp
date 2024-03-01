@@ -368,11 +368,12 @@ namespace ASX
 			Loop->Wakeup();
 		});
 
-		Runtime::AwaitContext(Loop, VM, Context);
+		Runtime::AwaitContext(Mutex, Loop, VM, Context);
 		return ExitCode;
 	}
 	void Environment::Shutdown(int Value)
 	{
+		UMutex<std::mutex> Unique(Mutex);
 		{
 			if (Runtime::TryContextExit(Env, Value))
 			{
