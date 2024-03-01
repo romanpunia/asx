@@ -177,7 +177,7 @@ namespace ASX
 			UPtr<ImmediateContext> Context = Callback ? Env.ThisCompiler->GetVM()->RequestContext() : nullptr;
 			Env.AtExit = FunctionDelegate(Callback, *Context);
 		}
-		static void AwaitContext(EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
+		static void AwaitContext(std::mutex& Mutex, EventLoop* Loop, VirtualMachine* VM, ImmediateContext* Context)
 		{
 			EventLoop::Set(Loop);
 			while (Loop->PollExtended(Context, 1000))
@@ -186,6 +186,7 @@ namespace ASX
 				Loop->Dequeue(VM);
 			}
 
+			UMutex<std::mutex> Unique(Mutex);
 			if (Schedule::HasInstance())
 			{
 				auto* Queue = Schedule::Get();
@@ -193,7 +194,6 @@ namespace ASX
 					Queue->Dispatch();
 			}
 
-			Vitex::Runtime::CleanupInstances();
 			EventLoop::Set(nullptr);
 			Context->Reset();
 			VM->PerformFullGarbageCollection();
