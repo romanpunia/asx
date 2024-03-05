@@ -1,7 +1,7 @@
 <br/>
 <div align="center">
     <br />
-    <img src="https://github.com/romanpunia/asx/blob/main/var/logo.png?raw=true" alt="ASX Logo" width="300" />
+    <img src="https://github.com/romanpunia/asx/blob/main/var/assets/logo.png?raw=true" alt="ASX Logo" width="300" />
     <h3>AngelScript Runtime Environment</h3>
 </div>
 
@@ -160,7 +160,7 @@ To install dependencies of a program run _--install_ and provide a file that sho
 * VM addons are made using AngelScript. Compilation is on demand.
 
 ## Debugging
-You may just run vitex with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands:
+You may just run asx with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands:
 ```bash
 # Will execute input file with debugging interface attached and game engine mode enabled
   asx -d -g examples/rendering
@@ -197,7 +197,9 @@ You may take a look into __html.as__ example which leverages HTML/CSS + AngelScr
 * [Vitex (submodule)](https://github.com/romanpunia/vitex)
 
 ## Building
-To build this project you have to clone Vitex, also you need to make sure that it can be build on your machine. CMake's **VI_DIRECTORY** is a path to Vitex source folder.
+There are several ways to build this project that are explained here (similar to Vitex):
+* [Manually performed builds](var/MANUAL.md)
+* [Precomposed docker builds](var/DOCKER.md)
 
 ## License
 ASX is licensed under the MIT license
