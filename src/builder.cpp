@@ -888,7 +888,7 @@ namespace ASX
 #endif
 		}
 
-		auto It = Files->find(HglCast(Path));
+		auto It = Files->find(KeyLookupCast(Path));
 		if (It == Files->end())
 			return Optional::None;
 
