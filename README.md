@@ -163,15 +163,15 @@ To install dependencies of a program run _--install_ and provide a file that sho
 You may just run asx with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands:
 ```bash
 # Will execute input file with debugging interface attached and game engine mode enabled
-  asx -d -g examples/rendering
+  asx -d -g examples/2d-rendering
 ```
 
 ## Binary generation and packaging
 ASX supports a feature that allows one to build the executable from AngelScript program. To build an executable use following command:
 ```bash
 # Build an example program (cwd is asx/bin/examples), you may run it multiple times (minimal rebuilds are enabled)
-# Will create a directory named "quad" near "rendering.as" file, directory will contain CMake project named "quad" and built targets
-  asx --install --target=quad --output=. -g examples/rendering.as
+# Will create a directory named "quad" near "2d-rendering.as" file, directory will contain CMake project named "quad" and built targets
+  asx --install --target=quad --output=. -g examples/2d-rendering.as
 ```
 
 This will produce a binary and shared libraries. Amount of shared libraries produced will depend on import statements inside your script. For example, you won't be needing an OpenAL shared library if you don't use **audio**.
@@ -191,7 +191,7 @@ You may also check performance benchmarks in **bin/examples/stresstest\*.as**. F
 Generally, AngelScript uses much less memory than v8 JavaScript runtime. That is because there are practically no wrappers between C++ types and AngelScript types.
 
 ## Other info
-You may take a look into __html.as__ example which leverages HTML/CSS + AngelScript powers. This shows how to create memory and CPU efficient GUI applications based on modern graphics API. 
+You may take a look into __2d-html.as__ example which leverages HTML/CSS + AngelScript powers. This shows how to create memory and CPU efficient GUI applications based on modern graphics API. 
 
 ## Dependencies
 * [Vitex (submodule)](https://github.com/romanpunia/vitex)
