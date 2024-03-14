@@ -12,12 +12,12 @@ namespace ASX
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
 		ErrorHandling::SetFlag(LogOption::Active, true);
 		ErrorHandling::SetFlag(LogOption::Pretty, false);
+		Config.EssentialsOnly = !Env.Commandline.Has("game", "g") && !Env.Commandline.Has("interactive", "I");
+		Config.Install = Env.Commandline.Has("install", "i") || Env.Commandline.Has("target");
 #ifndef NDEBUG
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
 		Config.SaveSourceCode = true;
 #endif
-		Config.EssentialsOnly = !Env.Commandline.Has("game", "g") && !Env.Commandline.Has("interactive", "I");
-		Config.Install = Env.Commandline.Has("install", "i") || Env.Commandline.Has("target");
 	}
 	Environment::~Environment()
 	{
