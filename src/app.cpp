@@ -12,7 +12,7 @@ namespace ASX
 		ErrorHandling::SetFlag(LogOption::ReportSysErrors, false);
 		ErrorHandling::SetFlag(LogOption::Active, true);
 		ErrorHandling::SetFlag(LogOption::Pretty, false);
-		Config.EssentialsOnly = !Env.Commandline.Has("game", "g") && !Env.Commandline.Has("interactive", "I");
+		Config.EssentialsOnly = !Env.Commandline.Has("game", "g");
 		Config.Install = Env.Commandline.Has("install", "i") || Env.Commandline.Has("target");
 #ifndef NDEBUG
 		OS::Directory::SetWorking(OS::Directory::GetModule()->c_str());
@@ -205,7 +205,16 @@ namespace ASX
 
 			String Data, Multidata;
 			Data.reserve(1024 * 1024);
-			VM->ImportSystemAddon("*");
+			if (Config.EssentialsOnly)
+			{
+				VM->ImportSystemAddon("uint256");
+				VM->ImportSystemAddon("math");
+				VM->ImportSystemAddon("random");
+				VM->ImportSystemAddon("timestamp");
+				VM->ImportSystemAddon("console");
+			}
+			else
+				VM->ImportSystemAddon("*");
 			PrintIntroduction("interactive mode");
 
 			auto* Debugger = new DebuggerContext(DebugType::Detach);
@@ -275,16 +284,33 @@ namespace ASX
 					Multidata += Data;
 					continue;
 				}
-				else if (Data == ".help")
+				else if (Stringify::StartsWith(Data, ".help"))
 				{
 					Terminal->WriteLine("  .mode   - switch between registering and executing the code");
 					Terminal->WriteLine("  .help   - show available commands");
 					Terminal->WriteLine("  .editor - enter editor mode");
 					Terminal->WriteLine("  .exit   - exit interactive mode");
+					Terminal->WriteLine("  .use    - import system addons by name (comma separated list)");
 					Terminal->WriteLine("  *       - anything else will be interpreted as script code");
 					continue;
 				}
-				else if (Data == ".mode")
+				else if (Stringify::StartsWith(Data, ".use"))
+				{
+					size_t Imports = 0;
+					auto Addons = Stringify::Split(Data.substr(4), ',');
+					for (auto& Addon : Addons)
+					{
+						Stringify::Trim(Addon);
+						if (!VM->ImportSystemAddon(Addon.empty() ? "*" : Addon))
+							Terminal->WriteLine("  use: addon @" + Addon + " not found");
+						else
+							++Imports;
+					}
+					if (Imports > 0)
+						PrintIntroduction("interactive mode");
+					continue;
+				}
+				else if (Stringify::StartsWith(Data, ".mode"))
 				{
 					Env.Inline = !Env.Inline;
 					if (Env.Inline)
@@ -293,7 +319,7 @@ namespace ASX
 						Terminal->WriteLine("  register mode: you may now register script interfaces");
 					continue;
 				}
-				else if (Data == ".editor")
+				else if (Stringify::StartsWith(Data, ".editor"))
 				{
 					Terminal->WriteLine("  editor mode: you may write multiple lines of code (Ctrl+D to finish)\n");
 					Editor = true;
