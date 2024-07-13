@@ -110,7 +110,7 @@ int main()
         }
         catch
         {
-            output.write_line("[response:third] -> ERR " + exception::unwrap().what());
+            output.write_line("[response:third] -> ERR " + exception::unwrap().what() + " (also expected)");
         }
     }
     auto end = timestamp().milliseconds();
