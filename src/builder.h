@@ -1,7 +1,7 @@
 #ifndef BUILDER_H
 #define BUILDER_H
 #include "runtime.hpp"
-#include <vitex/vitex.h>
+#include <vengeance/vengeance.h>
 
 namespace ASX
 {
@@ -38,18 +38,6 @@ namespace ASX
 		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const std::string_view& Path);
 		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& TargetDirectory);
 		static bool AppendVitex(SystemConfig& Config);
-		static bool IsUsingCompression(VirtualMachine* VM);
-		static bool IsUsingSchemas(VirtualMachine* VM);
-		static bool IsUsingCrypto(VirtualMachine* VM);
-		static bool IsUsingAudio(VirtualMachine* VM);
-		static bool IsUsingGraphics(VirtualMachine* VM);
-		static bool IsUsingEngine(VirtualMachine* VM);
-		static bool IsUsingSQLite(VirtualMachine* VM);
-		static bool IsUsingPostgreSQL(VirtualMachine* VM);
-		static bool IsUsingMongoDB(VirtualMachine* VM);
-		static bool IsUsingPhysics(VirtualMachine* VM);
-		static bool IsUsingGUI(VirtualMachine* VM);
-		static bool IsUsingOS(VirtualMachine* VM);
 		static bool IsDirectoryEmpty(const std::string_view& Target);
 		static const char* GetBuildType(SystemConfig& Config);
 		static String GetGlobalVitexPath();

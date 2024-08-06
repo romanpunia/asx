@@ -1,5 +1,5 @@
 ## Build: From scratch
-_Note: there is a number of dependencies that must be installed in order to build successfully, exact name of each dependency is very platform dependent. You may pass several Vitex based flags to CMake to disable them, they are listed in the official Vitex repository. While Vitex presents them as features, this project requires them as dependencies._
+_Note: there is a number of dependencies that must be installed in order to build successfully, exact name of each dependency is very platform dependent. You may pass several Vengeance based flags to CMake to disable them, they are listed in the official Vengeance repository. While Vengeance presents them as features, this project requires them as dependencies._
 
 Clone this repository recursively
 ```bash

@@ -3,7 +3,7 @@ import from
     "console",
     "schedule",
     "random",
-    "vectors",
+    "trigonometry",
     "math"
 };
 

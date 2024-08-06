@@ -1,10 +1,10 @@
 #ifndef APP_H
 #define APP_H
 #include "builder.h"
-#include <vitex/bindings.h>
+#include <vengeance/bindings.h>
 #include <vitex/network.h>
 
-using namespace Vitex::Engine;
+using namespace Vitex::Layer;
 using namespace Vitex::Network;
 
 namespace ASX

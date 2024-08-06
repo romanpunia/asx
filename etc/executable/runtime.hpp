@@ -1,7 +1,7 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
-#include <vitex/bindings.h>
-#include <vitex/vitex.h>
+#include <vengeance/bindings.h>
+#include <vengeance/vengeance.h>
 
 using namespace Vitex::Core;
 using namespace Vitex::Compute;

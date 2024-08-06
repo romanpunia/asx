@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6)
-set(VI_DIRECTORY "{{BUILDER_VITEX_PATH}}" CACHE STRING "Vitex directory")
+set(VI_DIRECTORY "{{BUILDER_VENGEANCE_PATH}}" CACHE STRING "Vengeance directory")
 {{BUILDER_FEATURES}}
-include(${VI_DIRECTORY}/lib/toolchain.cmake)
+include(${VI_DIRECTORY}/deps/vitex/deps/toolchain.cmake)
 project({{BUILDER_OUTPUT}})
 if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)

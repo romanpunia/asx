@@ -1,8 +1,8 @@
 import from
 {
     "engine",
-    "components",
-    "renderers",
+    "engine-components",
+    "engine-renderers",
     "random",
     "thread",
     "console"
@@ -14,9 +14,9 @@ class runtime
     float grid_radius = 15.0f;
     usize grid_materials = 32; 
     float timing = 0.0;
-    application@ self;
+    heavy_application@ self;
 
-    runtime(application_desc&in init, const vector3&in size, float radius)
+    runtime(heavy_application_desc&in init, const vector3&in size, float radius)
     {
         if (size.length() > 0.0f)
             grid_size = size;
@@ -24,7 +24,7 @@ class runtime
         if (radius > 0.0f)
             grid_radius = radius;
         
-        @self = application(init, @this);
+        @self = heavy_application(init, @this);
         self.set_on_initialize(initialize_sync(this.initialize));
         self.set_on_dispatch(dispatch_sync(this.dispatch));
         self.set_on_publish(publish_sync(this.publish));
@@ -137,7 +137,7 @@ class runtime
 [#console::main]
 int main()
 {
-    application_desc init;
+    heavy_application_desc init;
     init.graphics.vsync_mode = vsync::off;
     init.window.maximized = true;
     init.environment = "assets";

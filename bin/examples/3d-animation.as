@@ -1,8 +1,8 @@
 import from
 {
     "engine",
-    "components",
-    "renderers",
+    "engine-components",
+    "engine-renderers",
     "random",
     "thread",
     "console",
@@ -11,11 +11,11 @@ import from
 
 class runtime
 {
-    application@ self;
+    heavy_application@ self;
     int64 clip_now = 0;
     usize clip_count = 0;
 
-    runtime(application_desc&in init)
+    runtime(heavy_application_desc&in init)
     {
         /*
             Application constructor requires a reference to
@@ -25,7 +25,7 @@ class runtime
             by casting it to target class:
                 see html.as as reference
         */
-        @self = application(init, @this);
+        @self = heavy_application(init, @this);
         self.set_on_initialize(initialize_sync(this.initialize));
         self.set_on_dispatch(dispatch_sync(this.dispatch));
         self.set_on_publish(publish_sync(this.publish));
@@ -129,7 +129,7 @@ class runtime
 
 int main()
 {
-    application_desc init;
+    heavy_application_desc init;
     init.graphics.vsync_mode = vsync::on;
     init.window.maximized = true;
     init.environment = "assets";

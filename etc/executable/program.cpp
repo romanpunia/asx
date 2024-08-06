@@ -1,11 +1,11 @@
 #include "program.hpp"
 #include "runtime.hpp"
-#include <vitex/vitex.h>
-#include <vitex/bindings.h>
-#include <vitex/engine.h>
+#include <vengeance/vengeance.h>
+#include <vengeance/bindings.h>
+#include <vengeance/layer.h>
 #include <signal.h>
 
-using namespace Vitex::Engine;
+using namespace Vitex::Layer;
 using namespace ASX;
 
 EventLoop* Loop = nullptr;
@@ -97,9 +97,14 @@ int main(int argc, char* argv[])
 	Config.EssentialsOnly = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
     setup_program(Env);
 
-	Vitex::Runtime Scope(Config.EssentialsOnly ? (size_t)Vitex::Preset::App : (size_t)Vitex::Preset::Game);
+	size_t Modules = Vitex::LOAD_NETWORKING | Vitex::LOAD_CRYPTOGRAPHY | Vitex::LOAD_PROVIDERS | Vitex::LOAD_LOCALE;
+	if (!Config.EssentialsOnly)
+		Modules |= Vitex::LOAD_PLATFORM | Vitex::LOAD_AUDIO | Vitex::LOAD_GRAPHICS;
+
+	Vitex::HeavyRuntime Scope(Modules);
 	{
 		VM = new VirtualMachine();
+		Bindings::HeavyRegistry().BindAddons(VM);
 		Unit = VM->CreateCompiler();
         Context = VM->RequestContext();
 		

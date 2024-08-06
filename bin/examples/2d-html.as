@@ -8,11 +8,11 @@ import from "engine";
  */
 shared class runtime
 {
-    application@ self;
+    heavy_application@ self;
 
-    runtime(application_desc&in init)
+    runtime(heavy_application_desc&in init)
     {
-        @self = application(init, @this);
+        @self = heavy_application(init, @this);
         self.set_on_initialize(initialize_sync(this.initialize));
         self.set_on_dispatch(dispatch_sync(this.dispatch));
         self.set_on_publish(publish_sync(this.publish));
@@ -64,7 +64,7 @@ shared class runtime
 */
 shared runtime@ get_app()
 {
-    application@ self = application::get();
+    heavy_application@ self = heavy_application::get();
     if (self is null)
         return null;
     
@@ -77,7 +77,7 @@ shared runtime@ get_app()
 
 int main()
 {
-    application_desc init;
+    heavy_application_desc init;
     init.window.maximized = true;
     init.environment = "assets";
 

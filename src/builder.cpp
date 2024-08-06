@@ -2,7 +2,7 @@
 #include "code.hpp"
 #include <iostream>
 #define REPOSITORY_SOURCE "https://github.com/"
-#define REPOSITORY_TARGET_VITEX "https://github.com/romanpunia/vitex"
+#define REPOSITORY_TARGET_VENGEANCE "https://github.com/romanpunia/vengeance"
 #define REPOSITORY_FILE_INDEX "addon.as"
 #define REPOSITORY_FILE_ADDON "addon.json"
 
@@ -574,7 +574,7 @@ namespace ASX
 			return true;
 
 		OS::Directory::Patch(SourcePath);
-		return ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VITEX " \"" + SourcePath + "\"") == StatusCode::OK;
+		return ExecuteGit(Config, "git clone --recursive " REPOSITORY_TARGET_VENGEANCE " \"" + SourcePath + "\"") == StatusCode::OK;
 	}
 	bool Builder::IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool Nested)
 	{
@@ -603,54 +603,6 @@ namespace ASX
 		Vector<std::pair<String, FileEntry>> Entries;
 		return !OS::Directory::Scan(Target, Entries) || Entries.empty();
 	}
-	bool Builder::IsUsingCompression(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("fs") || IsUsingCrypto(VM);
-	}
-	bool Builder::IsUsingSchemas(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("schema");
-	}
-	bool Builder::IsUsingCrypto(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("random") || VM->HasSystemAddon("crypto") || VM->HasSystemAddon("network") || VM->HasSystemAddon("engine");
-	}
-	bool Builder::IsUsingAudio(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("audio");
-	}
-	bool Builder::IsUsingGraphics(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("graphics");
-	}
-	bool Builder::IsUsingEngine(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("engine");
-	}
-	bool Builder::IsUsingSQLite(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("sqlite");
-	}
-	bool Builder::IsUsingPostgreSQL(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("postgresql");
-	}
-	bool Builder::IsUsingMongoDB(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("mongodb");
-	}
-	bool Builder::IsUsingPhysics(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("physics");
-	}
-	bool Builder::IsUsingGUI(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("gui-control") || VM->HasSystemAddon("gui-model") || VM->HasSystemAddon("gui-context");
-	}
-	bool Builder::IsUsingOS(VirtualMachine* VM)
-	{
-		return VM->HasSystemAddon("os");
-	}
 	const char* Builder::GetBuildType(SystemConfig& Config)
 	{
 #ifndef NDEBUG
@@ -667,10 +619,10 @@ namespace ASX
 			CacheDirectory += VI_SPLITTER;
 		CacheDirectory += ".cache";
 		CacheDirectory += VI_SPLITTER;
-		CacheDirectory += "vitex";
+		CacheDirectory += "vengeance";
 		return CacheDirectory;
 #else
-		return "/var/lib/asx/vitex";
+		return "/var/lib/asx/vengeance";
 #endif
 
 	}
@@ -775,39 +727,58 @@ namespace ASX
 				ConfigFunctionsArray += Stringify::Text("{ \"%s\", { \"%s\", \"%s\" } }, ", Item.first.c_str(), Function.first.c_str());
 		}
 
-		String FeatureList;
-		auto* Lib = Vitex::Runtime::Get();
+		auto* Lib = Vitex::HeavyRuntime::Get();
+		bool IsUsingShaders = Lib->HasFtShaders() && !IsAddon && VM->HasSystemAddon("graphics");
+		bool IsUsingOpenGL = Lib->HasSoOpenGL() && !IsAddon && VM->HasSystemAddon("graphics");
+		bool IsUsingOpenAL = Lib->HasSoOpenAL() && !IsAddon && VM->HasSystemAddon("audio");
+		bool IsUsingOpenSSL = Lib->HasSoOpenSSL() && !IsAddon && (VM->HasSystemAddon("crypto") || VM->HasSystemAddon("network"));
+		bool IsUsingSDL2 = Lib->HasSoSDL2() && !IsAddon && VM->HasSystemAddon("activity");
+		bool IsUsingGLEW = Lib->HasSoGLEW() && !IsAddon && VM->HasSystemAddon("graphics");
+		bool IsUsingSPIRV = Lib->HasSoSpirv() && !IsAddon && VM->HasSystemAddon("graphics");
+		bool IsUsingZLIB = Lib->HasSoZLib() && !IsAddon && (VM->HasSystemAddon("fs") || VM->HasSystemAddon("codec"));
+		bool IsUsingAssimp = Lib->HasSoAssimp() && !IsAddon && VM->HasSystemAddon("engine");
+		bool IsUsingMongoDB = Lib->HasSoMongoc() && !IsAddon && VM->HasSystemAddon("mongodb");
+		bool IsUsingPostgreSQL = Lib->HasSoPostgreSQL() && !IsAddon && VM->HasSystemAddon("postgresql");
+		bool IsUsingSQLite = Lib->HasSoSQLite() && !IsAddon && VM->HasSystemAddon("sqlite");
+		bool IsUsingRmlUI = Lib->HasMdRmlUI() && !IsAddon && VM->HasSystemAddon("ui");
+		bool IsUsingFreeType = Lib->HasSoFreeType() && !IsAddon && VM->HasSystemAddon("ui");
+		bool IsUsingBullet3 = Lib->HasMdBullet3() && !IsAddon && VM->HasSystemAddon("physics");
+		bool IsUsingTinyFileDialogs = Lib->HasMdTinyFileDialogs() && !IsAddon && VM->HasSystemAddon("activity");
+		bool IsUsingSTB = Lib->HasMdStb() && !IsAddon && VM->HasSystemAddon("engine");
+		bool IsUsingPugiXML = Lib->HasMdPugiXml() && !IsAddon && VM->HasSystemAddon("schema");
+		bool IsUsingRapidJSON = Lib->HasMdRapidJson() && !IsAddon && VM->HasSystemAddon("schema");
 		Vector<std::pair<String, bool>> Features =
 		{
 			{ "ALLOCATOR", Lib->HasFtAllocator() },
 			{ "PESSIMISTIC", Lib->HasFtPessimistic() },
 			{ "BINDINGS", Lib->HasFtBindings() && !IsAddon },
-			{ "SHADERS", Lib->HasFtShaders() && IsUsingGraphics(VM) && !IsAddon },
 			{ "FCONTEXT", Lib->HasFtFContext() && !IsAddon },
-			{ "OPENGL", Lib->HasSoOpenGL() && IsUsingGraphics(VM) && !IsAddon },
-			{ "OPENAL", Lib->HasSoOpenAL() && IsUsingAudio(VM) && !IsAddon },
-			{ "OPENSSL", Lib->HasSoOpenSSL() && IsUsingCrypto(VM) && !IsAddon },
-			{ "SDL2", Lib->HasSoSDL2() && IsUsingGraphics(VM) && !IsAddon },
-			{ "GLEW", Lib->HasSoGLEW() && IsUsingGraphics(VM) && !IsAddon },
-			{ "SPIRV", Lib->HasSoSpirv() && IsUsingGraphics(VM) && !IsAddon },
-			{ "ZLIB", Lib->HasSoZLib() && IsUsingCompression(VM) && !IsAddon },
-			{ "ASSIMP", Lib->HasSoAssimp() && IsUsingEngine(VM) && !IsAddon },
-			{ "MONGOC", Lib->HasSoMongoc() && IsUsingMongoDB(VM) && !IsAddon },
-			{ "POSTGRESQL", Lib->HasSoPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon },
-			{ "SQLITE", Lib->HasSoSQLite() && IsUsingSQLite(VM) && !IsAddon },
-			{ "FREETYPE", Lib->HasSoFreeType() && IsUsingGUI(VM) && !IsAddon },
-			{ "ANGELSCRIPT", Lib->HasMdAngelScript() && !IsAddon },
 			{ "BACKWARDCPP", Lib->HasMdBackwardCpp() && !IsAddon },
-			{ "RMLUI", Lib->HasMdRmlUI() && IsUsingGUI(VM) && !IsAddon },
-			{ "BULLET3", Lib->HasMdBullet3() && IsUsingPhysics(VM) && !IsAddon },
-			{ "TINYFILEDIALOGS", Lib->HasMdTinyFileDialogs() && IsUsingOS(VM) && !IsAddon },
 			{ "WEPOLL", Lib->HasMdWepoll() && !IsAddon },
-			{ "STB", Lib->HasMdStb() && IsUsingEngine(VM) && !IsAddon },
-			{ "PUGIXML", Lib->HasMdPugiXml() && IsUsingEngine(VM) && !IsAddon },
-			{ "RAPIDJSON", Lib->HasMdRapidJson() && IsUsingEngine(VM) && !IsAddon },
 			{ "VECTORCLASS", Lib->HasMdVectorclass() && !IsAddon },
+			{ "ANGELSCRIPT", Lib->HasMdAngelScript() && !IsAddon },
+			{ "SHADERS", IsUsingShaders },
+			{ "OPENGL", IsUsingOpenGL },
+			{ "OPENAL", IsUsingOpenAL },
+			{ "OPENSSL", IsUsingOpenSSL },
+			{ "SDL2", IsUsingSDL2 },
+			{ "GLEW", IsUsingGLEW },
+			{ "SPIRV", IsUsingSPIRV },
+			{ "ZLIB", IsUsingZLIB },
+			{ "ASSIMP", IsUsingAssimp },
+			{ "MONGOC", IsUsingMongoDB },
+			{ "POSTGRESQL", IsUsingPostgreSQL },
+			{ "SQLITE", IsUsingSQLite },
+			{ "RMLUI", IsUsingRmlUI },
+			{ "FREETYPE", IsUsingFreeType },
+			{ "BULLET3", IsUsingBullet3 },
+			{ "TINYFILEDIALOGS", IsUsingTinyFileDialogs },
+			{ "STB", IsUsingSTB },
+			{ "PUGIXML", IsUsingPugiXML },
+			{ "RAPIDJSON", IsUsingRapidJSON }
 		};
 
+		String FeatureList;
 		for (auto& Item : Features)
 			FeatureList += Stringify::Text("set(VI_%s %s CACHE BOOL \"-\")\n", Item.first.c_str(), Item.second ? "ON" : "OFF");
 
@@ -815,30 +786,30 @@ namespace ASX
 			FeatureList.erase(FeatureList.end() - 1);
 
 		Schema* ConfigInstallArray = Var::Set::Array();
-		if (Lib->HasSoSpirv() && IsUsingGraphics(VM) && !IsAddon)
+		if (IsUsingSPIRV)
 		{
 			ConfigInstallArray->Push(Var::String("spirv-cross"));
 			ConfigInstallArray->Push(Var::String("glslang"));
 		}
-		if (Lib->HasSoZLib() && IsUsingCompression(VM) && !IsAddon)
+		if (IsUsingZLIB)
 			ConfigInstallArray->Push(Var::String("zlib"));
-		if (Lib->HasSoAssimp() && IsUsingEngine(VM) && !IsAddon)
+		if (IsUsingAssimp)
 			ConfigInstallArray->Push(Var::String("assimp"));
-		if (Lib->HasSoFreeType() && IsUsingGUI(VM) && !IsAddon)
+		if (IsUsingFreeType)
 			ConfigInstallArray->Push(Var::String("freetype"));
-		if (Lib->HasSoSDL2() && IsUsingGraphics(VM) && !IsAddon)
+		if (IsUsingSDL2)
 			ConfigInstallArray->Push(Var::String("sdl2"));
-		if (Lib->HasSoOpenAL() && IsUsingAudio(VM) && !IsAddon)
+		if (IsUsingOpenAL)
 			ConfigInstallArray->Push(Var::String("openal-soft"));
-		if (Lib->HasSoGLEW() && IsUsingGraphics(VM) && !IsAddon)
+		if (IsUsingGLEW)
 			ConfigInstallArray->Push(Var::String("glew"));
-		if (Lib->HasSoOpenSSL() && IsUsingCrypto(VM) && !IsAddon)
+		if (IsUsingOpenSSL)
 			ConfigInstallArray->Push(Var::String("openssl"));
-		if (Lib->HasSoMongoc() && IsUsingMongoDB(VM) && !IsAddon)
+		if (IsUsingMongoDB)
 			ConfigInstallArray->Push(Var::String("mongo-c-driver"));
-		if (Lib->HasSoPostgreSQL() && IsUsingPostgreSQL(VM) && !IsAddon)
+		if (IsUsingPostgreSQL)
 			ConfigInstallArray->Push(Var::String("libpq"));
-		if (Lib->HasSoSQLite() && IsUsingSQLite(VM) && !IsAddon)
+		if (IsUsingSQLite)
 			ConfigInstallArray->Push(Var::String("sqlite3"));
 
 		String VitexPath = GetGlobalVitexPath();
@@ -857,8 +828,8 @@ namespace ASX
 		Keys["BUILDER_CONFIG_TAGS"] = Config.Tags ? "true" : "false";
 		Keys["BUILDER_CONFIG_TS_IMPORTS"] = Config.TsImports ? "true" : "false";
 		Keys["BUILDER_CONFIG_ESSENTIALS_ONLY"] = Config.EssentialsOnly ? "true" : "false";
-		Keys["BUILDER_VITEX_URL"] = ConfigSystemAddonsArray;
-		Keys["BUILDER_VITEX_PATH"] = VitexPath;
+		Keys["BUILDER_VENGEANCE_URL"] = ConfigSystemAddonsArray;
+		Keys["BUILDER_VENGEANCE_PATH"] = VitexPath;
 		Keys["BUILDER_APPLICATION"] = Env.AutoConsole ? "OFF" : "ON";
 		Keys["BUILDER_FEATURES"] = FeatureList;
 		Keys["BUILDER_VERSION"] = GetSystemVersion();

@@ -35,6 +35,7 @@ namespace ASX
 		Terminal->Attach();
 
 		VM = new VirtualMachine();
+		Bindings::HeavyRegistry().BindAddons(VM);
 		for (auto& Next : Env.Commandline.Args)
 		{
 			if (Next.first == "__path__")
@@ -110,6 +111,7 @@ namespace ASX
 		if (Config.Debug)
 		{
 			DebuggerContext* Debugger = new DebuggerContext();
+			Bindings::HeavyRegistry().BindStringifiers(Debugger);
 			Debugger->SetInterruptCallback([](bool IsInterrupted)
 			{
 				if (!Schedule::IsAvailable())
@@ -207,6 +209,7 @@ namespace ASX
 			Data.reserve(1024 * 1024);
 			if (Config.EssentialsOnly)
 			{
+				VM->ImportSystemAddon("any");
 				VM->ImportSystemAddon("uint256");
 				VM->ImportSystemAddon("math");
 				VM->ImportSystemAddon("random");
@@ -218,10 +221,11 @@ namespace ASX
 			PrintIntroduction("interactive mode");
 
 			auto* Debugger = new DebuggerContext(DebugType::Detach);
+			Bindings::HeavyRegistry().BindStringifiers(Debugger);
+
 			char DefaultCode[] = "void main(){}";
 			bool Editor = false;
 			size_t Section = 0;
-
 			Env.Path += Env.Module;
 			Debugger->SetEngine(VM);
 
@@ -444,13 +448,16 @@ namespace ASX
 	}
 	size_t Environment::GetInitFlags()
 	{
+		size_t LibraryLayer = Vitex::LOAD_NETWORKING | Vitex::LOAD_CRYPTOGRAPHY | Vitex::LOAD_LOCALE;
+		size_t ApplicationLayer = LibraryLayer | Vitex::LOAD_PROVIDERS;
+		size_t GameLayer = ApplicationLayer | Vitex::LOAD_PLATFORM | Vitex::LOAD_AUDIO | Vitex::LOAD_GRAPHICS;
 		if (Config.Install)
-			return (size_t)Vitex::Preset::App & ~(size_t)Vitex::Init::Providers;
+			return LibraryLayer;
 
 		if (Config.EssentialsOnly)
-			return (size_t)Vitex::Preset::App;
+			return ApplicationLayer;
 
-		return (size_t)Vitex::Preset::Game;
+		return GameLayer;
 	}
 	void Environment::AddDefaultCommands()
 	{
@@ -1006,7 +1013,7 @@ namespace ASX
 int main(int argc, char* argv[])
 {
 	auto* Instance = new ASX::Environment(argc, argv);
-	Vitex::Runtime Scope(Instance->GetInitFlags());
+	Vitex::HeavyRuntime Scope(Instance->GetInitFlags());
 	int ExitCode = Instance->Dispatch();
 	delete Instance;
 	return ExitCode;
