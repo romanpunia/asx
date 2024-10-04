@@ -56,7 +56,7 @@ int main()
     window.set_window_state_change(function(window_state state, int x, int y)
     {
         if (state == window_state::resize)
-            device.resize_buffers(x, y);
+            device.rescale_buffers(x, y);
         else if (state == window_state::close)
             application_active = false;
     });

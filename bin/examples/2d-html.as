@@ -47,7 +47,7 @@ shared class runtime
         switch (state)
         {
             case window_state::resize:
-                self.renderer.resize_buffers(x, y);
+                self.renderer.rescale_buffers(x, y);
                 break;
             case window_state::close:
                 self.stop();

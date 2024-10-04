@@ -160,7 +160,7 @@ class runtime
         switch (state)
         {
             case window_state::resize:
-                self.renderer.resize_buffers(x, y);
+                self.renderer.rescale_buffers(x, y);
                 if (self.scene !is null)
                     self.scene.resize_buffers();
                 break;

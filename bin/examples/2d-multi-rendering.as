@@ -112,7 +112,8 @@ int main()
             if (!next.active)
             {
                 events.pop(@next.window);
-                windows.erase(i--);
+                if (i < windows.size())
+                    windows.erase(i--);
             }
             else
                 next.render_pass(start_time);

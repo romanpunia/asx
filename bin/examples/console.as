@@ -31,7 +31,9 @@ class image_fill
 {
     image_point@[] points;
     float[] seed;
-    uint32 x, y, size;
+    uint32 x = 30;
+    uint32 y = 15;
+    uint32 size;
     string image;
 
     image_fill()
@@ -43,14 +45,15 @@ class image_fill
         console@ output = console::get();
         uint32 new_w, new_h, new_x, new_y;
         output.read_screen(new_w, new_h, new_x, new_y);
-
         if (new_w == x && new_h == y)
             return;
 
-        x = new_w;
-        y = new_h;
+        if (new_w > 0)
+            x = new_w;
+        if (new_h > 0)
+            y = new_h;
         size = x * y - 1;
-
+        
         image.resize(size);
         for (uint32 i = 0; i < size; i++)
             image[i] = uint8(random::betweeni(32, 72));
