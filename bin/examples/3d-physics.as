@@ -6,10 +6,6 @@ import from
     "math"
 };
 
-/*
-    Warning: this example wants active internet connection,
-    otherwise no diffuse texture will be set
-*/
 class runtime
 {
     heavy_application@ self;
@@ -25,7 +21,7 @@ class runtime
     }
     void initialize()
     {
-        texture_2d@ diffuse = cast<texture_2d@>(self.content.load(self.content.get_processor(component_id("texture_2d")), "https://img.freepik.com/free-vector/simple-pattern-background_1319-147.jpg"));
+        texture_2d@ diffuse = cast<texture_2d@>(self.content.load(self.content.get_processor(component_id("texture_2d")), "diffuse.jpg"));
         texture_2d@ normal = cast<texture_2d@>(self.content.load(self.content.get_processor(component_id("texture_2d")), "normal.jpg"));
         model@ cube = cast<model@>(self.content.load(self.content.get_processor(component_id("model")), "cube.obj"));
         if (cube is null)
@@ -51,6 +47,7 @@ class runtime
         material@ top_material = self.scene.add_material();
         top_material.surface.roughness.x = 0.445f;
         top_material.set_diffuse_map(diffuse);
+        top_material.set_normal_map(normal);
         top_material.set_name("top-material");
 
         material@ is_material = self.scene.clone_material(top_material);
@@ -87,7 +84,7 @@ class runtime
         render_system@ system = self.scene.get_renderer();
         system.add_renderer(model_renderer(system));
         system.add_renderer(lighting_renderer(system));
-        
+
         scene_entity@ light = self.scene.add_entity();
         {
             transform@ where = light.get_transform();
@@ -100,7 +97,7 @@ class runtime
             line.shadow.bias = -0.00001f;
             line.sky.rlh_height = 1000.0f;
             line.sky.mie_height = 1000.0f;
-            line.sky.intensity = 12.0f;
+            line.sky.intensity = 17.0f;
             line.emission = 4.0f;
         }
         light.set_name("light");
@@ -260,7 +257,7 @@ class runtime
 int main()
 {
     heavy_application_desc init;
-    init.graphics.vsync_mode = vsync::off;
+    init.graphics.vsync_mode = vsync::on;
     init.window.maximized = true;
     init.environment = "assets";
 

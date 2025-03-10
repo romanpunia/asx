@@ -1,19 +1,24 @@
 #include <vitex/scripting.h>
 #include <iostream>
+#if defined(_WIN32) || defined(_WIN64)
+#define VI_EXPOSE __declspec(dllexport)
+#else
+#define VI_EXPOSE
+#endif
 
-void PrintHelloWorld()
+void print_hello_world()
 {
-    std::cout << "Hello, World!" << std::endl;
+    std::cout << "Hello, world!" << std::endl;
 }
 
-extern "C" { VI_EXPOSE int ViInitialize(Vitex::Scripting::VirtualMachine*); }
-int ViInitialize(Vitex::Scripting::VirtualMachine* VM)
+extern "C" { VI_EXPOSE int vi_initialize(vitex::scripting::virtual_machine*); }
+int vi_initialize(vitex::scripting::virtual_machine* vm)
 {
-    VM->SetFunction("void print_hello_world()", &PrintHelloWorld);
+    vm->set_function("void print_hello_world()", &print_hello_world);
     return 0;
 }
 
-extern "C" { VI_EXPOSE void ViUninitialize(Vitex::Scripting::VirtualMachine*); }
-void ViUninitialize(Vitex::Scripting::VirtualMachine* VM)
+extern "C" { VI_EXPOSE void vi_uninitialize(vitex::scripting::virtual_machine*); }
+void vi_uninitialize(vitex::scripting::virtual_machine* vm)
 {
 }

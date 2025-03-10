@@ -3,66 +3,66 @@
 #include "runtime.hpp"
 #include <vengeance/vengeance.h>
 
-namespace ASX
+namespace asx
 {
-	enum class StatusCode
+	enum class status_code
 	{
 		OK = 0,
-		CommandError = 1,
-		CommandNotFound = 2,
-		GenerationError = 3,
-		ByteCodeError = 4,
-		DependencyError = 5,
-		ConfigurationError = 6,
-		BuildError = 7
+		command_error = 1,
+		command_not_found = 2,
+		generation_error = 3,
+		byte_code_error = 4,
+		dependency_error = 5,
+		configuration_error = 6,
+		build_error = 7
 	};
 
-	class Builder
+	class builder
 	{
 	public:
-		static StatusCode CompileIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output);
-		static StatusCode ImportIntoAddon(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, String& Output);
-		static StatusCode InitializeIntoAddon(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
-		static StatusCode PullAddonRepository(SystemConfig& Config, EnvironmentConfig& Env);
-		static StatusCode CompileIntoExecutable(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings);
-		static UnorderedMap<String, uint32_t> GetDefaultSettings();
-		static String GetSystemVersion();
-		static String GetAddonTargetLibrary(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool* IsVM);
-		static bool IsAddonTargetExists(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& Name, bool Nested = false);
+		static status_code compile_into_addon(system_config& config, environment_config& env, virtual_machine* vm, const std::string_view& name, string& output);
+		static status_code import_into_addon(environment_config& env, virtual_machine* vm, const std::string_view& name, string& output);
+		static status_code initialize_into_addon(system_config& config, environment_config& env, virtual_machine* vm, const unordered_map<string, uint32_t>& settings);
+		static status_code pull_addon_repository(system_config& config, environment_config& env);
+		static status_code compile_into_executable(system_config& config, environment_config& env, virtual_machine* vm, const unordered_map<string, uint32_t>& settings);
+		static unordered_map<string, uint32_t> get_default_settings();
+		static string get_system_version();
+		static string get_addon_target_library(environment_config& env, virtual_machine* vm, const std::string_view& name, bool* is_vm);
+		static bool is_addon_target_exists(environment_config& env, virtual_machine* vm, const std::string_view& name, bool nested = false);
 
 	private:
-		static StatusCode ExecuteGit(SystemConfig& Config, const std::string_view& Command);
-		static StatusCode ExecuteCMake(SystemConfig& Config, const std::string_view& Command);
-		static bool ExecuteCommand(SystemConfig& Config, const std::string_view& Label, const std::string_view& Command, int SuccessExitCode);
-		static bool AppendTemplate(const UnorderedMap<String, String>& Keys, const std::string_view& TargetPath, const std::string_view& TemplatePath);
-		static bool AppendByteCode(SystemConfig& Config, EnvironmentConfig& Env, const std::string_view& Path);
-		static bool AppendDependencies(EnvironmentConfig& Env, VirtualMachine* VM, const std::string_view& TargetDirectory);
-		static bool AppendVitex(SystemConfig& Config);
-		static bool IsDirectoryEmpty(const std::string_view& Target);
-		static const char* GetBuildType(SystemConfig& Config);
-		static String GetGlobalVitexPath();
-		static String GetBuildingDirectory(EnvironmentConfig& Env, const std::string_view& LocalTarget);
-		static String GetGlobalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name);
-		static String GetLocalTargetsDirectory(EnvironmentConfig& Env, const std::string_view& Name);
-		static String GetAddonTarget(EnvironmentConfig& Env, const std::string_view& Name);
-		static Schema* GetAddonInfo(EnvironmentConfig& Env, const std::string_view& Name);
-		static UnorderedMap<String, String> GetBuildKeys(SystemConfig& Config, EnvironmentConfig& Env, VirtualMachine* VM, const UnorderedMap<String, uint32_t>& Settings, bool IsAddon);
+		static status_code execute_git(system_config& config, const std::string_view& command);
+		static status_code execute_cmake(system_config& config, const std::string_view& command);
+		static bool execute_command(system_config& config, const std::string_view& label, const std::string_view& command, int success_exit_code);
+		static bool append_template(const unordered_map<string, string>& keys, const std::string_view& target_path, const std::string_view& template_path);
+		static bool append_byte_code(system_config& config, environment_config& env, const std::string_view& path);
+		static bool append_dependencies(environment_config& env, virtual_machine* vm, const std::string_view& target_directory);
+		static bool append_vitex(system_config& config);
+		static bool is_directory_empty(const std::string_view& target);
+		static const char* get_build_type(system_config& config);
+		static string get_global_vitex_path();
+		static string get_building_directory(environment_config& env, const std::string_view& local_target);
+		static string get_global_targets_directory(environment_config& env, const std::string_view& name);
+		static string get_local_targets_directory(environment_config& env, const std::string_view& name);
+		static string get_addon_target(environment_config& env, const std::string_view& name);
+		static schema* get_addon_info(environment_config& env, const std::string_view& name);
+		static unordered_map<string, string> get_build_keys(system_config& config, environment_config& env, virtual_machine* vm, const unordered_map<string, uint32_t>& settings, bool is_addon);
 	};
 
-	class Control
+	class control
 	{
 	public:
-		static bool Has(SystemConfig& Config, AccessOption Option);
+		static bool has(system_config& config, access_option option);
 	};
 
-	class Templates
+	class templates
 	{
 	private:
-		static UnorderedMap<String, String>* Files;
+		static unordered_map<string, string>* files;
 
 	public:
-		static Option<String> Fetch(const UnorderedMap<String, String>& Keys, const std::string_view& Path);
-		static void Cleanup();
+		static option<string> fetch(const unordered_map<string, string>& keys, const std::string_view& path);
+		static void cleanup();
 	};
 }
 #endif

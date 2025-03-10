@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.10)
 set(VI_DIRECTORY "{{BUILDER_VENGEANCE_PATH}}" CACHE STRING "-")
 {{BUILDER_FEATURES}}
 include(${VI_DIRECTORY}/deps/toolchain.cmake)

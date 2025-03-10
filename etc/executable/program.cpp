@@ -5,175 +5,175 @@
 #include <vengeance/layer.h>
 #include <signal.h>
 
-using namespace Vitex::Layer;
-using namespace ASX;
+using namespace vitex::layer;
+using namespace asx;
 
-EventLoop* Loop = nullptr;
-VirtualMachine* VM = nullptr;
-Compiler* Unit = nullptr;
-ImmediateContext* Context = nullptr;
-std::mutex Mutex;
-int ExitCode = 0;
+event_loop* loop = nullptr;
+virtual_machine* vm = nullptr;
+compiler* unit = nullptr;
+immediate_context* context = nullptr;
+std::mutex mutex;
+int exit_code = 0;
 
 void exit_program(int sigv)
 {
 	if (sigv != SIGINT && sigv != SIGTERM)
-        return;
+		return;
 
-	UMutex<std::mutex> Unique(Mutex);
-    {
-        if (Runtime::TryContextExit(EnvironmentConfig::Get(), sigv))
-        {
-			Loop->Wakeup();
-            goto GracefulShutdown;
-        }
+	umutex<std::mutex> unique(mutex);
+	{
+		if (runtime::try_context_exit(environment_config::get(), sigv))
+		{
+			loop->wakeup();
+			goto graceful_shutdown;
+		}
 
-        auto* App = Application::Get();
-        if (App != nullptr && App->GetState() == ApplicationState::Active)
-        {
-            App->Stop();
-			Loop->Wakeup();
-            goto GracefulShutdown;
-        }
+		auto* app = application::get();
+		if (app != nullptr && app->get_state() == application_state::active)
+		{
+			app->stop();
+			loop->wakeup();
+			goto graceful_shutdown;
+		}
 
-        if (Schedule::IsAvailable())
-        {
-            Schedule::Get()->Stop();
-			Loop->Wakeup();
-            goto GracefulShutdown;
-        }
+		if (schedule::is_available())
+		{
+			schedule::get()->stop();
+			loop->wakeup();
+			goto graceful_shutdown;
+		}
 
-        return std::exit((int)ExitStatus::Kill);
-    }
-GracefulShutdown:
-    signal(sigv, &exit_program);
+		return std::exit((int)exit_status::kill);
+	}
+graceful_shutdown:
+	signal(sigv, &exit_program);
 }
-void setup_program(EnvironmentConfig& Env)
+void setup_program(environment_config& env)
 {
-    OS::Directory::SetWorking(Env.Path.c_str());
-    signal(SIGINT, &exit_program);
-    signal(SIGTERM, &exit_program);
+	os::directory::set_working(env.path.c_str());
+	signal(SIGINT, &exit_program);
+	signal(SIGTERM, &exit_program);
 #ifdef VI_UNIX
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
 #endif
 }
-bool load_program(EnvironmentConfig& Env)
+bool load_program(environment_config& env)
 {
 #ifdef HAS_PROGRAM_BYTECODE
-    program_bytecode::foreach(&Env, [](void* Context, const char* Buffer, unsigned Size)
-    {
-        EnvironmentConfig* Env = (EnvironmentConfig*)Context;
-	    Env->Program = Codec::Base64Decode(std::string_view(Buffer, (size_t)Size));
-    });
-    return true;
+	program_bytecode::foreach(&env, [](void* context, const char* buffer, unsigned size)
+	{
+		environment_config* env = (environment_config*)context;
+		env->program = codec::base64_decode(std::string_view(buffer, (size_t)size));
+	});
+	return true;
 #else
-    return false;
+	return false;
 #endif
 }
 int main(int argc, char* argv[])
 {
-	EnvironmentConfig Env;
-	Env.Path = *OS::Directory::GetModule();
-	Env.Module = argc > 0 ? argv[0] : "runtime";
-	Env.AutoSchedule = {{BUILDER_ENV_AUTO_SCHEDULE}};
-	Env.AutoConsole = {{BUILDER_ENV_AUTO_CONSOLE}};
-	Env.AutoStop = {{BUILDER_ENV_AUTO_STOP}};
-    if (!load_program(Env))
-        return 0;
+	environment_config env;
+	env.path = *os::directory::get_module();
+	env.library = argc > 0 ? argv[0] : "runtime";
+	env.auto_schedule = { { BUILDER_ENV_AUTO_SCHEDULE } };
+	env.auto_console = { { BUILDER_ENV_AUTO_CONSOLE } };
+	env.auto_stop = { { BUILDER_ENV_AUTO_STOP } };
+	if (!load_program(env))
+		return 0;
 
-	Vector<String> Args;
-	Args.reserve((size_t)argc);
+	vector<string> args;
+	args.reserve((size_t)argc);
 	for (int i = 0; i < argc; i++)
-		Args.push_back(argv[i]);
+		args.push_back(argv[i]);
 
-	SystemConfig Config;
-	Config.Permissions = { {{BUILDER_CONFIG_PERMISSIONS}} };
-	Config.Libraries = { {{BUILDER_CONFIG_LIBRARIES}} };
-	Config.Functions = { {{BUILDER_CONFIG_FUNCTIONS}} };
-	Config.SystemAddons = { {{BUILDER_CONFIG_ADDONS}} };
-	Config.Tags = {{BUILDER_CONFIG_TAGS}};
-	Config.TsImports = {{BUILDER_CONFIG_TS_IMPORTS}};
-	Config.EssentialsOnly = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
-    setup_program(Env);
+	system_config config;
+	config.permissions = { { { BUILDER_CONFIG_PERMISSIONS } } };
+	config.libraries = { { { BUILDER_CONFIG_LIBRARIES } } };
+	config.functions = { { { BUILDER_CONFIG_FUNCTIONS } } };
+	config.system_addons = { { { BUILDER_CONFIG_ADDONS } } };
+	config.tags = { { BUILDER_CONFIG_TAGS } };
+	config.ts_imports = { { BUILDER_CONFIG_TS_IMPORTS } };
+	config.essentials_only = { { BUILDER_CONFIG_ESSENTIALS_ONLY } };
+	setup_program(env);
 
-	size_t Modules = Vitex::LOAD_NETWORKING | Vitex::LOAD_CRYPTOGRAPHY | Vitex::LOAD_PROVIDERS | Vitex::LOAD_LOCALE;
-	if (!Config.EssentialsOnly)
-		Modules |= Vitex::LOAD_PLATFORM | Vitex::LOAD_AUDIO | Vitex::LOAD_GRAPHICS;
+	size_t modules = vitex::use_networking | vitex::use_cryptography | vitex::use_providers | vitex::use_locale;
+	if (!config.essentials_only)
+		modules |= vitex::use_platform | vitex::use_audio | vitex::use_graphics;
 
-	Vitex::HeavyRuntime Scope(Modules);
+	vitex::heavy_runtime scope(modules);
 	{
-		VM = new VirtualMachine();
-		Bindings::HeavyRegistry().BindAddons(VM);
-		Unit = VM->CreateCompiler();
-        Context = VM->RequestContext();
-		
-        Vector<std::pair<uint32_t, size_t>> Settings = { {{BUILDER_CONFIG_SETTINGS}} };
-        for (auto& Item : Settings)
-            VM->SetProperty((Features)Item.first, Item.second);
+		vm = new virtual_machine();
+		bindings::heavy_registry().bind_addons(vm);
+		unit = vm->create_compiler();
+		context = vm->request_context();
 
-		Unit = VM->CreateCompiler();
-		ExitCode = Runtime::ConfigureContext(Config, Env, VM, Unit) ? (int)ExitStatus::OK : (int)ExitStatus::CompilerError;
-		if (ExitCode != (int)ExitStatus::OK)
-			goto FinishProgram;
+		vector<std::pair<uint32_t, size_t>> settings = { { { BUILDER_CONFIG_SETTINGS } } };
+		for (auto& item : settings)
+			vm->set_property((features)item.first, item.second);
 
-		Runtime::ConfigureSystem(Config);
-		if (!Unit->Prepare(Env.Module))
+		unit = vm->create_compiler();
+		exit_code = runtime::configure_context(config, env, vm, unit) ? (int)exit_status::OK : (int)exit_status::compiler_error;
+		if (exit_code != (int)exit_status::OK)
+			goto finish_program;
+
+		runtime::configure_system(config);
+		if (!unit->prepare(env.library))
 		{
-			VI_ERR("cannot prepare <%s> module scope", Env.Module);
-			ExitCode = (int)ExitStatus::PrepareError;
-			goto FinishProgram;
+			VI_ERR("cannot prepare <%s> module scope", env.library);
+			exit_code = (int)exit_status::prepare_error;
+			goto finish_program;
 		}
 
-		ByteCodeInfo Info;
-		Info.Data.insert(Info.Data.begin(), Env.Program.begin(), Env.Program.end());
-		if (!Unit->LoadByteCode(&Info).Get())
+		byte_code_info info;
+		info.data.insert(info.data.begin(), env.program.begin(), env.program.end());
+		if (!unit->load_byte_code(&info).get())
 		{
-			VI_ERR("cannot load <%s> module bytecode", Env.Module);
-			ExitCode = (int)ExitStatus::LoadingError;
-			goto FinishProgram;
+			VI_ERR("cannot load <%s> module bytecode", env.library);
+			exit_code = (int)exit_status::loading_error;
+			goto finish_program;
 		}
 
-	    ProgramEntrypoint Entrypoint;
-		Function Main = Runtime::GetEntrypoint(Env, Entrypoint, Unit);
-		if (!Main.IsValid())
-        {
-			ExitCode = (int)ExitStatus::EntrypointError;
-			goto FinishProgram;
-        }
-
-		int ExitCode = 0;
-		TypeInfo Type = VM->GetTypeInfoByDecl("array<string>@");
-		Bindings::Array* ArgsArray = Type.IsValid() ? Bindings::Array::Compose<String>(Type.GetTypeInfo(), Args) : nullptr;
-		VM->SetExceptionCallback([](ImmediateContext* Context)
+		program_entrypoint entrypoint;
+		function main = runtime::get_entrypoint(env, entrypoint, unit);
+		if (!main.is_valid())
 		{
-			if (!Context->WillExceptionBeCaught())
-				std::exit((int)ExitStatus::RuntimeError);
+			exit_code = (int)exit_status::entrypoint_error;
+			goto finish_program;
+		}
+
+		int exit_code = 0;
+		typeinfo type = vm->get_type_info_by_decl("array<string>@");
+		bindings::array* args_array = type.is_valid() ? bindings::array::compose<string>(type.get_type_info(), args) : nullptr;
+		vm->set_exception_callback([](immediate_context* context)
+		{
+			if (!context->will_exception_be_caught())
+				std::exit((int)exit_status::runtime_error);
 		});
 
-		Main.AddRef();
-		Loop = new EventLoop();
-		Loop->Listen(Context);
-		Loop->Enqueue(FunctionDelegate(Main, Context), [&Main, ArgsArray](ImmediateContext* Context)
+		main.add_ref();
+		loop = new event_loop();
+		loop->listen(context);
+		loop->enqueue(function_delegate(main, context), [&main, args_array](immediate_context* context)
 		{
-			Runtime::StartupEnvironment(EnvironmentConfig::Get());
-			if (Main.GetArgsCount() > 0)
-				Context->SetArgObject(0, ArgsArray);
-		}, [&ExitCode, &Type, &Main, ArgsArray](ImmediateContext* Context)
+			runtime::startup_environment(environment_config::get());
+			if (main.get_args_count() > 0)
+				context->set_arg_object(0, args_array);
+		}, [&exit_code, &type, &main, args_array](immediate_context* context)
 		{
-			ExitCode = Main.GetReturnTypeId() == (int)TypeId::VOIDF ? 0 : (int)Context->GetReturnDWord();
-			if (ArgsArray != nullptr)
-				Context->GetVM()->ReleaseObject(ArgsArray, Type);
-			Runtime::ShutdownEnvironment(EnvironmentConfig::Get());
-			Loop->Wakeup();
+			exit_code = main.get_return_type_id() == (int)type_id::voidf ? 0 : (int)context->get_return_dword();
+			if (args_array != nullptr)
+				context->get_vm()->release_object(args_array, type);
+			runtime::shutdown_environment(environment_config::get());
+			loop->wakeup();
 		});
-        
-		Runtime::AwaitContext(Mutex, Loop, VM, Context);
+
+		runtime::await_context(mutex, loop, vm, context);
 	}
-FinishProgram:
-	Memory::Release(Context);
-	Memory::Release(Unit);
-	Memory::Release(VM);
-    Memory::Release(Loop);
-	return ExitCode;
+finish_program:
+	memory::release(context);
+	memory::release(unit);
+	memory::release(vm);
+	memory::release(loop);
+	return exit_code;
 }

@@ -1,7 +1,7 @@
 import from
 {
     "schedule",
-    "postgresql",
+    "pq",
     "console",
     "os",
     "timestamp",
@@ -13,24 +13,24 @@ import from
 int main(string[]@ args)
 {
     console@ output = console::get();
-    string hostname = os::process::get_env("DB_ADDRESS");
-    string username = os::process::get_env("DB_USERNAME");
-    string password = os::process::get_env("DB_PASSWORD");
+    string hostname = "127.0.0.1";
+    string username = "postgres";
+    string password = "";
     string database = "application";
     
-    pdb::host_address address = pdb::host_address::from_url("postgresql://" + username + ":" + password + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
-    pdb::cluster@ connection = pdb::cluster();
+    pq::host_address address = pq::host_address::from_url("postgresql://" + username + (password.empty() ? "" : ":" + password) + "@" + hostname + ":5432/" + database + "?connect_timeout=5");
+    pq::cluster@ connection = pq::cluster();
     try
     {
         /* Throws on connection error */
         co_await connection.connect(address, 1);
 
         uint64 time = timestamp().milliseconds();
-        pdb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
+        pq::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT * FROM pg_catalog.pg_tables;");
         if (cursor.error_or_empty())
             throw exception_ptr("query", "cannot execute a query on a database");
 
-        pdb::response response = cursor.first();
+        pq::response response = cursor.first();
         string[]@ columns = response.get_columns();
         for (usize i = 0; i < columns.size(); i++)
         {
@@ -43,11 +43,11 @@ int main(string[]@ args)
         usize rows = response.size();
         for (usize i = 0; i < rows; i++)
         {
-            pdb::row row = response[i];
+            pq::row row = response[i];
             output.write("  " + to_string(i + 1) + " (");
             for (usize j = 0; j < columns.size(); j++)
             {
-                pdb::column column = row[j];
+                pq::column column = row[j];
                 schema@ value = column.get_inline();
                 string text = (value is null ? "NULL" : value.to_json());
                 output.write(j + 1 < columns.size() ? text + ", " : text);

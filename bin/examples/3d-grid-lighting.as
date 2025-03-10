@@ -19,12 +19,8 @@ class runtime
 
     runtime(heavy_application_desc&in init, const vector3&in size, float radius)
     {
-        if (size.length() > 0.0f)
-            grid_size = size;
-        
-        if (radius > 0.0f)
-            grid_radius = radius;
-        
+        grid_size = size.length() > 0.0f ? size : 5.0f;
+        grid_radius = radius > 0.0f ? radius : 15.0f;
         @self = heavy_application(init, @this);
         self.set_on_initialize(initialize_sync(this.initialize));
         self.set_on_dispatch(dispatch_sync(this.dispatch));
@@ -48,7 +44,7 @@ class runtime
 
         scene_entity@ camera = self.scene.get_camera_entity();
         auto@ fly = fly_component(camera);
-        fly.moving.faster = 4000.0f;
+        fly.moving.faster = 700.0f;
         camera.add_component(fly);
         camera.add_component(free_look_component(camera));
         
@@ -60,10 +56,10 @@ class runtime
         system.add_renderer(lighting_renderer(system));
         
         /* Screen-space ray tracing */
-        ssgi_renderer@ ssgi = ssgi_renderer(system);
-        ssgi.indirection.distance = 8;
-        ssgi.indirection.swing = 0.5;
-        system.add_renderer(@ssgi);
+        local_illumination_renderer@ local_illumination = local_illumination_renderer(system);
+        local_illumination.indirection.distance = grid_radius;
+        local_illumination.indirection.swing = 0.4;
+        system.add_renderer(@local_illumination);
 
         scene_entity@ light = self.scene.add_entity();
         {
@@ -71,14 +67,13 @@ class runtime
             where.set_position(vector3(-10.0f, 10.0f, -10.0f));
 
             line_light_component@ line = cast<line_light_component@>(light.add_component(line_light_component(light)));
-            line.shadow.distance0 = grid_size.x * grid_radius;
-            line.shadow.distance1 = grid_size.x * grid_radius;
+            line.shadow.distance0 = grid_size.x * grid_radius * 1.5f;
+            line.shadow.distance1 = grid_size.x * grid_radius * 2.5f;
             line.shadow.cascades = 2;
             line.shadow.enabled = true;
             line.shadow.softness = 10.0f;
             line.shadow.iterations = 64;
             line.shadow.bias = 0.00001f;
-            line.sky.intensity = 16.0f;
             line.emission = 4.0f;
         }
         light.set_name("light");

@@ -10,7 +10,7 @@ import from
 
 class runtime
 {
-    vector3 grid_size = 5.0f;
+    vector3 grid_size;
     float grid_radius = 15.0f;
     usize grid_materials = 32; 
     float timing = 0.0;
@@ -18,12 +18,8 @@ class runtime
 
     runtime(heavy_application_desc&in init, const vector3&in size, float radius)
     {
-        if (size.length() > 0.0f)
-            grid_size = size;
-        
-        if (radius > 0.0f)
-            grid_radius = radius;
-        
+        grid_size = size.length() > 0.0f ? size : 5.0f;
+        grid_radius = radius > 0.0f ? radius : 15.0f;
         @self = heavy_application(init, @this);
         self.set_on_initialize(initialize_sync(this.initialize));
         self.set_on_dispatch(dispatch_sync(this.dispatch));
@@ -47,7 +43,7 @@ class runtime
 
         scene_entity@ camera = self.scene.get_camera_entity();
         auto@ fly = fly_component(camera);
-        fly.moving.faster = 4000.0f;
+        fly.moving.faster = 1200.0f;
         camera.add_component(fly);
         camera.add_component(free_look_component(camera));
         

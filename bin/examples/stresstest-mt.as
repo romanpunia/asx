@@ -25,7 +25,7 @@ class test_worker
 
 int32[]@ test(int32 value)
 {
-    usize threads_count = usize(os::cpu::get_quantity_info().logical);
+    usize threads_count = usize(os::hw::get_quantity_info().logical);
     thread@[] threads = array<thread@>();
     int32[]@ hashes = array<int32>();
     threads.reserve(threads_count);

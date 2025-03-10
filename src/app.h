@@ -4,57 +4,57 @@
 #include <vengeance/bindings.h>
 #include <vitex/network.h>
 
-using namespace Vitex::Layer;
-using namespace Vitex::Network;
+using namespace vitex::layer;
+using namespace vitex::network;
 
-namespace ASX
+namespace asx
 {
-	typedef std::function<int(const std::string_view&)> CommandCallback;
+	typedef std::function<int(const std::string_view&)> command_callback;
 
-	struct EnvironmentCommand
+	struct environment_command
 	{
-		CommandCallback Callback;
-		Vector<String> Arguments;
-		String Description;
+		command_callback callback;
+		vector<string> arguments;
+		string description;
 	};
 
-	class Environment
+	class environment
 	{
 	private:
-		UnorderedMap<String, Vector<EnvironmentCommand>> Commands;
-		UnorderedMap<String, uint32_t> Settings;
-		UnorderedSet<String> Flags;
-		EnvironmentConfig Env;
-		ProgramEntrypoint Entrypoint;
-		SystemConfig Config;
-		EventLoop* Loop;
-		VirtualMachine* VM;
-		ImmediateContext* Context;
-		Compiler* Unit;
-		std::mutex Mutex;
+		unordered_map<string, vector<environment_command>> commands;
+		unordered_map<string, uint32_t> settings;
+		unordered_set<string> flags;
+		environment_config env;
+		program_entrypoint entrypoint;
+		system_config config;
+		event_loop* loop;
+		virtual_machine* vm;
+		immediate_context* context;
+		compiler* unit;
+		std::mutex mutex;
 
 	public:
-		Environment(int ArgsCount, char** Args);
-		~Environment();
-		int Dispatch();
-		void Shutdown(int Value);
-		void Interrupt(int Value);
-		void Abort(const char* Signal);
-		size_t GetInitFlags();
+		environment(int args_count, char** args);
+		~environment();
+		int dispatch();
+		void shutdown(int value);
+		void interrupt(int value);
+		void abort(const char* signal);
+		size_t get_init_flags();
 
 	private:
-		void AddDefaultCommands();
-		void AddDefaultSettings();
-		void AddCommand(const std::string_view& Category, const std::string_view& Name, const std::string_view& Description, bool IsFlagOnly, const CommandCallback& Callback);
-		ExitStatus ExecuteArgument(const UnorderedSet<String>& Names);
-		EnvironmentCommand* FindArgument(const std::string_view& Name);
-		void PrintIntroduction(const char* Label);
-		void PrintHelp();
-		void PrintProperties();
-		void PrintDependencies();
-		void ListenForSignals();
-		static void ExitProcess(ExitStatus Code);
-		ExpectsPreprocessor<IncludeType> ImportAddon(Preprocessor* Base, const IncludeResult& File, String& Output);
+		void add_default_commands();
+		void add_default_settings();
+		void add_command(const std::string_view& category, const std::string_view& name, const std::string_view& description, bool is_flag_only, const command_callback& callback);
+		exit_status execute_argument(const unordered_set<string>& names);
+		environment_command* find_argument(const std::string_view& name);
+		void print_introduction(const char* label);
+		void print_help();
+		void print_properties();
+		void print_dependencies();
+		void listen_for_signals();
+		static void exit_process(exit_status code);
+		expects_preprocessor<include_type> import_addon(preprocessor* base, const include_result& file, string& output);
 	};
 }
 #endif

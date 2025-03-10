@@ -16,7 +16,7 @@ int main(string[]@ args)
 {
     console@ output = console::get();
     string address = "file:///" + __DIRECTORY__ + "/assets/database.db";
-    ldb::cluster@ connection = ldb::cluster();
+    sqlite::cluster@ connection = sqlite::cluster();
     try
     {
         if (!(co_await connection.connect(address, 1)))
@@ -30,11 +30,11 @@ int main(string[]@ args)
         });
 
         uint64 time = timestamp().milliseconds();
-        ldb::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT random_hex_text(16) AS text_16_bytes, random_hex_text(32) AS text_32_bytes");
+        sqlite::cursor cursor = co_await connection.query(args.size() > 1 ? args[1] : "SELECT random_hex_text(16) AS text_16_bytes, random_hex_text(32) AS text_32_bytes");
         if (cursor.error_or_empty())
             throw exception_ptr("query", "cannot execute a query on a database");
 
-        ldb::response response = cursor.first();
+        sqlite::response response = cursor.first();
         string[]@ columns = response.get_columns();
         for (usize i = 0; i < columns.size(); i++)
         {
@@ -47,11 +47,11 @@ int main(string[]@ args)
         usize rows = response.size();
         for (usize i = 0; i < rows; i++)
         {
-            ldb::row row = response[i];
+            sqlite::row row = response[i];
             output.write("  " + to_string(i + 1) + " (");
             for (usize j = 0; j < columns.size(); j++)
             {
-                ldb::column column = row[j];
+                sqlite::column column = row[j];
                 schema@ value = column.get_inline();
                 string text = (value is null ? "NULL" : value.to_json());
                 output.write(j + 1 < columns.size() ? text + ", " : text);

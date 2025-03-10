@@ -64,6 +64,7 @@ int main()
     graphics_device_desc device_desc;
     @device_desc.window = window;
     device_desc.vsync_mode = vsync::off;
+    device_desc.backend = render_backend::ogl;
     device_desc.buffer_width = window_desc.width;
     device_desc.buffer_height = window_desc.height;
 
