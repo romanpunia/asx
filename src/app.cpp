@@ -12,7 +12,7 @@ namespace asx
 		error_handling::set_flag(log_option::report_sys_errors, false);
 		error_handling::set_flag(log_option::active, true);
 		error_handling::set_flag(log_option::pretty, false);
-		config.essentials_only = !env.commandline.has("game", "g");
+		config.essentials_only = !env.commandline.has("engine", "e");
 		config.install = env.commandline.has("install", "i") || env.commandline.has("target");
 #ifndef NDEBUG
 		os::directory::set_working(os::directory::get_module()->c_str());
@@ -28,6 +28,7 @@ namespace asx
 		memory::release(unit);
 		memory::release(vm);
 		memory::release(loop);
+		printf("\n");
 	}
 	int environment::dispatch()
 	{
@@ -373,7 +374,7 @@ namespace asx
 			print_introduction("debugger");
 
 		int exit_code = 0;
-		typeinfo type = vm->get_type_info_by_decl("array<string>@");
+		auto type = vm->get_type_info_by_decl("array<string>@");
 		bindings::array* args_array = type.is_valid() ? bindings::array::compose<string>(type.get_type_info(), env.commandline.params) : nullptr;
 		vm->set_exception_callback([](immediate_context* context)
 		{
@@ -391,7 +392,7 @@ namespace asx
 				context->set_arg_object(0, args_array);
 		}, [this, &exit_code, &type, &main, args_array](immediate_context* context)
 		{
-			exit_code = main.get_return_type_id() == (int)type_id::voidf ? 0 : (int)context->get_return_dword();
+			exit_code = main.get_return_type_id() == (int)type_id::void_t ? 0 : (int)context->get_return_dword();
 			if (args_array != nullptr)
 				context->get_vm()->release_object(args_array, type);
 			runtime::shutdown_environment(environment_config::get());
@@ -784,7 +785,7 @@ namespace asx
 		settings["require_enum_scope"] = (uint32_t)features::require_enum_scope;
 		settings["jit_instructions"] = (uint32_t)features::include_jit_instructions;
 		settings["accessor_mode"] = (uint32_t)features::property_accessor_mode;
-		settings["array_template_message"] = (uint32_t)features::expand_def_array_to_tmpl;
+		settings["array_template_message"] = (uint32_t)features::expand_def_array_to_impl;
 		settings["automatic_gc"] = (uint32_t)features::auto_garbage_collect;
 		settings["automatic_constructors"] = (uint32_t)features::always_impl_default_construct;
 		settings["value_assignment_to_references"] = (uint32_t)features::disallow_value_assign_for_ref_type;
@@ -794,8 +795,15 @@ namespace asx
 		settings["private_is_protected"] = (uint32_t)features::private_prop_as_protected;
 		settings["heredoc_trim_mode"] = (uint32_t)features::heredoc_trim_mode;
 		settings["generic_auto_handles_mode"] = (uint32_t)features::generic_call_mode;
-		settings["ignore_shared_interface_duplicates"] = (uint32_t)features::ignore_duplicate_shared_intf;
+		settings["ignore_shared_interface_duplicates"] = (uint32_t)features::ignore_duplicate_shared_int;
 		settings["ignore_debug_output"] = (uint32_t)features::no_debug_output;
+		settings["disable_script_class_gc"] = (uint32_t)features::disable_script_class_gc;
+		settings["jit_interface_version"] = (uint32_t)features::jit_interface_version;
+		settings["always_impl_default_copy"] = (uint32_t)features::always_impl_default_copy;
+		settings["always_impl_default_copy_construct"] = (uint32_t)features::always_impl_default_copy_construct;
+		settings["member_init_mode"] = (uint32_t)features::member_init_mode;
+		settings["bool_conversion_mode"] = (uint32_t)features::bool_conversion_mode;
+		settings["foreach_support"] = (uint32_t)features::foreach_support;
 	}
 	void environment::add_command(const std::string_view& category, const std::string_view& name, const std::string_view& description, bool is_flag_only, const command_callback& callback)
 	{

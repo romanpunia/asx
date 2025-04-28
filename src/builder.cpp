@@ -349,7 +349,7 @@ namespace asx
 		settings["require_enum_scope"] = (uint32_t)features::require_enum_scope;
 		settings["jit_instructions"] = (uint32_t)features::include_jit_instructions;
 		settings["accessor_mode"] = (uint32_t)features::property_accessor_mode;
-		settings["array_template_message"] = (uint32_t)features::expand_def_array_to_tmpl;
+		settings["array_template_message"] = (uint32_t)features::expand_def_array_to_impl;
 		settings["automatic_gc"] = (uint32_t)features::auto_garbage_collect;
 		settings["automatic_constructors"] = (uint32_t)features::always_impl_default_construct;
 		settings["value_assignment_to_references"] = (uint32_t)features::disallow_value_assign_for_ref_type;
@@ -359,8 +359,15 @@ namespace asx
 		settings["private_is_protected"] = (uint32_t)features::private_prop_as_protected;
 		settings["heredoc_trim_mode"] = (uint32_t)features::heredoc_trim_mode;
 		settings["generic_auto_handles_mode"] = (uint32_t)features::generic_call_mode;
-		settings["ignore_shared_interface_duplicates"] = (uint32_t)features::ignore_duplicate_shared_intf;
+		settings["ignore_shared_interface_duplicates"] = (uint32_t)features::ignore_duplicate_shared_int;
 		settings["ignore_debug_output"] = (uint32_t)features::no_debug_output;
+		settings["disable_script_class_gc"] = (uint32_t)features::disable_script_class_gc;
+		settings["jit_interface_version"] = (uint32_t)features::jit_interface_version;
+		settings["always_impl_default_copy"] = (uint32_t)features::always_impl_default_copy;
+		settings["always_impl_default_copy_construct"] = (uint32_t)features::always_impl_default_copy_construct;
+		settings["member_init_mode"] = (uint32_t)features::member_init_mode;
+		settings["bool_conversion_mode"] = (uint32_t)features::bool_conversion_mode;
+		settings["foreach_support"] = (uint32_t)features::foreach_support;
 		return settings;
 	}
 	string builder::get_system_version()

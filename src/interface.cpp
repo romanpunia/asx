@@ -25,7 +25,7 @@ void asx_export_function_address(const char* declaration, void(*function_address
 	VI_ASSERT(declaration != nullptr, "declaration should be set");
 	VI_ASSERT(function_address != nullptr, "function address should be set");
 	auto* env = asx::environment::get();
-	env->vm->set_function_address(declaration, bridge::function(function_address)).expect("binding error");
+	env->vm->set_function_address(declaration, bridge::function_call(function_address)).expect("binding error");
 }
 void asx_export_namespace_begin(const char* name)
 {
@@ -82,7 +82,7 @@ void asx_export_class_constructor_address(const char* name, const char* declarat
 	auto* env = asx::environment::get();
 	auto type = env->vm->get_type_info_by_name(name);
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
-	base.set_constructor_address(declaration, bridge::function(constructor_function_address)).expect("binding error");
+	base.set_constructor_address(declaration, bridge::function_call(constructor_function_address)).expect("binding error");
 }
 void asx_export_class_operator_address(const char* name, const char* declaration, void(*operator_function_address)(void*))
 {
@@ -92,7 +92,7 @@ void asx_export_class_operator_address(const char* name, const char* declaration
 	auto* env = asx::environment::get();
 	auto type = env->vm->get_type_info_by_name(name);
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
-	base.set_operator_address(declaration, bridge::function(operator_function_address)).expect("binding error");
+	base.set_operator_address(declaration, bridge::function_call(operator_function_address)).expect("binding error");
 }
 void asx_export_class_copy_operator_address(const char* name, void(*copy_operator_function_address)(void*))
 {
@@ -101,7 +101,7 @@ void asx_export_class_copy_operator_address(const char* name, void(*copy_operato
 	auto* env = asx::environment::get();
 	auto type = env->vm->get_type_info_by_name(name);
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
-	base.set_operator_copy_address(bridge::function(copy_operator_function_address)).expect("binding error");
+	base.set_operator_copy_address(bridge::function_call(copy_operator_function_address)).expect("binding error");
 }
 void asx_export_class_destructor_address(const char* name, void(*destructor_function_address)(void*))
 {
@@ -110,7 +110,7 @@ void asx_export_class_destructor_address(const char* name, void(*destructor_func
 	auto* env = asx::environment::get();
 	auto type = env->vm->get_type_info_by_name(name);
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
-	base.set_destructor_address("void f()", bridge::function(destructor_function_address)).expect("binding error");
+	base.set_destructor_address("void f()", bridge::function_call(destructor_function_address)).expect("binding error");
 }
 void asx_export_class_method_address(const char* name, const char* declaration, void(*method_function_address)())
 {
@@ -120,5 +120,5 @@ void asx_export_class_method_address(const char* name, const char* declaration, 
 	auto* env = asx::environment::get();
 	auto type = env->vm->get_type_info_by_name(name);
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
-	base.set_method_address(declaration, bridge::function(method_function_address)).expect("binding error");
+	base.set_method_address(declaration, bridge::function_call(method_function_address)).expect("binding error");
 }

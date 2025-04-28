@@ -20,7 +20,3 @@ RUN cmake -S=/home/target/intermediate -B=/home/target/make -DCMAKE_LIBRARY_OUTP
 RUN make -C /home/target/make $COMPILE
 RUN make -C /home/target/make install
 WORKDIR /usr/local/bin
-ENV PATH="${PATH}:/usr/local/lib"
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-
-ENTRYPOINT ["tail", "-f", "/dev/null"]

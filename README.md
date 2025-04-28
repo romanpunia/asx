@@ -123,7 +123,7 @@ int main()
 ```
 
 ## Addons (local and remote)
-There is support for addons. Addons must be compiled with Vengeance as a shared object dependency or they must load Vengeance symbols manually to work properly. To initialize a VM addon use following command:
+There is support for addons. To initialize a VM addon use following command:
 ```bash
 # Will create a directory named "example" in current working directory, directory will contain AngelScript files
   asx --target=example --addon=vm:.
@@ -147,7 +147,7 @@ After that you will either have a ready to use git repository with CMake configu
 import from "@repo_owner/repo_name"; // Must start with <@> symbol
 ```
 
-Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory. First time builds (if native) are slow as it is required to download full Vengeance framework beforehand and build the target addon using platform compiler, after shared library has been built loading times are submillisecond.
+Keep in mind that if you use remote addons which is a feature that works similiar to NPM, you will get \<addons\> directory near you executable script that is basically \<node_modules\> directory.
 
 To install dependencies of a program run _--install_ and provide a file that should be scanned for dependencies. This will only download and build required addons. Afterwards you may run a program.
 

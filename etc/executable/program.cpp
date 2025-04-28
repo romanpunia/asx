@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
 		}
 
 		int exit_code = 0;
-		typeinfo type = vm->get_type_info_by_decl("array<string>@");
+		auto type = vm->get_type_info_by_decl("array<string>@");
 		bindings::array* args_array = type.is_valid() ? bindings::array::compose<string>(type.get_type_info(), args) : nullptr;
 		vm->set_exception_callback([](immediate_context* context)
 		{
@@ -161,7 +161,7 @@ int main(int argc, char* argv[])
 				context->set_arg_object(0, args_array);
 		}, [&exit_code, &type, &main, args_array](immediate_context* context)
 		{
-			exit_code = main.get_return_type_id() == (int)type_id::voidf ? 0 : (int)context->get_return_dword();
+			exit_code = main.get_return_type_id() == (int)type_id::void_t ? 0 : (int)context->get_return_dword();
 			if (args_array != nullptr)
 				context->get_vm()->release_object(args_array, type);
 			runtime::shutdown_environment(environment_config::get());
