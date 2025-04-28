@@ -471,28 +471,28 @@ namespace asx
 			print_introduction("runtime");
 			return (int)exit_status::OK;
 		});
-		add_command("application", "--plain", "show detailed log messages as is", true, [this](const std::string_view&)
+		add_command("application", "--log-plain", "show detailed log messages as is", true, [this](const std::string_view&)
 		{
 			config.pretty_progress = false;
 			error_handling::set_flag(log_option::pretty, false);
 			return (int)exit_status::next;
 		});
-		add_command("application", "--quiet", "disable logging", true, [](const std::string_view&)
+		add_command("application", "--log-quiet", "disable logging", true, [](const std::string_view&)
 		{
 			error_handling::set_flag(log_option::active, false);
 			return (int)exit_status::next;
 		});
-		add_command("application", "--timings", "append date for each logging message", true, [](const std::string_view&)
+		add_command("application", "--log-time", "append date for each logging message", true, [](const std::string_view&)
 		{
 			error_handling::set_flag(log_option::dated, true);
 			return (int)exit_status::next;
 		});
-		add_command("execution", "-b, --bytecode", "load gz compressed compiled bytecode and execute it as normal", true, [this](const std::string_view&)
+		add_command("execution", "--load-bytecode", "load gz compressed compiled bytecode and execute it as normal", true, [this](const std::string_view&)
 		{
 			config.load_byte_code = true;
 			return (int)exit_status::next;
 		});
-		add_command("execution", "-s, --save", "save gz compressed compiled bytecode to a file near script file", true, [this](const std::string_view&)
+		add_command("execution", "--save-bytecode", "save gz compressed compiled bytecode to a file near script file", true, [this](const std::string_view&)
 		{
 			config.save_byte_code = true;
 			return (int)exit_status::next;
@@ -507,7 +507,7 @@ namespace asx
 			config.debug = true;
 			return (int)exit_status::next;
 		});
-		add_command("execution", "-g, --game", "enable game engine mode for graphics and audio support", true, [this](const std::string_view&)
+		add_command("execution", "-e, --engine", "enable game engine mode for graphics and audio support", true, [this](const std::string_view&)
 		{
 			config.essentials_only = false;
 			return (int)exit_status::next;
@@ -590,28 +590,28 @@ namespace asx
 			VI_ERR("output path <%s> must be a directory", path.data());
 			return (int)exit_status::input_error;
 		});
-		add_command("building", "--import-std", "import standard addon(s) by name [expects: plus(+) separated list]", false, [this](const std::string_view& value)
+		add_command("building", "--import", "import standard addon(s) by name [expects: plus(+) separated list]", false, [this](const std::string_view& value)
 		{
 			for (auto& item : stringify::split(value, '+'))
 				config.system_addons.push_back(item);
 
 			return (int)exit_status::next;
 		});
-		add_command("building", "--import-user", "import user addon(s) by path [expects: plus(+) separated list]", false, [this](const std::string_view& value)
+		add_command("building", "--import-addon", "import user addon(s) by path [expects: plus(+) separated list]", false, [this](const std::string_view& value)
 		{
 			for (auto& item : stringify::split(value, '+'))
 				config.libraries.emplace_back(std::make_pair(item, true));
 
 			return (int)exit_status::next;
 		});
-		add_command("building", "--import-lib", "import clibrary(ies) by path [expects: plus(+) separated list]", false, [this](const std::string_view& value)
+		add_command("building", "--import-library", "import clibrary(ies) by path [expects: plus(+) separated list]", false, [this](const std::string_view& value)
 		{
 			for (auto& item : stringify::split(value, '+'))
 				config.libraries.emplace_back(std::make_pair(item, false));
 
 			return (int)exit_status::next;
 		});
-		add_command("building", "--import-func", "import clibrary function by declaration [expects: clib_name:cfunc_name=asfunc_decl]", false, [this](const std::string_view& value)
+		add_command("building", "--import-function", "import clibrary function by declaration [expects: clib_name:cfunc_name=asfunc_decl]", false, [this](const std::string_view& value)
 		{
 			size_t offset1 = value.find(':');
 			if (offset1 == std::string::npos)
@@ -647,7 +647,7 @@ namespace asx
 			data.second = declaration;
 			return (int)exit_status::next;
 		});
-		add_command("building", "--prop", "set virtual machine property [expects: prop_name:prop_value]", false, [this](const std::string_view& value)
+		add_command("building", "--set-prop", "set virtual machine property [expects: prop_name:prop_value]", false, [this](const std::string_view& value)
 		{
 			auto args = stringify::split(value, ':');
 			if (args.size() != 2)
@@ -686,7 +686,7 @@ namespace asx
 			vm->set_property((features)it->second, (size_t)*from_string<uint64_t>(data));
 			return (int)exit_status::next;
 		});
-		add_command("building", "--props", "show virtual machine properties message", true, [this](const std::string_view&)
+		add_command("building", "--view-props", "show virtual machine properties message", true, [this](const std::string_view&)
 		{
 			print_properties();
 			return (int)exit_status::OK;
@@ -755,7 +755,7 @@ namespace asx
 			config.install = true;
 			return (int)exit_status::next;
 		});
-		add_command("addons", "--deps", "install and show dependencies message", true, [this](const std::string_view&)
+		add_command("addons", "--addons", "install and show dependencies message", true, [this](const std::string_view&)
 		{
 			config.dependencies = true;
 			return (int)exit_status::next;

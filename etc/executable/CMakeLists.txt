@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 set(VI_DIRECTORY "{{BUILDER_VENGEANCE_PATH}}" CACHE STRING "-")
 {{BUILDER_FEATURES}}
-include(${VI_DIRECTORY}/deps/toolchain.cmake)
+include(${VI_DIRECTORY}/deps/vitex/deps/toolchain.cmake)
 project({{BUILDER_OUTPUT}})
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)

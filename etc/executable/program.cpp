@@ -76,9 +76,9 @@ int main(int argc, char* argv[])
 	environment_config env;
 	env.path = *os::directory::get_module();
 	env.library = argc > 0 ? argv[0] : "runtime";
-	env.auto_schedule = { { BUILDER_ENV_AUTO_SCHEDULE } };
-	env.auto_console = { { BUILDER_ENV_AUTO_CONSOLE } };
-	env.auto_stop = { { BUILDER_ENV_AUTO_STOP } };
+	env.auto_schedule = {{BUILDER_ENV_AUTO_SCHEDULE}};
+	env.auto_console = {{BUILDER_ENV_AUTO_CONSOLE}};
+	env.auto_stop = {{BUILDER_ENV_AUTO_STOP}};
 	if (!load_program(env))
 		return 0;
 
@@ -88,13 +88,13 @@ int main(int argc, char* argv[])
 		args.push_back(argv[i]);
 
 	system_config config;
-	config.permissions = { { { BUILDER_CONFIG_PERMISSIONS } } };
-	config.libraries = { { { BUILDER_CONFIG_LIBRARIES } } };
-	config.functions = { { { BUILDER_CONFIG_FUNCTIONS } } };
-	config.system_addons = { { { BUILDER_CONFIG_ADDONS } } };
-	config.tags = { { BUILDER_CONFIG_TAGS } };
-	config.ts_imports = { { BUILDER_CONFIG_TS_IMPORTS } };
-	config.essentials_only = { { BUILDER_CONFIG_ESSENTIALS_ONLY } };
+	config.permissions = { {{BUILDER_CONFIG_PERMISSIONS}} };
+	config.libraries = { {{BUILDER_CONFIG_LIBRARIES}} };
+	config.functions = { {{BUILDER_CONFIG_FUNCTIONS}} };
+	config.system_addons = { {{BUILDER_CONFIG_ADDONS}} };
+	config.tags = {{BUILDER_CONFIG_TAGS}};
+	config.ts_imports = {{BUILDER_CONFIG_TS_IMPORTS}};
+	config.essentials_only = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
 	setup_program(env);
 
 	size_t modules = vitex::use_networking | vitex::use_cryptography | vitex::use_providers | vitex::use_locale;
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 		unit = vm->create_compiler();
 		context = vm->request_context();
 
-		vector<std::pair<uint32_t, size_t>> settings = { { { BUILDER_CONFIG_SETTINGS } } };
+		vector<std::pair<uint32_t, size_t>> settings = { {{BUILDER_CONFIG_SETTINGS}} };
 		for (auto& item : settings)
 			vm->set_property((features)item.first, item.second);
 

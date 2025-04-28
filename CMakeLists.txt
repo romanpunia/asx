@@ -21,6 +21,7 @@ endif()
 # Append shaders into the sources list
 set(BUFFER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/etc")
 set(BUFFER_DATA "#ifndef HAS_CODE_BUNDLE\n#define HAS_CODE_BUNDLE\n#include <string>\n\nnamespace code_bundle\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/interface.hpp DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/etc/addon)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.hpp DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/etc/executable)
 file(GLOB_RECURSE BINARIES ${BUFFER_DIR}/*)
 foreach(BINARY ${BINARIES})
@@ -71,15 +72,18 @@ add_executable(asx
     ${CMAKE_CURRENT_SOURCE_DIR}/src/app.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/builder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/interface.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/interface.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/interface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/code.hpp)
 set_target_properties(asx PROPERTIES
-		OUTPUT_NAME "asx"
-		CXX_STANDARD ${VI_CXX}
-        CXX_STANDARD_REQUIRED ON
-		CXX_EXTENSIONS OFF
-		VERSION ${PROJECT_VERSION}
-		SOVERSION ${PROJECT_VERSION})
+    OUTPUT_NAME "asx"
+    CXX_STANDARD ${VI_CXX}
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION})
 if (MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup /SUBSYSTEM:CONSOLE")
 endif()

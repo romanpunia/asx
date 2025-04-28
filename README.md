@@ -131,18 +131,13 @@ There is support for addons. Addons must be compiled with Vengeance as a shared 
 
 Addon can also be a C++ shared library that implements following methods:
 ```cpp
-#include <vitex/scripting.h>
+/* Optional initialization for requested virtual machine (may not be present, usually interface registration) */
+extern "C" { INTERFACE_EXPORT int addon_import(); }
+int addon_import() { return 0; }
 
-extern "C" { VI_EXPOSE int ViInitialize(Vitex::Scripting::VirtualMachine*); }
-int ViInitialize(Vitex::Scripting::VirtualMachine* VM) // Required initialization for requested virtual machine
-{
-    return 0; // Zero is successful initialization
-}
-
-extern "C" { VI_EXPOSE void ViUninitialize(Vitex::Scripting::VirtualMachine*); }
-void ViUninitialize(Vitex::Scripting::VirtualMachine* VM) // Optional deinitialization for requested virtual machine
-{
-}
+/* Optional deinitialization for requested virtual machine (may not be present) */
+extern "C" { INTERFACE_EXPORT void addon_cleanup(); }
+void addon_cleanup() { }
 ```
 You can create your own addon using _--addon_ command. This will create either a new native addon or vm addon template in specified directory, don't forget to name it using _--target_ command.
 
@@ -163,7 +158,7 @@ To install dependencies of a program run _--install_ and provide a file that sho
 You may just run asx with _--debug_ or _-d_ flag. This will allocate resources for debugger context and before executing anything it will debug-stop. Type _help_ to view available commands:
 ```bash
 # Will execute input file with debugging interface attached and game engine mode enabled
-  asx -d -g examples/2d-rendering
+  asx -d -e examples/2d-rendering
 ```
 
 ## Binary generation and packaging
@@ -171,14 +166,14 @@ ASX supports a feature that allows one to build the executable from AngelScript 
 ```bash
 # Build an example program (cwd is asx/bin/examples), you may run it multiple times (minimal rebuilds are enabled)
 # Will create a directory named "quad" near "2d-rendering.as" file, directory will contain CMake project named "quad" and built targets
-  asx --install --target=quad --output=. -g examples/2d-rendering.as
+  asx --install --target=quad --output=. --engine examples/2d-rendering.as
 ```
 
 This will produce a binary and shared libraries. Amount of shared libraries produced will depend on import statements inside your script. For example, you won't be needing an OpenAL shared library if you don't use **audio**.
 
-AngelScript VM will be configured according to your ASX setup. Your AngelScript source code will be compiled to platform-independant bytecode. This bytecode will then be hex-encoded and embedded into your binary as executable text.
+AngelScript VM will be configured according to your ASX setup. Your AngelScript source code will be compiled to platform-independent bytecode. This bytecode will then be encoded and embedded into your binary as executable text.
 
-Generated output will not embed any resources requested by runtime such as images, files, audio and other resources. You will have to add (and optionally pack) them manually as in usual C++ project.
+Generated output will not embed any resources requested by runtime such as images, files, audio and other resources. You will have to add (and optionally pack) them manually as in usual C++ project. You may also modify the C++ packed runtime logic to export more unique functions and objects if needed.
 
 ## Performance
 Currently, the main issue is initialization time. About 40ms (app-mode) or 210ms (game-mode) of time is taken by initialization that does not include script source code compilation or execution. However it does not mean this time will grow as dramatically as Node.js initialization time when loading many CommonJS modules.

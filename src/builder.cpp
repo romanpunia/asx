@@ -43,22 +43,14 @@ namespace asx
 				return status_code::configuration_error;
 			}
 
-			string vitex_directory = get_global_vitex_path();
-			if (!append_vitex(config))
-			{
-				VI_ERR("addon <%s> cannot be created: global target cannot be built", name.data());
-				return status_code::configuration_error;
-			}
-
 			string build_directory = get_building_directory(env, local_target);
 			string sh_local_target = format_directory_path(local_target);
 			string sh_build_directory = format_directory_path(build_directory);
-			string sh_vitex_directory = format_directory_path(vitex_directory);
 			os::directory::remove(build_directory.c_str());
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-			string configure_command = stringify::text("cmake -s %s -b %s -DVI_DIRECTORY=%s -DVI_CXX=%i", sh_local_target.c_str(), sh_build_directory.c_str(), sh_vitex_directory.c_str(), VI_CXX);
+			string configure_command = stringify::text("cmake -S %s -B %s", sh_local_target.c_str(), sh_build_directory.c_str());
 #else
-			string configure_command = stringify::text("cmake -s %s -b %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", sh_local_target.c_str(), sh_build_directory.c_str(), sh_vitex_directory.c_str(), VI_CXX, get_build_type(config));
+			string configure_command = stringify::text("cmake -S %s -B %s -DCMAKE_BUILD_TYPE=%s", sh_local_target.c_str(), sh_build_directory.c_str(), get_build_type(config));
 #endif
 			if (execute_cmake(config, configure_command) != status_code::OK)
 			{
@@ -177,17 +169,12 @@ namespace asx
 		}
 		else if (env.mode == "native")
 		{
-			if (!append_vitex(config))
-			{
-				VI_ERR("cannot clone executable repository");
-				return status_code::command_error;
-			}
-
 			unordered_map<string, string> files =
 			{
-				{ "addon/cmake_lists.txt", "" },
+				{ "addon/CMakeLists.txt", "" },
 				{ "addon/addon.json", "" },
 				{ "addon/addon.cpp", "" },
+				{ "addon/interface.hpp", "" },
 				{ "", "make" }
 			};
 
@@ -274,7 +261,7 @@ namespace asx
 		unordered_map<string, string> keys = get_build_keys(config, env, vm, settings, false);
 		unordered_map<string, string> files =
 		{
-			{ "executable/cmake_lists.txt", "" },
+			{ "executable/CMakeLists.txt", "" },
 			{ "executable/vcpkg.json", "" },
 			{ "executable/runtime.hpp", "" },
 			{ "executable/program.cpp", "" },
@@ -312,9 +299,9 @@ namespace asx
 		string sh_output_build = format_directory_path(env.output + "make");
 		string sh_vitex_directory = format_directory_path(vitex_directory);
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
-		string configure_command = stringify::text("cmake -s %s -b %s -DVI_DIRECTORY=%s -DVI_CXX=%i", sh_output_source.c_str(), sh_output_build.c_str(), sh_vitex_directory.c_str(), VI_CXX);
+		string configure_command = stringify::text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i", sh_output_source.c_str(), sh_output_build.c_str(), sh_vitex_directory.c_str(), VI_CXX);
 #else
-		string configure_command = stringify::text("cmake -s %s -b %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", sh_output_source.c_str(), sh_output_build.c_str(), sh_vitex_directory.c_str(), VI_CXX, get_build_type(config));
+		string configure_command = stringify::text("cmake -S %s -B %s -DVI_DIRECTORY=%s -DVI_CXX=%i -DCMAKE_BUILD_TYPE=%s", sh_output_source.c_str(), sh_output_build.c_str(), sh_vitex_directory.c_str(), VI_CXX, get_build_type(config));
 #endif
 		if (execute_cmake(config, configure_command) != status_code::OK)
 		{
@@ -780,7 +767,7 @@ namespace asx
 
 		string feature_list;
 		for (auto& item : features)
-			feature_list += stringify::text("set(VI_%s %s CACHE boolf \"-\")\n", item.first.c_str(), item.second ? "ON" : "OFF");
+			feature_list += stringify::text("set(VI_%s %s CACHE BOOL \"-\")\n", item.first.c_str(), item.second ? "ON" : "OFF");
 
 		if (!feature_list.empty())
 			feature_list.erase(feature_list.end() - 1);
@@ -835,6 +822,7 @@ namespace asx
 		keys["BUILDER_VERSION"] = get_system_version();
 		keys["BUILDER_MODE"] = env.mode;
 		keys["BUILDER_OUTPUT"] = env.name.empty() ? "build_target" : env.name;
+		keys["BUILDER_STANDARD"] = to_string(VI_CXX);
 		return keys;
 	}
 

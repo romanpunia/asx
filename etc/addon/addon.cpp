@@ -1,24 +1,20 @@
-#include <vitex/scripting.h>
 #include <iostream>
-#if defined(_WIN32) || defined(_WIN64)
-#define VI_EXPOSE __declspec(dllexport)
-#else
-#define VI_EXPOSE
-#endif
+#include "interface.hpp"
 
 void print_hello_world()
 {
     std::cout << "Hello, world!" << std::endl;
 }
 
-extern "C" { VI_EXPOSE int vi_initialize(vitex::scripting::virtual_machine*); }
-int vi_initialize(vitex::scripting::virtual_machine* vm)
+extern "C" { INTERFACE_EXPORT int addon_import(); }
+int addon_import()
 {
-    vm->set_function("void print_hello_world()", &print_hello_world);
+    if (!asx_import_interface())
+        return -1;
+
+    asx_export_function("void print_hello_world()", &print_hello_world);
     return 0;
 }
 
-extern "C" { VI_EXPOSE void vi_uninitialize(vitex::scripting::virtual_machine*); }
-void vi_uninitialize(vitex::scripting::virtual_machine* vm)
-{
-}
+extern "C" { INTERFACE_EXPORT void addon_cleanup(); }
+void addon_cleanup() { }

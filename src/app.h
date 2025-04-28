@@ -18,9 +18,9 @@ namespace asx
 		string description;
 	};
 
-	class environment
+	class environment : public singleton<environment>
 	{
-	private:
+	public:
 		unordered_map<string, vector<environment_command>> commands;
 		unordered_map<string, uint32_t> settings;
 		unordered_set<string> flags;
