@@ -19,8 +19,8 @@ extern "C"
 	VI_EXPORT void asx_export_class_address(const char* name, size_t size, size_t flags);
 	VI_EXPORT void asx_export_class_property_address(const char* name, const char* declaration, int property_offset);
 	VI_EXPORT void asx_export_class_constructor_address(const char* name, const char* declaration, void(*constructor_function_address)(void*));
-	VI_EXPORT void asx_export_class_operator_address(const char* name, const char* declaration, void(*operator_function_address)(void*));
-	VI_EXPORT void asx_export_class_copy_operator_address(const char* name, void(*copy_operator_function_address)(void*));
+	VI_EXPORT void asx_export_class_operator_address(const char* name, const char* declaration, void(*operator_function_address)());
+	VI_EXPORT void asx_export_class_copy_operator_address(const char* name, void(*copy_operator_function_address)());
 	VI_EXPORT void asx_export_class_destructor_address(const char* name, void(*destructor_function_address)(void*));
 	VI_EXPORT void asx_export_class_method_address(const char* name, const char* declaration, void(*method_function_address)());
 }

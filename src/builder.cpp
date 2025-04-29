@@ -23,14 +23,14 @@ namespace asx
 		string local_target = env.registry + string(name), remote_target = string(name.substr(1));
 		if (is_directory_empty(local_target) && execute_git(config, "git clone " REPOSITORY_SOURCE + remote_target + " \"" + local_target + "\"") != status_code::OK)
 		{
-			VI_ERR("addon <%s> does not seem to be available at remote repository: <%s>", remote_target.c_str());
+			VI_ERR("%s import error: <%s>", remote_target.c_str());
 			return status_code::command_error;
 		}
 
 		uptr<schema> info = get_addon_info(env, name);
 		if (!info)
 		{
-			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", name.data());
+			VI_ERR("%s import error: bad " REPOSITORY_FILE_ADDON " file", name.data());
 			return status_code::configuration_error;
 		}
 
@@ -39,7 +39,7 @@ namespace asx
 		{
 			if (!control::has(config, access_option::lib))
 			{
-				VI_ERR("addon <%s> cannot be created: permission denied", name.data());
+				VI_ERR("%s import error: permission denied", name.data());
 				return status_code::configuration_error;
 			}
 
@@ -54,7 +54,7 @@ namespace asx
 #endif
 			if (execute_cmake(config, configure_command) != status_code::OK)
 			{
-				VI_ERR("addon <%s> cannot be created: final target cannot be configured", name.data());
+				VI_ERR("%s import error: final target cannot be configured", name.data());
 				return status_code::configuration_error;
 			}
 #if defined(VI_MICROSOFT) || defined(VI_APPLE)
@@ -64,7 +64,7 @@ namespace asx
 #endif
 			if (execute_cmake(config, build_command) != status_code::OK)
 			{
-				VI_ERR("addon <%s> cannot be created: final target cannot be built", name.data());
+				VI_ERR("%s import error: final target cannot be built", name.data());
 				return status_code::build_error;
 			}
 
@@ -80,7 +80,7 @@ namespace asx
 			{
 				string next_file_path = next_path + file.first;
 				string prev_file_path = prev_path + file.first;
-				if (!file.second.is_directory && stringify::starts_with(file.first, addon_name))
+                if (!file.second.is_directory)
 					os::file::move(prev_file_path.c_str(), next_file_path.c_str());
 			}
 
@@ -92,14 +92,14 @@ namespace asx
 			string index(info->get_var("index").get_blob());
 			if (index.empty() || !stringify::ends_with(index, ".as") || stringify::find_of(index, "/\\").found)
 			{
-				VI_ERR("addon <%s> cannot be created: index file <%s> is not valid", name.data(), index.c_str());
+				VI_ERR("%s import error: index file %s is not valid", name.data(), index.c_str());
 				return status_code::configuration_error;
 			}
 
 			string path = local_target + VI_SPLITTER + index;
 			if (!os::file::is_exists(path.c_str()))
 			{
-				VI_ERR("addon <%s> cannot be created: index file cannot be found", name.data());
+				VI_ERR("%s import error: index file cannot be found", name.data());
 				return status_code::configuration_error;
 			}
 
@@ -107,7 +107,7 @@ namespace asx
 			return status_code::OK;
 		}
 
-		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", name.data(), type.c_str());
+		VI_ERR("%s import error: bad " REPOSITORY_FILE_ADDON " file; %s not acceptable", name.data(), type.c_str());
 		return status_code::configuration_error;
 	}
 	status_code builder::import_into_addon(environment_config& env, virtual_machine* vm, const std::string_view& name, string& output)
@@ -115,7 +115,7 @@ namespace asx
 		uptr<schema> info = get_addon_info(env, name);
 		if (!info)
 		{
-			VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file", name.data());
+			VI_ERR("%s import error: bad " REPOSITORY_FILE_ADDON " file", name.data());
 			return status_code::configuration_error;
 		}
 
@@ -130,7 +130,7 @@ namespace asx
 			string path = env.registry + string(name) + VI_SPLITTER + info->get_var("index").get_blob();
 			if (!os::file::is_exists(path.c_str()))
 			{
-				VI_ERR("addon <%s> cannot be imported: index file cannot be found", name.data());
+				VI_ERR("%s import error: index file cannot be found", name.data());
 				return status_code::configuration_error;
 			}
 
@@ -138,14 +138,14 @@ namespace asx
 			return status_code::OK;
 		}
 
-		VI_ERR("addon <%s> does not seem to have a valid " REPOSITORY_FILE_ADDON " file: type <%s> is not recognized", name.data(), type.c_str());
+		VI_ERR("%s import error: " REPOSITORY_FILE_ADDON " file; %s not acceptable", name.data(), type.c_str());
 		return status_code::configuration_error;
 	}
 	status_code builder::initialize_into_addon(system_config& config, environment_config& env, virtual_machine* vm, const unordered_map<string, uint32_t>& settings)
 	{
 		if (!is_directory_empty(env.addon))
 		{
-			VI_ERR("cannot clone addon repository: target directory is not empty: %s", env.addon.c_str());
+			VI_ERR("%s init error: directory is not empty", env.addon.c_str());
 			return status_code::configuration_error;
 		}
 
@@ -186,7 +186,7 @@ namespace asx
 				{
 					if (!os::directory::create(target_path.c_str()))
 					{
-						VI_ERR("cannot generate the template in path: %s", target_path.c_str());
+						VI_ERR("%s template generation error: operation not permitted", target_path.c_str());
 						return status_code::generation_error;
 					}
 				}
@@ -203,7 +203,7 @@ namespace asx
 	{
 		if (env.registry.empty())
 		{
-			VI_ERR("provide entrypoint file to pull addons");
+			VI_ERR("pull error: path is required");
 			return status_code::configuration_error;
 		}
 
@@ -228,14 +228,14 @@ namespace asx
 				{
 					if (addon.second.is_directory && !pull(repositories_path + addon.first))
 					{
-						VI_ERR("cannot pull addon target repository: %s", file.first.c_str());
+						VI_ERR("%s pull error: failed", file.first.c_str());
 						return status_code::command_error;
 					}
 				}
 			}
 			else if (!pull(env.registry + file.first))
 			{
-				VI_ERR("cannot pull addon source repository: %s", file.first.c_str());
+                VI_ERR("%s pull error: failed", file.first.c_str());
 				return status_code::command_error;
 			}
 		}
@@ -243,7 +243,7 @@ namespace asx
 		auto source_path = get_global_vitex_path();
 		if (!is_directory_empty(source_path) && !pull(source_path))
 		{
-			VI_ERR("cannot pull source repository: %s", source_path.c_str());
+            VI_ERR("%s pull error: failed", source_path.c_str());
 			return status_code::command_error;
 		}
 
@@ -254,7 +254,7 @@ namespace asx
 		string vitex_directory = get_global_vitex_path();
 		if (!append_vitex(config))
 		{
-			VI_ERR("cannot clone executable repository");
+			VI_ERR("clone error: failed");
 			return status_code::command_error;
 		}
 
@@ -275,7 +275,7 @@ namespace asx
 			{
 				if (!os::directory::create(target_path.c_str()))
 				{
-					VI_ERR("cannot generate the template in path: %s", target_path.c_str());
+					VI_ERR("%s template generation error: operation not permitted", target_path.c_str());
 					return status_code::generation_error;
 				}
 			}
@@ -285,13 +285,13 @@ namespace asx
 
 		if (!append_byte_code(config, env, env.output + "program.b64"))
 		{
-			VI_ERR("cannot embed the byte code: make sure application has file read/write permissions");
+			VI_ERR("embed error: program embedding failed");
 			return status_code::byte_code_error;
 		}
 
 		if (!append_dependencies(env, vm, env.output + "bin/"))
 		{
-			VI_ERR("cannot embed the dependencies: make sure application has file read/write permissions");
+            VI_ERR("embed error: dependency embedding failed");
 			return status_code::configuration_error;
 		}
 
@@ -306,9 +306,9 @@ namespace asx
 		if (execute_cmake(config, configure_command) != status_code::OK)
 		{
 #ifdef VI_MICROSOFT
-			VI_ERR("cannot configure an executable repository: make sure you have vcpkg installed");
+			VI_ERR("configure error: possibly missing vcpkg");
 #else
-			VI_ERR("cannot configure an executable repository: make sure you have all dependencies installed");
+            VI_ERR("configure error: possibly missing dependencies");
 #endif
 			return status_code::configuration_error;
 		}
@@ -319,7 +319,7 @@ namespace asx
 #endif
 		if (execute_cmake(config, build_command) != status_code::OK)
 		{
-			VI_ERR("cannot build an executable repository");
+			VI_ERR("build error: failed");
 			return status_code::build_error;
 		}
 
@@ -382,7 +382,7 @@ namespace asx
 			is_git_installed = execute_command(config, "FIND", "git", 0x1) ? 1 : 0;
 			if (!is_git_installed)
 			{
-				VI_ERR("cannot find <git> program, please make sure it is installed");
+				VI_ERR("find error: git not found");
 				return status_code::command_not_found;
 			}
 		}
@@ -397,7 +397,7 @@ namespace asx
 			is_cmake_installed = execute_command(config, "FIND", "cmake", 0x0) ? 1 : 0;
 			if (!is_cmake_installed)
 			{
-				VI_ERR("cannot find <cmake> program, please make sure it is installed");
+                VI_ERR("find error: cmake not found");
 				return status_code::command_not_found;
 			}
 		}
@@ -408,97 +408,47 @@ namespace asx
 	{
 		auto time = schedule::get_clock();
 		auto* terminal = console::get();
-		if (config.pretty_progress)
-		{
-			uint32_t window_size = 10, height = 0, y = 0;
-			if (!terminal->read_screen(nullptr, &height, nullptr, &y))
-				height = window_size;
+        size_t messages = 0;
+        terminal->write("> ");
+        terminal->write_color(std_color::yellow);
+        terminal->write("[PENDING] ");
+        terminal->clear_color();
+        terminal->write_line(string(label) + " " + string(command));
+        
+        auto exit_code = os::process::execute(command, file_mode::read_only, [terminal, &messages](const std::string_view& buffer)
+        {
+            size_t index = ++messages;
+            terminal->write((index < 100 ? (index < 10 ? "[00" : "[0") : "[") + to_string(index) + "]  " + string(buffer));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            return true;
+        });
 
-			string stage = string(command);
-			stringify::replace_in_between(stage, "\"", "\"", "<path>", false);
-			uint32_t lines = std::min<uint32_t>(y >= --height ? 0 : y - height, window_size);
-			bool logging = lines > 0 && label != "FIND", loading = true;
-			uint64_t title = terminal->capture_element();
-			uint64_t window = logging ? terminal->capture_window(lines) : 0;
-			std::thread loader([terminal, title, &time, &loading, &label, &stage]()
-			{
-				while (loading)
-				{
-					auto diff = (schedule::get_clock() - time).count() / 1000000.0;
-					terminal->spinning_element(title, "> " + string(label) + " " + stage + " - " + to_string(diff) + " seconds");
-					std::this_thread::sleep_for(std::chrono::milliseconds(60));
-				}
-			});
-
-			single_queue<string> messages;
-			auto exit_code = os::process::execute(command, file_mode::read_only, [terminal, window, logging, &messages](const std::string_view& buffer)
-			{
-				size_t index = messages.size() + 1;
-				string text = (index < 100 ? (index < 10 ? "[00" : "[0") : "[") + to_string(index) + "]  " + string(buffer);
-				if (logging)
-				{
-					terminal->emplace_window(window, text);
-					std::this_thread::sleep_for(std::chrono::milliseconds(5));
-				}
-				messages.push(std::move(text));
-				return true;
-			});
-
-			bool success = exit_code && *exit_code == success_exit_code;
-			auto diff = (schedule::get_clock() - time).count() / 1000000.0;
-			loading = false;
-			loader.join();
-
-			terminal->replace_element(title, "> " + string(label) + " " + stage + " - " + to_string(diff) + " seconds: " + (success ? string("OK") : (exit_code ? "EXIT " + to_string(*exit_code) : string("FAIL"))));
-			terminal->free_element(title);
-			if (logging)
-				terminal->free_window(window, true);
-			if (!success)
-				terminal->write_line(">>> " + string(label) + " " + string(command));
-			if (!exit_code)
-				messages.push(exit_code.what() + "\n");
-
-			while (!success && !messages.empty())
-			{
-				terminal->write(messages.front());
-				messages.pop();
-			}
-
-			return success;
-		}
-		else
-		{
-			size_t messages = 0;
-			terminal->write_line("> " + string(label) + " " + string(command) + ": PENDING");
-			auto exit_code = os::process::execute(command, file_mode::read_only, [terminal, &messages](const std::string_view& buffer)
-			{
-				size_t index = ++messages;
-				terminal->write((index < 100 ? (index < 10 ? "[00" : "[0") : "[") + to_string(index) + "]  " + string(buffer));
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
-				return true;
-			});
-
-			bool success = exit_code && *exit_code == success_exit_code;
-			auto diff = (schedule::get_clock() - time).count() / 1000000.0;
-			terminal->write_line("> " + string(label) + " " + string(command) + " - " + to_string(diff) + " seconds: " + (success ? string("OK") : (exit_code ? "EXIT " + to_string(*exit_code) : string("FAIL"))));
-			if (!exit_code)
-				terminal->write_line(exit_code.what());
-
-			return success;
-		}
+        bool success = exit_code && *exit_code == success_exit_code;
+        auto diff = (schedule::get_clock() - time).count() / 1000000.0;
+        terminal->write("> ");
+        terminal->write_color(success ? std_color::green : std_color::red);
+        terminal->write(success ? "[OK]" : "[ERROR]");
+        terminal->clear_color();
+        terminal->write_line(" " + string(label) + " " + string(command) + " - " + to_string(diff) + " seconds");
+        if (!exit_code)
+            terminal->write_line(exit_code.what());
+        else if (!success)
+            terminal->write_line("Program ended with exit code: " + to_string(*exit_code));
+        
+        return success;
 	}
 	bool builder::append_template(const unordered_map<string, string>& keys, const std::string_view& target_path, const std::string_view& template_path)
 	{
 		auto file = templates::fetch(keys, template_path);
 		if (!file)
 		{
-			VI_ERR("cannot find the template: %s", template_path.data());
+			VI_ERR("%s template error: not found", template_path.data());
 			return false;
 		}
 
 		if (!os::directory::patch(target_path))
 		{
-			VI_ERR("cannot generate the template in path: %s", target_path.data());
+			VI_ERR("%s template error: no path", target_path.data());
 			return false;
 		}
 
@@ -509,7 +459,7 @@ namespace asx
 
 		if (!os::file::write(path + filename, (uint8_t*)file->data(), file->size()))
 		{
-			VI_ERR("cannot generate the template in path: %s - save failed", target_path.data());
+			VI_ERR("%s template error: write failed", target_path.data());
 			return false;
 		}
 
@@ -521,7 +471,7 @@ namespace asx
 		info.debug = config.debug;
 		if (!env.this_compiler->save_byte_code(&info))
 		{
-			VI_ERR("cannot fetch the byte code");
+			VI_ERR("data error: no bytecode");
 			return false;
 		}
 
@@ -529,14 +479,14 @@ namespace asx
 		uptr<stream> target_file = os::file::open(path, file_mode::binary_write_only).or_else(nullptr);
 		if (!target_file)
 		{
-			VI_ERR("cannot create the byte code file: %s", path.data());
+			VI_ERR("%s open error: failed", path.data());
 			return false;
 		}
 
 		string data = codec::base64_encode(std::string_view((char*)info.data.data(), info.data.size()));
 		if (target_file->write((uint8_t*)data.data(), data.size()).or_else(0) != data.size())
 		{
-			VI_ERR("cannot write the byte code file: %s", path.data());
+            VI_ERR("%s write error: failed", path.data());
 			return false;
 		}
 
@@ -554,7 +504,7 @@ namespace asx
 			string to = string(target_directory) + string(os::path::get_filename(from));
 			if (!os::file::copy(from.c_str(), to.c_str()))
 			{
-				VI_ERR("cannot copy dependant addon: from: %s to: %s", from.c_str(), to.c_str());
+				VI_ERR("%s copy error: move to %s failed", from.c_str(), to.c_str());
 				return false;
 			}
 		}
@@ -581,6 +531,14 @@ namespace asx
 			string local_target_ext = local_target + item;
 			if (os::file::is_exists(local_target_ext.c_str()))
 				return true;
+            
+            auto directory = os::path::get_directory(local_target_ext);
+            auto file = os::path::get_filename(local_target_ext);
+            if (os::file::is_exists(stringify::text("%slib%.*s", directory.c_str(), (int)file.size(), file.data())))
+                return true;
+            
+            if (os::file::is_exists(stringify::text("%s%.*slib", directory.c_str(), (int)file.size(), file.data())))
+                return true;
 		}
 
 		if (nested)

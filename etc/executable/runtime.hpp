@@ -80,7 +80,6 @@ namespace asx
 		bool debug = false;
 		bool interactive = false;
 		bool essentials_only = true;
-		bool pretty_progress = true;
 		bool load_byte_code = false;
 		bool save_byte_code = false;
 		bool save_source_code = false;
@@ -120,7 +119,7 @@ namespace asx
 			{
 				if (!vm->import_system_addon(name))
 				{
-					VI_ERR("system addon <%s> cannot be loaded", name.c_str());
+					VI_ERR("%s import error: not found", name.c_str());
 					return false;
 				}
 			}
@@ -129,7 +128,7 @@ namespace asx
 			{
 				if (!vm->import_clibrary(path.first, path.second))
 				{
-					VI_ERR("external %s <%s> cannot be loaded", path.second ? "addon" : "clibrary", path.first.c_str());
+					VI_ERR("%s import error: %s not found", path.second ? "addon" : "clibrary", path.first.c_str());
 					return false;
 				}
 			}
@@ -138,7 +137,7 @@ namespace asx
 			{
 				if (!vm->import_cfunction({ data.first }, data.second.first, data.second.second))
 				{
-					VI_ERR("clibrary function <%s> from <%s> cannot be loaded", data.second.first.c_str(), data.first.c_str());
+					VI_ERR("%s import error: %s not found", data.second.first.c_str(), data.first.c_str());
 					return false;
 				}
 			}
@@ -209,7 +208,7 @@ namespace asx
 				return main_returns_with_args.is_valid() ? main_returns_with_args : (main_returns.is_valid() ? main_returns : main_simple);
 
 			if (!silent)
-				VI_ERR("module %s must contain either: <%s>, <%s> or <%s>", env.library, entrypoint.returns_with_args, entrypoint.returns, entrypoint.simple);
+				VI_ERR("%s module error: function \"%s\", \"%s\" or \"%s\" must be present", env.library, entrypoint.returns_with_args, entrypoint.returns, entrypoint.simple);
 			return function(nullptr);
 		}
 		static compiler* get_compiler()

@@ -1,5 +1,6 @@
 #include "app.h"
 #include <signal.h>
+#include "interface.hpp"
 
 namespace asx
 {
@@ -45,7 +46,7 @@ namespace asx
 			auto* command = find_argument(next.first);
 			if (!command)
 			{
-				VI_ERR("command <%s> is not a valid operation", next.first.c_str());
+				VI_ERR("%s is not a valid operation", next.first.c_str());
 				return (int)exit_status::invalid_command;
 			}
 
@@ -69,7 +70,7 @@ namespace asx
 
 			if (!env.file.is_exists)
 			{
-				VI_ERR("path <%s> does not exist", env.commandline.params.front().c_str());
+				VI_ERR("%s does not exist", env.commandline.params.front().c_str());
 				return (int)exit_status::input_error;
 			}
 
@@ -91,7 +92,7 @@ namespace asx
 			config.interactive = true;
 			if (env.commandline.args.size() > 1)
 			{
-				VI_ERR("provide a path to existing script file");
+				VI_ERR("script file path required");
 				return (int)exit_status::input_error;
 			}
 		}
@@ -131,7 +132,7 @@ namespace asx
 		auto status = unit->prepare(env.library);
 		if (!status)
 		{
-			VI_ERR("cannot prepare <%s> module scope\n  %s", env.library, status.error().what());
+			VI_ERR("%s> prepare error: %s", env.library, status.error().what());
 			return (int)exit_status::prepare_error;
 		}
 
@@ -143,7 +144,7 @@ namespace asx
 				status = unit->load_code(env.path, env.program);
 				if (!status)
 				{
-					VI_ERR("cannot load <%s> module script code\n  %s", env.library, status.error().what());
+					VI_ERR("%s load error: %s", env.library, status.error().what());
 					return (int)exit_status::loading_error;
 				}
 
@@ -151,7 +152,7 @@ namespace asx
 				status = unit->compile().get();
 				if (!status)
 				{
-					VI_ERR("cannot compile <%s> module\n  %s", env.library, status.error().what());
+					VI_ERR("%s compile error: %s", env.library, status.error().what());
 					return (int)exit_status::compiler_error;
 				}
 			}
@@ -164,7 +165,7 @@ namespace asx
 				status = unit->load_byte_code(&info).get();
 				if (!status)
 				{
-					VI_ERR("cannot load <%s> module bytecode\n  %s", env.library, status.error().what());
+					VI_ERR("%s load: %s", env.library, status.error().what());
 					return (int)exit_status::loading_error;
 				}
 			}
@@ -193,7 +194,7 @@ namespace asx
 			if (unit->save_byte_code(&info) && os::file::write(env.path + ".gz", (uint8_t*)info.data.data(), info.data.size()))
 				return (int)exit_status::OK;
 
-			VI_ERR("cannot save <%s> module bytecode", env.library);
+			VI_ERR("%s save error", env.library);
 			return (int)exit_status::saving_error;
 		}
 		else if (config.dependencies)
@@ -236,7 +237,7 @@ namespace asx
 				status = unit->load_code(env.path + ":0", default_code);
 				if (!status)
 				{
-					VI_ERR("cannot load default entrypoint for interactive mode\n  %s", status.error().what());
+					VI_ERR("load error: %s", status.error().what());
 					memory::release(debugger);
 					return (int)exit_status::loading_error;
 				}
@@ -245,7 +246,7 @@ namespace asx
 				status = unit->compile().get();
 				if (!status)
 				{
-					VI_ERR("cannot compile default module for interactive mode\n  %s", status.error().what());
+					VI_ERR("compile error: %s", status.error().what());
 					memory::release(debugger);
 					return (int)exit_status::compiler_error;
 				}
@@ -472,12 +473,6 @@ namespace asx
 			print_introduction("runtime");
 			return (int)exit_status::OK;
 		});
-		add_command("application", "--log-plain", "show detailed log messages as is", true, [this](const std::string_view&)
-		{
-			config.pretty_progress = false;
-			error_handling::set_flag(log_option::pretty, false);
-			return (int)exit_status::next;
-		});
 		add_command("application", "--log-quiet", "disable logging", true, [](const std::string_view&)
 		{
 			error_handling::set_flag(log_option::active, false);
@@ -588,7 +583,7 @@ namespace asx
 			if (file.is_directory)
 				return (int)exit_status::next;
 
-			VI_ERR("output path <%s> must be a directory", path.data());
+			VI_ERR("%s must be a directory", path.data());
 			return (int)exit_status::input_error;
 		});
 		add_command("building", "--import", "import standard addon(s) by name [expects: plus(+) separated list]", false, [this](const std::string_view& value)
@@ -617,14 +612,14 @@ namespace asx
 			size_t offset1 = value.find(':');
 			if (offset1 == std::string::npos)
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", value.data());
+				VI_ERR("%s import error: invalid clibrary cfunction declaration", value.data());
 				return (int)exit_status::invalid_declaration;
 			}
 
 			size_t offset2 = value.find('=', offset1);
 			if (offset2 == std::string::npos)
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", value.data());
+				VI_ERR("%s import error: invalid clibrary cfunction declaration", value.data());
 				return (int)exit_status::invalid_declaration;
 			}
 
@@ -639,7 +634,7 @@ namespace asx
 
 			if (clibrary_name.empty() || cfunction_name.empty() || declaration.empty())
 			{
-				VI_ERR("invalid clibrary cfunction declaration <%s>", value.data());
+				VI_ERR("%s import error: invalid clibrary cfunction declaration", value.data());
 				return (int)exit_status::invalid_declaration;
 			}
 
@@ -653,14 +648,14 @@ namespace asx
 			auto args = stringify::split(value, ':');
 			if (args.size() != 2)
 			{
-				VI_ERR("invalid property declaration <%s>", value.data());
+				VI_ERR("%s property error: invalid property declaration", value.data());
 				return (int)exit_status::input_error;
 			}
 
 			auto it = settings.find(stringify::trim(args[0]));
 			if (it == settings.end())
 			{
-				VI_ERR("invalid property name <%s>", args[0].c_str());
+				VI_ERR("%s property error: invalid property name", args[0].c_str());
 				return (int)exit_status::input_error;
 			}
 
@@ -671,7 +666,7 @@ namespace asx
 			if (data.empty())
 			{
 			input_failure:
-				VI_ERR("property value <%s>: %s", args[0].c_str(), args[1].empty() ? "?" : args[1].c_str());
+				VI_ERR("%s property error: whitespace value", args[0].c_str(), args[1].empty() ? "?" : args[1].c_str());
 				return (int)exit_status::input_error;
 			}
 			else if (!stringify::has_integer(data))
@@ -701,14 +696,14 @@ namespace asx
 				path = path.substr(where + 1);
 				if (path.empty())
 				{
-					VI_ERR("addon initialization expects <mode:path> format: path must not be empty");
+					VI_ERR("requires format: use (native|vm):path");
 					return (int)exit_status::input_error;
 				}
 
 				env.mode = value.substr(0, where);
 				if (env.mode != "native" && env.mode != "vm")
 				{
-					VI_ERR("addon initialization expects <mode:path> format: mode <%s> is invalid, [native|vm] expected", env.mode.c_str());
+                    VI_ERR("requires format: use (native|vm):path");
 					return (int)exit_status::input_error;
 				}
 			}
@@ -733,7 +728,7 @@ namespace asx
 				env.name = os::path::get_filename(env.addon.c_str());
 				if (env.name.empty())
 				{
-					VI_ERR("init directory is set but name was not specified: use --target");
+					VI_ERR("requires target: use --target");
 					return (int)exit_status::input_error;
 				}
 			}
@@ -748,7 +743,7 @@ namespace asx
 			if (file.is_directory)
 				return (int)exit_status::next;
 
-			VI_ERR("addon path <%s> must be a directory", path.c_str());
+			VI_ERR("%s must be a directory", path.c_str());
 			return (int)exit_status::input_error;
 		});
 		add_command("addons", "-i, --install", "install or update script dependencies", true, [this](const std::string_view& value)
@@ -865,7 +860,7 @@ namespace asx
 
 		if (!control::has(config, access_option::https))
 		{
-			VI_ERR("cannot import addon <%s> from remote repository: permission denied", file.library.c_str());
+			VI_ERR("%s import error: permission denied", file.library.c_str());
 			return include_type::error;
 		}
 
@@ -874,7 +869,7 @@ namespace asx
 		{
 			if (!config.install)
 			{
-				VI_ERR("program requires <%s> addon: run installation with --install flag", file.library.c_str());
+				VI_ERR("%s required: use --install", file.library.c_str());
 				status = include_type::error;
 			}
 			else if (builder::compile_into_addon(config, env, vm, file.library, output) == status_code::OK)

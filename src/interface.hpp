@@ -2,15 +2,15 @@
 #define ASX_INTERFACE_HPP
 #ifdef _WIN32
 #include <windows.h>
-#define INTERFACE_OPEN() auto handle = GetModuleHandle(nullptr); if (!handle) return false;
-#define INTERFACE_LOAD(name) (##name = (decltype(##name))(void*)GetProcAddress(handle, #name)); if (!##name) return false
-#define INTERFACE_CLOSE() return true
+#define INTERFACE_OPEN() GetModuleHandle(nullptr)
+#define INTERFACE_LOAD(handle, name) (void*)GetProcAddress(handle, #name)
+#define INTERFACE_CLOSE(handle) (void)0
 #define INTERFACE_EXPORT __declspec(dllexport)
 #else
 #include <dlfcn.h>
-#define INTERFACE_OPEN() auto handle = dlopen(nullptr, RTLD_LAZY); if (!handle) return false;
-#define INTERFACE_LOAD(name) (##name = (decltype(##name))dlsym(handle, #name)); if (!##name) return false
-#define INTERFACE_CLOSE() dlclose(handle); return true
+#define INTERFACE_OPEN() dlopen(nullptr, RTLD_LAZY)
+#define INTERFACE_LOAD(handle, name) dlsym(handle, #name)
+#define INTERFACE_CLOSE(handle) dlclose(handle);
 #define INTERFACE_EXPORT
 #endif
 namespace
@@ -26,14 +26,22 @@ namespace
 	void(*asx_export_class_address)(const char* name, size_t size, size_t flags) = nullptr;
 	void(*asx_export_class_property_address)(const char* name, const char* declaration, int property_offset) = nullptr;
 	void(*asx_export_class_constructor_address)(const char* name, const char* declaration, void(*constructor_function_address)(void*)) = nullptr;
-	void(*asx_export_class_operator_address)(const char* name, const char* declaration, void(*operator_function_address)(void*)) = nullptr;
-	void(*asx_export_class_copy_operator_address)(const char* name, void(*copy_operator_function_address)(void*)) = nullptr;
+	void(*asx_export_class_operator_address)(const char* name, const char* declaration, void(*operator_function_address)()) = nullptr;
+	void(*asx_export_class_copy_operator_address)(const char* name, void(*copy_operator_function_address)()) = nullptr;
 	void(*asx_export_class_destructor_address)(const char* name, void(*destructor_function_address)(void*)) = nullptr;
 	void(*asx_export_class_method_address)(const char* name, const char* declaration, void(*method_function_address)()) = nullptr;
 }
 
 template <typename t, typename r, typename... args>
-using asx_operator = r(t::*)(args...);
+static auto asx_operator(r(t::*value)(args...))
+{
+    return value;
+}
+template <typename t, typename r, typename... args>
+static auto asx_operator(r(t::*value)(args...) const)
+{
+    return value;
+}
 template <typename t, typename... args>
 static void asx_constructor(void* memory, args... data)
 {
@@ -67,31 +75,37 @@ void asx_export_class_property(const char* name, const char* declaration, r t::*
 template <typename t, typename... args>
 void asx_export_class_constructor(const char* name)
 {
-	void(*constructor_address)() = reinterpret_cast<void(*)()>(&asx_constructor<t, args...>);
+	void(*constructor_address)(void*) = reinterpret_cast<void(*)(void*)>(&asx_constructor<t, args...>);
 	asx_export_class_constructor_address(name, "void f()", constructor_address);
 }
 template <typename t, typename... args>
 void asx_export_class_constructor(const char* name, const char* declaration)
 {
-	void(*constructor_address)() = reinterpret_cast<void(*)()>(&asx_constructor<t, args...>);
+	void(*constructor_address)(void*) = reinterpret_cast<void(*)(void*)>(&asx_constructor<t, args...>);
 	asx_export_class_constructor_address(name, declaration, constructor_address);
 }
 template <typename t, typename r, typename... args>
-void asx_export_class_operator(const char* name, const char* declaration)
+void asx_export_class_operator(const char* name, const char* declaration, r(t::* value)(args...))
 {
-	void(*operator_address)() = reinterpret_cast<void(*)()>(&asx_operator<t, r, args...>);
+    void(*operator_address)() = reinterpret_cast<void(*)()>(value);
+    asx_export_class_operator_address(name, declaration, operator_address);
+}
+template <typename t, typename r, typename... args>
+void asx_export_class_operator(const char* name, const char* declaration, r(t::* value)(args...) const)
+{
+    void(*operator_address)() = reinterpret_cast<void(*)()>(value);
 	asx_export_class_operator_address(name, declaration, operator_address);
 }
 template <typename t, typename r, typename... args>
 void asx_export_class_copy_operator(const char* name)
 {
-	void(*operator_address)() = reinterpret_cast<void(*)()>(&asx_operator<t, r, args...>);
+	void(*operator_address)() = reinterpret_cast<void(*)()>(asx_operator<t, r, args...>(&t::operator =));
 	asx_export_class_copy_operator_address(name, operator_address);
 }
 template <typename t, typename... args>
 void asx_export_class_destructor(const char* name)
 {
-	void(*destructor_address)() = reinterpret_cast<void(*)()>(&asx_destructor<t, args...>);
+	void(*destructor_address)(void*) = reinterpret_cast<void(*)(void*)>(&asx_destructor<t, args...>);
 	asx_export_class_destructor_address(name, destructor_address);
 }
 template <typename t, typename r, typename... args>
@@ -106,24 +120,24 @@ void asx_export_class_method(const char* name, const char* declaration, r(t::* v
 	void(*method_function_address)() = reinterpret_cast<void(*)()>(value);
 	asx_export_class_method_address(name, declaration, method_function_address);
 }
-bool asx_import_interface()
+void asx_import_interface()
 {
-	INTERFACE_OPEN();
-	INTERFACE_LOAD(asx_import_builtin);
-	INTERFACE_LOAD(asx_import_native);
-	INTERFACE_LOAD(asx_export_property);
-	INTERFACE_LOAD(asx_export_function_address);
-	INTERFACE_LOAD(asx_export_namespace_begin);
-	INTERFACE_LOAD(asx_export_namespace_end);
-	INTERFACE_LOAD(asx_export_enum);
-	INTERFACE_LOAD(asx_export_enum_value);
-	INTERFACE_LOAD(asx_export_class_address);
-	INTERFACE_LOAD(asx_export_class_property_address);
-	INTERFACE_LOAD(asx_export_class_constructor_address);
-	INTERFACE_LOAD(asx_export_class_operator_address);
-	INTERFACE_LOAD(asx_export_class_copy_operator_address);
-	INTERFACE_LOAD(asx_export_class_destructor_address);
-	INTERFACE_LOAD(asx_export_class_method_address);
-	INTERFACE_CLOSE();
+    auto handle = INTERFACE_OPEN();
+    asx_import_builtin = (decltype(asx_import_builtin))INTERFACE_LOAD(handle, asx_import_builtin);
+    asx_import_native = (decltype(asx_import_native))INTERFACE_LOAD(handle, asx_import_native);
+    asx_export_property = (decltype(asx_export_property))INTERFACE_LOAD(handle, asx_export_property);
+    asx_export_function_address = (decltype(asx_export_function_address))INTERFACE_LOAD(handle, asx_export_function_address);
+    asx_export_namespace_begin = (decltype(asx_export_namespace_begin))INTERFACE_LOAD(handle, asx_export_namespace_begin);
+    asx_export_namespace_end = (decltype(asx_export_namespace_end))INTERFACE_LOAD(handle, asx_export_namespace_end);
+    asx_export_enum = (decltype(asx_export_enum))INTERFACE_LOAD(handle, asx_export_enum);
+    asx_export_enum_value = (decltype(asx_export_enum_value))INTERFACE_LOAD(handle, asx_export_enum_value);
+    asx_export_class_address = (decltype(asx_export_class_address))INTERFACE_LOAD(handle, asx_export_class_address);
+    asx_export_class_property_address = (decltype(asx_export_class_property_address))INTERFACE_LOAD(handle, asx_export_class_property_address);
+    asx_export_class_constructor_address = (decltype(asx_export_class_constructor_address))INTERFACE_LOAD(handle, asx_export_class_constructor_address);
+    asx_export_class_operator_address = (decltype(asx_export_class_operator_address))INTERFACE_LOAD(handle, asx_export_class_operator_address);
+    asx_export_class_copy_operator_address = (decltype(asx_export_class_copy_operator_address))INTERFACE_LOAD(handle, asx_export_class_copy_operator_address);
+    asx_export_class_destructor_address = (decltype(asx_export_class_destructor_address))INTERFACE_LOAD(handle, asx_export_class_destructor_address);
+    asx_export_class_method_address = (decltype(asx_export_class_method_address))INTERFACE_LOAD(handle, asx_export_class_method_address);
+	INTERFACE_CLOSE(handle);
 }
 #endif

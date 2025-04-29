@@ -84,7 +84,7 @@ void asx_export_class_constructor_address(const char* name, const char* declarat
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
 	base.set_constructor_address(declaration, bridge::function_call(constructor_function_address)).expect("binding error");
 }
-void asx_export_class_operator_address(const char* name, const char* declaration, void(*operator_function_address)(void*))
+void asx_export_class_operator_address(const char* name, const char* declaration, void(*operator_function_address)())
 {
 	VI_ASSERT(name != nullptr, "name should be set");
 	VI_ASSERT(declaration != nullptr, "declaration should be set");
@@ -94,7 +94,7 @@ void asx_export_class_operator_address(const char* name, const char* declaration
 	auto base = type_class(env->vm, type.get_type_info(), type.get_type_id());
 	base.set_operator_address(declaration, bridge::function_call(operator_function_address)).expect("binding error");
 }
-void asx_export_class_copy_operator_address(const char* name, void(*copy_operator_function_address)(void*))
+void asx_export_class_copy_operator_address(const char* name, void(*copy_operator_function_address)())
 {
 	VI_ASSERT(name != nullptr, "name should be set");
 	VI_ASSERT(copy_operator_function_address != nullptr, "copy operator function address should be set");

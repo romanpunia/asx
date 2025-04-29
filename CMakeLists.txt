@@ -2,13 +2,17 @@ cmake_minimum_required(VERSION 3.10)
 
 #Setup toolchain file if needed
 set(VI_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/deps/vengeance CACHE STRING "Vengeance directory")
-set(VI_PESSIMISTIC ON CACHE BOOL "+")
-set(VI_VECTORCLASS ON CACHE BOOL "+")
 include(${VI_DIRECTORY}/deps/vitex/deps/toolchain.cmake)
 
 #Project's metadata
 project(asx)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+set(VI_PESSIMISTIC ON CACHE BOOL "+")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "^[Aa][Rr][Mm]" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    set(VI_VECTORCLASS OFF CACHE BOOL "vectorclass is unavailable")
+else()
+    set(VI_VECTORCLASS ON CACHE BOOL "+")
+endif()
 
 #Build directory if not defined
 if (NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -87,9 +91,8 @@ set_target_properties(asx PROPERTIES
 if (MSVC)
     set(CMAKE_EXE_LINKER_FLAGS "/ENTRY:mainCRTStartup /SUBSYSTEM:CONSOLE")
 endif()
+install(TARGETS asx DESTINATION bin)
 
 #Add Vitex as dependency
 add_subdirectory(${VI_DIRECTORY} vitex)
-link_directories(${VI_DIRECTORY})
-target_include_directories(asx PRIVATE ${VI_DIRECTORY})
 target_link_libraries(asx PRIVATE vitex)
