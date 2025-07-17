@@ -780,6 +780,8 @@ namespace asx
 		keys["BUILDER_CONFIG_TAGS"] = config.tags ? "true" : "false";
 		keys["BUILDER_CONFIG_TS_IMPORTS"] = config.ts_imports ? "true" : "false";
 		keys["BUILDER_CONFIG_ESSENTIALS_ONLY"] = config.essentials_only ? "true" : "false";
+		keys["BUILDER_CONFIG_SAVE_SOURCE_CODE"] = config.save_source_code ? "true" : "false";
+		keys["BUILDER_CONFIG_FULL_STACK_TRACING"] = config.full_stack_tracing ? "true" : "false";
 		keys["BUILDER_VENGEANCE_URL"] = config_system_addons_array;
 		keys["BUILDER_VENGEANCE_PATH"] = vitex_path;
 		keys["BUILDER_APPLICATION"] = env.auto_console ? "OFF" : "ON";

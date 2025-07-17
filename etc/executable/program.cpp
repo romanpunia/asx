@@ -95,6 +95,8 @@ int main(int argc, char* argv[])
 	config.tags = {{BUILDER_CONFIG_TAGS}};
 	config.ts_imports = {{BUILDER_CONFIG_TS_IMPORTS}};
 	config.essentials_only = {{BUILDER_CONFIG_ESSENTIALS_ONLY}};
+	config.save_source_code = {{BUILDER_CONFIG_SAVE_SOURCE_CODE}};
+	config.full_stack_tracing = {{BUILDER_CONFIG_FULL_STACK_TRACING}};
 	setup_program(env);
 
 	size_t modules = vitex::use_networking | vitex::use_cryptography | vitex::use_providers | vitex::use_locale;

@@ -83,6 +83,7 @@ namespace asx
 		bool load_byte_code = false;
 		bool save_byte_code = false;
 		bool save_source_code = false;
+		bool full_stack_tracing = true;
 		bool dependencies = false;
 		bool install = false;
 		size_t installed = 0;
@@ -114,6 +115,7 @@ namespace asx
 			vm->set_ts_imports(config.ts_imports);
 			vm->set_module_directory(os::path::get_directory(env.path.c_str()));
 			vm->set_preserve_source_code(config.save_source_code);
+			vm->set_full_stack_tracing(config.full_stack_tracing);
 
 			for (auto& name : config.system_addons)
 			{

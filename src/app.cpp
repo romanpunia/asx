@@ -493,6 +493,11 @@ namespace asx
 			config.save_byte_code = true;
 			return (int)exit_status::next;
 		});
+		add_command("execution", "-fast-stack-tracing", "disable full stack tracing", true, [this](const std::string_view&)
+		{
+			config.full_stack_tracing = false;
+			return (int)exit_status::next;
+		});
 		add_command("execution", "-i, --interactive", "run only in interactive mode", true, [this](const std::string_view&)
 		{
 			config.interactive = true;
