@@ -53,7 +53,6 @@ namespace asx
 		void print_properties();
 		void print_dependencies();
 		void listen_for_signals();
-		static void exit_process(exit_status code);
 		expects_preprocessor<include_type> import_addon(preprocessor* base, const include_result& file, string& output);
 	};
 }

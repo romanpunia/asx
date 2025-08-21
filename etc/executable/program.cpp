@@ -147,11 +147,7 @@ int main(int argc, char* argv[])
 		int exit_code = 0;
 		auto type = vm->get_type_info_by_decl("array<string>@");
 		bindings::array* args_array = type.is_valid() ? bindings::array::compose<string>(type.get_type_info(), args) : nullptr;
-		vm->set_exception_callback([](immediate_context* context)
-		{
-			if (!context->will_exception_be_caught())
-				std::exit((int)exit_status::runtime_error);
-		});
+		vm->set_exception_callback(&runtime::context_thrown);
 
 		main.add_ref();
 		loop = new event_loop();

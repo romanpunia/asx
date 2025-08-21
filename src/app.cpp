@@ -102,7 +102,7 @@ namespace asx
 				return (int)exit_status::command_error;
 
 			terminal->write_line("Initialized " + env.mode + " addon: " + env.addon);
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		}
 
 		unit = vm->create_compiler();
@@ -179,20 +179,20 @@ namespace asx
 				return EXIT_SUCCESS;
 			}
 			else if (env.output.empty())
-				return builder::pull_addon_repository(config, env) == status_code::OK ? (int)exit_status::OK : (int)exit_status::command_error;
+				return builder::pull_addon_repository(config, env) == status_code::OK ? (int)exit_status::ok : (int)exit_status::command_error;
 
 			if (builder::compile_into_executable(config, env, vm, builder::get_default_settings()) != status_code::OK)
 				return (int)exit_status::command_error;
 
 			terminal->write_line("Built binaries directory: " + env.output + "bin");
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		}
 		else if (config.save_byte_code)
 		{
 			byte_code_info info;
 			info.debug = config.debug;
 			if (unit->save_byte_code(&info) && os::file::write(env.path + ".gz", (uint8_t*)info.data.data(), info.data.size()))
-				return (int)exit_status::OK;
+				return (int)exit_status::ok;
 
 			VI_ERR("%s save error", env.library);
 			return (int)exit_status::saving_error;
@@ -200,7 +200,7 @@ namespace asx
 		else if (config.dependencies)
 		{
 			print_dependencies();
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		}
 		else if (config.interactive)
 		{
@@ -363,8 +363,8 @@ namespace asx
 			}
 
 			memory::release(debugger);
-			exit_process(exit_status::OK);
-			return (int)exit_status::OK;
+			os::process::exit((int)exit_status::ok);
+			return (int)exit_status::ok;
 		}
 
 		function main = runtime::get_entrypoint(env, entrypoint, unit);
@@ -377,11 +377,7 @@ namespace asx
 		int exit_code = 0;
 		auto type = vm->get_type_info_by_decl("array<string>@");
 		bindings::array* args_array = type.is_valid() ? bindings::array::compose<string>(type.get_type_info(), env.commandline.params) : nullptr;
-		vm->set_exception_callback([](immediate_context* context)
-		{
-			if (!context->will_exception_be_caught())
-				exit_process(exit_status::runtime_error);
-		});
+		vm->set_exception_callback(&runtime::context_thrown);
 
 		main.add_ref();
 		loop = new event_loop();
@@ -432,7 +428,7 @@ namespace asx
 			}
 
 			VI_DEBUG("forcing shutdown using [kill]");
-			return exit_process(exit_status::kill);
+			return os::process::exit((int)exit_status::kill);
 		}
 	graceful_shutdown:
 		listen_for_signals();
@@ -466,12 +462,12 @@ namespace asx
 		add_command("application", "-h, --help", "show help message", true, [this](const std::string_view&)
 		{
 			print_help();
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		});
 		add_command("application", "-v, --version", "show version message", true, [this](const std::string_view&)
 		{
 			print_introduction("runtime");
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		});
 		add_command("application", "--log-quiet", "disable logging", true, [](const std::string_view&)
 		{
@@ -690,7 +686,7 @@ namespace asx
 		add_command("building", "--view-props", "show virtual machine properties message", true, [this](const std::string_view&)
 		{
 			print_properties();
-			return (int)exit_status::OK;
+			return (int)exit_status::ok;
 		});
 		add_command("addons", "-a, --addon", "initialize an addon in given directory [expects: [native|vm]:?relpath]", false, [this](const std::string_view& value)
 		{
@@ -840,7 +836,7 @@ namespace asx
 				return (exit_status)exit_code;
 		}
 
-		return exit_status::OK;
+		return exit_status::ok;
 	}
 	environment_command* environment::find_argument(const std::string_view& name)
 	{
@@ -1008,13 +1004,6 @@ namespace asx
 		signal(SIGPIPE, SIG_IGN);
 		signal(SIGCHLD, SIG_IGN);
 #endif
-	}
-	void environment::exit_process(exit_status code)
-	{
-		if (code != exit_status::runtime_error)
-			os::process::exit((int)code);
-		else
-			os::process::abort();
 	}
 }
 

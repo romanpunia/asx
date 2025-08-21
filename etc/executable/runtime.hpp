@@ -12,7 +12,7 @@ namespace asx
 	enum class exit_status
 	{
 		next = 0x00fffff - 1,
-		OK = 0,
+		ok = 0,
 		runtime_error,
 		prepare_error,
 		loading_error,
@@ -200,6 +200,19 @@ namespace asx
 			context->reset();
 			vm->perform_full_garbage_collection();
 			apply_context_exit(nullptr);
+		}
+		static void context_thrown(immediate_context* context)
+		{
+			if (context->will_exception_be_caught())
+				return;
+
+			auto exception = bindings::exception::pointer();
+			exception.load_exception_data(context->get_exception_string());
+			exception.context = context;
+
+			auto& type = exception.get_type();
+			auto& text = exception.get_text();
+			VI_PANIC(false, "%s - %s", type.empty() ? "unknown_error" : type.c_str(), text.empty() ? "no description available" : text.c_str());
 		}
 		static function get_entrypoint(environment_config& env, program_entrypoint& entrypoint, compiler* unit, bool silent = false)
 		{
